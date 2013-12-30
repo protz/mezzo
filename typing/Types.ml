@@ -814,9 +814,7 @@ module TypePrinter = struct
       (string str) ^^ hardline ^^ (string line)
     in
     let header =
-      let str = "PERMISSIONS:" ^
-        (if is_inconsistent env then " ⚠ inconsistent ⚠" else "")
-      in
+      let str = "PERMISSIONS:" in
       mkheader str
     in
     let lines = fold_terms env (fun acc var permissions ->

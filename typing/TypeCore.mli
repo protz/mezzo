@@ -194,12 +194,6 @@ val module_name: env -> Module.name
 (** Enter another toplevel unit (implementation, interface). *)
 val enter_module: env -> Module.name -> env
 
-(** Is the current environment inconsistent? *)
-val is_inconsistent: env -> bool
-
-(** Mark the environment as being inconsistent. *)
-val mark_inconsistent: env -> env
-
 (** An environment contains a kind-checking environment that contains mapping
  * for all the current module's _dependencies_. *)
 val modify_kenv: env -> (var KindCheck.env -> (var KindCheck.env -> (env -> 'a) -> 'a) -> 'a) -> 'a

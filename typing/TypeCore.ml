@@ -212,12 +212,6 @@ type env = {
   (* The current location. *)
   location: location;
 
-  (* Did we figure out that this environment is inconsistent? It may be because
-   * a point acquired two exclusive permissions, or maybe because the user wrote
-   * "fail" at some point. This is by no means exhaustive: we only detect a few
-   * inconsistencies when we're lucky. *)
-  inconsistent: bool;
-
   (* This is a list of abstract permissions available in the environment. It can
    * either be a type application, i.e. "p x", where "p" is abstract, or a type
    * variable. They're not attached to any point in particular, so we keep a
@@ -314,7 +308,6 @@ let empty_env = {
   state = PersistentUnionFind.init ();
   mark = Mark.create ();
   location = Lexing.dummy_pos, Lexing.dummy_pos;
-  inconsistent = false;
   floating_permissions = [];
   last_binding = Rigid;
   current_level = 0;
@@ -327,10 +320,6 @@ let locate env location =
 ;;
 
 let location { location; _ } = location;;
-
-let is_inconsistent { inconsistent; _ } = inconsistent;;
-
-let mark_inconsistent env = { env with inconsistent = true };;
 
 let module_name { kenv; _ } = KindCheck.(module_name kenv);;
 

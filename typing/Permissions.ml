@@ -58,41 +58,6 @@ let safety_check env =
           TypePrinter.pnames (env, get_names env var)
           TypePrinter.penv env;
 
-      (* The inconsistencies below are suspicious, but it may just be that we
-       * failed to mark the environment as inconsistent. *)
-
-      (* Unless the environment is inconsistent, a given type should have no
-       * more than one concrete type. It may happen that we fail to detect this
-       * situation and mark the environment as inconsistent, so this check will
-       * explode, and remind us that this is one more situation that will mark an
-       * environment as inconsistent. *)
-      let concrete = List.filter (function
-        | TyConcrete _ ->
-            true
-        | TyTuple _ ->
-            true
-        | _ ->
-            false
-      ) permissions in
-      (* This part of the safety check is disabled because it is too restrictive,
-       * see [twostructural.mz] for an example. *)
-      if false && not (is_inconsistent env) && List.length concrete > 1 then
-        Log.error
-          "%a inconsistency detected: more than one concrete type for %a\n\
-            (did you add a function type without calling \
-            [simplify_function_type]?)\n%a\n"
-          Lexer.p (location env)
-          TypePrinter.pnames (env, get_names env var)
-          TypePrinter.penv env;
-
-      let exclusive = List.filter (FactInference.is_exclusive env) permissions in
-      if not (is_inconsistent env) && List.length exclusive > 1 then
-        Log.error
-          "%a inconsistency detected: more than one exclusive type for %a\n%a\n"
-          Lexer.p (location env)
-          TypePrinter.pnames (env, get_names env var)
-          TypePrinter.penv env;
-
       List.iter (internal_checklevel env) permissions;
     ) ();
     List.iter (internal_checklevel env) (get_floating_permissions env);
@@ -504,28 +469,24 @@ and add (env: env) (var: var) (t: typ): env =
           | _ -> None)
           original_perms
         with
-        | Some _ when FactInference.is_exclusive env t ->
-            Log.debug ~level:4 "%s]%s (two exclusive perms!)" Bash.colors.Bash.red Bash.colors.Bash.default;
-            (* We cannot possibly have two exclusive permissions for [x]. *)
-            mark_inconsistent env
-        | Some branch' ->
-            if not (resolved_datacons_equal env branch.branch_datacon branch'.branch_datacon) then
-              mark_inconsistent env
-            else begin
-              (* If we are still here, then the two permissions at hand are
-                 not exclusive. This implies, I think, that the two adopts
-                 clauses must be bottom. So, there is no need to try and
-                 compute their meet (good). *)
-              assert (equal env branch.branch_adopts ty_bottom);
-              assert (equal env branch'.branch_adopts ty_bottom);
-              List.fold_left2 (fun env (f, t) (f', t') ->
-                Log.check (Field.equal f f') "Datacon order invariant";
-                let t = modulo_flex env t in
-                let t = expand_if_one_branch env t in
-                add env !!=t t'
-              ) env branch.branch_fields branch'.branch_fields
-            end
-        | None ->
+        | Some branch'
+          when resolved_datacons_equal
+                env
+                branch.branch_datacon
+                branch'.branch_datacon ->
+            (* If we are still here, then the two permissions at hand are
+               not exclusive. This implies, I think, that the two adopts
+               clauses must be bottom. So, there is no need to try and
+               compute their meet (good). *)
+            assert (equal env branch.branch_adopts ty_bottom);
+            assert (equal env branch'.branch_adopts ty_bottom);
+            List.fold_left2 (fun env (f, t) (f', t') ->
+              Log.check (Field.equal f f') "Datacon order invariant";
+              let t = modulo_flex env t in
+              let t = expand_if_one_branch env t in
+              add env !!=t t'
+            ) env branch.branch_fields branch'.branch_fields
+        | _ ->
             (* This implements the rule "x @ list a * x @ Cons { head = h; tail = t }" implies
              * "x @ Cons { head: a; tail: list a } ∗ x @ Cons { ... }". *)
             match
@@ -552,16 +513,13 @@ and add (env: env) (var: var) (t: typ): env =
     | TyTuple ts ->
         let original_perms = get_permissions env var in
         begin match MzList.find_opt (function TyTuple ts' -> Some ts' | _ -> None) original_perms with
-        | Some ts' ->
-            if List.length ts <> List.length ts' then
-              mark_inconsistent env
-            else
-              List.fold_left2 (fun env t t' ->
-                let t = modulo_flex env t in
-                let t = expand_if_one_branch env t in
-                add env !!=t t'
-              ) env ts ts'
-        | None ->
+        | Some ts' when List.length ts = List.length ts' ->
+            List.fold_left2 (fun env t t' ->
+              let t = modulo_flex env t in
+              let t = expand_if_one_branch env t in
+              add env !!=t t'
+            ) env ts ts'
+        | _ ->
             add_type env var t
         end
 
@@ -648,17 +606,9 @@ and add_perm_raw env p t =
 (* [add_type env p t] adds [t], which is assumed to be unfolded and collected,
  * to the list of available permissions for [p] *)
 and add_type (env: env) (p: var) (t: typ): env =
-  let perms = get_permissions env p in
-  let is_excl = FactInference.is_exclusive env t in
-
-  (* This test is a little bit expensive but we need it to ensure internal
-   * consistency. *)
-  if List.exists (FactInference.is_exclusive env) perms && is_excl then
-    let env = add_perm_raw env p t in
-    mark_inconsistent env
 
   (* Type is not already in there. Let's simply add it. *)
-  else if not (List.exists (equal env t) (get_permissions env p)) then
+  if not (List.exists (equal env t) (get_permissions env p)) then
     let env = add_perm_raw env p t in
     if FactInference.is_exclusive env t then
       add_type env p TyDynamic
@@ -687,12 +637,7 @@ and sub (env: env) (var: var) (t: typ): result =
 
     let try_proof = try_proof env judgement in
 
-    if is_inconsistent env then
-      try_proof "Inconsistent" begin
-        qed env
-      end
-
-    else if is_singleton env t then
+    if is_singleton env t then
       try_proof "Must-Be-Singleton" begin
         sub_type env (ty_equals var) t >>=
         qed

@@ -477,6 +477,14 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
   in
   let t_int = find_qualified_type "int" "int" in
   let t_bool = find_qualified_type "bool" "bool" in
+  let t_bottom env =
+    TyQ (
+      Forall,
+      (Auto (Variable.register "a"), KType, location env),
+      AutoIntroduced,
+      TyBound 0
+    )
+  in
 
   (* [return t] creates a new var with type [t] available for it, and returns
    * the environment as well as the var *)
@@ -618,7 +626,9 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
       let sub_env = Permissions.keep_only_duplicable env in
 
       (* Introduce a variable [x] that stands for the function argument. *)
-      let sub_env, { subst_expr; vars; _ } = bind_evars sub_env [ fresh_auto_name "arg", KTerm, location sub_env ] in
+      let sub_env, { subst_expr; vars; _ } =
+        bind_evars sub_env [ fresh_auto_name "arg", KTerm, location sub_env ]
+      in
       (* Its scope is just the function body. *)
       let x = match vars with [ x ] -> x | _ -> assert false in
       let body = subst_expr body in
@@ -1113,10 +1123,7 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
       env, x
 
   | EFail ->
-      let name = Auto (Variable.register "/inconsistent") in
-      let env, x = bind_rigid env (name, KTerm, location env) in
-      let env = mark_inconsistent env in
-      env, x
+      return env (t_bottom env)
 
   | EBuiltin _ ->
       (* A builtin value is type-checked like [fail], i.e., it has type

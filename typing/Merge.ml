@@ -61,7 +61,7 @@ module Lifo = struct
   ;;
 end
 
-let actually_merge_envs (top: env) ?(annot: typ option) (left: env * var) (right: env * var): env * var =
+let merge_envs (top: env) ?(annot: typ option) (left: env * var) (right: env * var): env * var =
   (* We use a work list (a LIFO) to schedule vars for merging. This implements
    * a depth-first traversal of the graph, which is indeed what we want (for the
    * moment). *)
@@ -1076,14 +1076,4 @@ let actually_merge_envs (top: env) ?(annot: typ option) (left: env * var) (right
 
   (* So return it. *)
   dest_env, dest_root
-;;
-
-
-let merge_envs (top: env) ?(annot: typ option) (left: env * var) (right: env * var): env * var =
-  if is_inconsistent (fst left) then
-    right
-  else if is_inconsistent (fst right) then
-    left
-  else
-    actually_merge_envs top ?annot left right
 ;;
