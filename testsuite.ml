@@ -551,10 +551,6 @@ let tests: (string * ((unit -> env) -> unit)) list = [
 
   (* Marking environments as inconsistent. *)
 
-  ("inconsistent1.mz",
-    pass
-  );
-
   ("inconsistent2.mz",
     pass
   );

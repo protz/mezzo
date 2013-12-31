@@ -98,13 +98,12 @@ val take2_ [t] exclusive t => (
           match search tail with
           | Found ->
               (* We've found it a second time! This is impossible! The
-               * type-checker knows that the environment is inconsistent, so
-               * we're able to return a dummy value. We could probably have a
-               * construct called [impossible], or maybe have the type-checker
-               * mark a branch as impossible, so that the compiler could take
-               * advantage of it. Right now it doesn't. *)
-              assert child @ t * child @ t;
-              ()
+               * type-checker knows^W used to know that the environment is
+               * inconsistent, so we're able to return a dummy value. We could
+               * probably have a construct called [impossible], or maybe have
+               * the type-checker mark a branch as impossible, so that the
+               * compiler could take advantage of it. Right now it doesn't. *)
+              fail
           | Not_found { contents } ->
               (* We haven't found it again, phew! Just say that [child] has been
                * found, and that whatever remains is [contents]. *)
