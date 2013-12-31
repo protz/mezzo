@@ -3,16 +3,16 @@
 # If the file doesn't exist, there's a rule for generating it.
 -include Makefile.config
 
-# Autodetected values for auxiliary tools can be overridden by Makefile.local
-# (not under version control).
--include Makefile.local
+# We used to have Makefile.local but now there's a configure script that should
+# auto-detect utilities properly and put the appropriate values in
+# Makefile.config. If something's missing, the configure script should be fixed!
 
 # We have either the code of the type-checker, or the code of the run-time
 # support library.
 ML_DIRS    := lib parsing typing utils interpreter compiler tests/unit ocamlbuild
 MZ_DIRS    := mezzolib corelib stdlib
 
-# The executables that we need to build Mezzo.
+# Our tools are ocamlbuild and ocamlfind
 OCAMLBUILD := ocamlbuild -j 4 -use-ocamlfind -use-menhir \
 	      -menhir "menhir --explain --infer -la 1 --table" \
 	      -classic-display \
@@ -81,8 +81,8 @@ install: all
 	  	-iname '*.a' -or -iname '*.cmi' -or -iname '*.cmx') \
 	  $(shell $(FIND) _build/mezzolib/ \
 	  	-iname '*.a' -or -iname '*.cmi' -or -iname '*.cmx') \
-	  $(shell $(FIND) _build/corelib/ -iname '*.mzi') \
-	  $(shell $(FIND) _build/stdlib/ -iname '*.mzi') \
+	  $(shell $(FIND) _build/corelib/ -iname '*.mzi' -or -iname '*.mz') \
+	  $(shell $(FIND) _build/stdlib/ -iname '*.mzi' -or -iname '*.mz') \
 	  corelib/autoload
 
 uninstall:
