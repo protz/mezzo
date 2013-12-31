@@ -21,6 +21,7 @@ open Kind
 open TypeCore
 open Types
 open Either
+open DeBruijn
 
 type outcome = MergeWith of var | Proceed | Abort
 
@@ -61,7 +62,7 @@ module Lifo = struct
   ;;
 end
 
-let merge_envs (top: env) ?(annot: typ option) (left: env * var) (right: env * var): env * var =
+let actually_merge_envs (top: env) ?(annot: typ option) (left: env * var) (right: env * var): env * var =
   (* We use a work list (a LIFO) to schedule vars for merging. This implements
    * a depth-first traversal of the graph, which is indeed what we want (for the
    * moment). *)
@@ -188,7 +189,6 @@ let merge_envs (top: env) ?(annot: typ option) (left: env * var) (right: env * v
            * environment. This means we always call this function with
            * [dest_var] fresh, which means there's no way we processed it
            * already. *)
-          if true then assert false;
 
           (* Do nothing, since it would be illegal! *)
           Abort
@@ -921,6 +921,31 @@ let merge_envs (top: env) ?(annot: typ option) (left: env * var) (right: env * v
             None
       end;
 
+      (* We should be able to merge "∀a.a" obtained via [EFail] and "()", for
+       * instance. *)
+      lazy begin
+        match left_perm, right_perm with
+        | TyQ (Forall, binding, _, left_perm), _ ->
+            let left_env, left_perm, _ = bind_flexible_in_type left_env binding left_perm in
+            merge_type (left_env, left_perm) (right_env, right_perm) ?dest_var dest_env
+            >>= fun (left_env, right_env, dest_env, t) ->
+            (* What happens if the flexible does not get instantiated? This
+             * means that it *probably* wasn't used, and that it *probably*
+             * unreachable, meaning that it's *probably* harmless to leave
+             * things "as is". *)
+            Some (left_env, right_env, dest_env, t)
+
+        | _, TyQ (Forall, binding, _, right_perm) ->
+            let right_env, right_perm, _ = bind_flexible_in_type right_env binding right_perm in
+            merge_type (left_env, left_perm) (right_env, right_perm) ?dest_var dest_env
+            >>= fun (left_env, right_env, dest_env, t) ->
+            Some (left_env, right_env, dest_env, t)
+
+        | _ ->
+            None
+      end;
+
+
       (* If nothing else worked we can still make progress by expanding eagerly
        * type abbreviations. We could pick the opposite strategy, and then
        * re-fold into a type abbreviation. But what if the type abbreviation is
@@ -1077,3 +1102,17 @@ let merge_envs (top: env) ?(annot: typ option) (left: env * var) (right: env * v
   (* So return it. *)
   dest_env, dest_root
 ;;
+
+let is_inconsistent (env, ret) =
+  List.exists (equal env ty_bottom) (get_permissions env ret)
+;;
+
+let merge_envs (top: env) ?(annot: typ option) (left: env * var) (right: env * var) =
+  if is_inconsistent left then
+    right
+  else if is_inconsistent right then
+    left
+  else
+    actually_merge_envs top ?annot left right
+;;
+

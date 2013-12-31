@@ -477,14 +477,6 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
   in
   let t_int = find_qualified_type "int" "int" in
   let t_bool = find_qualified_type "bool" "bool" in
-  let t_bottom env =
-    TyQ (
-      Forall,
-      (Auto (Variable.register "a"), KType, location env),
-      AutoIntroduced,
-      TyBound 0
-    )
-  in
 
   (* [return t] creates a new var with type [t] available for it, and returns
    * the environment as well as the var *)
@@ -1123,7 +1115,7 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
       env, x
 
   | EFail ->
-      return env (t_bottom env)
+      return env ty_bottom
 
   | EBuiltin _ ->
       (* A builtin value is type-checked like [fail], i.e., it has type
