@@ -119,6 +119,10 @@ let include_dirs: string list ref =
   ref []
 ;;
 
+let print_include_dirs () =
+  String.concat "\n  " !include_dirs
+;;
+
 let add_include_dir dir =
   include_dirs := dir :: !include_dirs
 ;;

@@ -27,6 +27,9 @@ type run_options = {
 (** Last directory included has higher precedence. *)
 val add_include_dir: string -> unit
 
+(** For the -print-config option. *)
+val print_include_dirs: unit -> string
+
 (** [process] doesn't catch exceptions. This is useful for tests that want to
     assert that a test program failed in a certain way. *)
 val process: string -> TypeCore.env

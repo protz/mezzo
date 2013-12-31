@@ -32,6 +32,7 @@ let _ =
   let arg_html_errors = ref false in
   let arg_mode = ref Typecheck in
   let arg_warn_error = ref "" in
+  let arg_print_config = ref false in
   let usage = "Mezzo: a next-generation version of ML\n\
     Usage: " ^ Sys.argv.(0) ^ " [OPTIONS] FILE\n"
   in
@@ -52,6 +53,7 @@ let _ =
       open the corelib modules";
     "-boot", Arg.Set Options.boot, "  Used only when compiling the Mezzo \
       core and standard library";
+    "-print-config", Arg.Set arg_print_config, "  Print Mezzo's configuration, e.g. include directories";
     "-c", Arg.Unit (fun () -> arg_mode := TypecheckAndCompile), "type-check and compile";
     "-i", Arg.Unit (fun () -> arg_mode := Interpret), "do not type-check; interpret";
     "-t", Arg.Unit (fun () -> arg_mode := Typecheck), "just type-check (default)";
@@ -61,10 +63,7 @@ let _ =
     else
       failwith "Only one filename should be specified.\n"
   ) usage;
-  if !Options.filename = "" then begin
-    print_string usage;
-    exit 1;
-  end;
+  (* Enable debugging and tracing. *)
   Log.enable_debug !arg_debug;
   Debug.enable_trace !arg_trace;
 
@@ -89,6 +88,22 @@ let _ =
     Driver.add_include_dir Configure.lib_dir;
   end;
   Driver.add_include_dir (Filename.dirname !Options.filename);
+
+  (* Print these parameters and exit, if that's what the user asked for. *)
+  if !arg_print_config then begin
+    Printf.printf "Booting:\n  %b\n" !Options.boot;
+    Printf.printf "Local (developer's) build:\n  %b\n" Configure.local;
+    Printf.printf "Configure.src_dir:\n  %s\n" Configure.src_dir;
+    Printf.printf "Configure.lib_dir:\n  %s\n" Configure.lib_dir;
+    Printf.printf "Include directories:\n  %s\n" (Driver.print_include_dirs ());
+    exit 0;
+  end;
+
+  (* At this stage, we _do_ need a filename. *)
+  if !Options.filename = "" then begin
+    print_string usage;
+    exit 1;
+  end;
 
   match !arg_mode with
   | Typecheck
