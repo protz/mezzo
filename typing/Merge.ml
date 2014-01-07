@@ -298,6 +298,7 @@ let actually_merge_envs (top: env) ?(annot: typ option) (left: env * var) (right
     (* In order to properly detect exclusive resource allocation conflicts, we
      * mark those vars that have non-duplicable permissions. *)
     let mark_duplicable_vars env =
+      let env = refresh_mark env in
       fold_terms env (fun env var permissions ->
         if List.exists (fun x -> not (FactInference.is_duplicable env x)) permissions then
           mark env var

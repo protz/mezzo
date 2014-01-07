@@ -26,6 +26,24 @@ open Bash
 let enabled = ref "";;
 let enable_trace v = enabled := v;;
 
+let unique xs =
+  let xs = List.sort compare xs in
+  let rec loop xs x1 = function
+    | [] ->
+        List.rev (x1 :: xs)
+    | x2 :: rest ->
+        if x1 = x2 then
+          loop xs x1 rest
+        else
+          loop (x1 :: xs) x2 rest
+  in
+  match xs with
+  | [] ->
+      []
+  | x1 :: rest ->
+      loop [] x1 rest
+;;
+
 module Graph = struct
 
   let id_of_point env var: int =
@@ -38,13 +56,21 @@ module Graph = struct
       (function User (_, v) -> Some (Variable.print v) | Auto _ -> None)
       (get_names env point)
     in
+    let names = unique names in
     let names = String.concat " = " names in
 
     (* Get a meaningful type. *)
-    let t =
-      try List.find (function TySingleton (TyOpen _) -> false | _ -> true) permissions
-      with _ -> TyUnknown
+    let permissions = 
+      let sort = function
+        | TyDynamic -> 2
+        | TyUnknown -> 3
+        | TySingleton _ -> 4
+        | _ -> 1
+      in
+      let sort x y = sort x - sort y in
+      List.sort sort permissions
     in
+    let t = List.hd permissions in
 
     let gen env name t =
       let p' =
@@ -153,17 +179,15 @@ module Graph = struct
     write_intro buf;
     fold_terms env (fun () var permissions ->
       let names = get_names env var in
-      let is_core = function
-(* TEMPORARY this code needs to be updated to recognize the modules in corelib?
-        | User (m, _) when Module.equal m (Module.register "core") ->
+      let in_current_module = function
+        | Auto _ ->
             true
-*)
+        | User (m, _) when Module.equal m (module_name env) ->
+            true
         | _ ->
             false
       in
-      if List.exists is_core names then
-        ()
-      else
+      if List.exists in_current_module names then
         draw_point buf env var permissions
     ) ();
     write_outro buf;
@@ -229,6 +253,12 @@ module Html = struct
     svg
   ;;
 
+  let get_json_filename env =
+    let f = (fst (location env)).Lexing.pos_fname in
+    let f = MzString.replace "/" "_" f in
+    Printf.sprintf "viewer/data/%s.json" f
+  ;;
+
   let render_base env extra =
     (* Create the syntax-highlighted HTML. *)
     let f = (fst (location env)).Lexing.pos_fname in
@@ -242,10 +272,7 @@ module Html = struct
     ] @ extra) in
 
     (* Output it to a file. *)
-    let json_file =
-      let f = MzString.replace "/" "_" f in
-      Printf.sprintf "viewer/data/%s.json" f
-    in
+    let json_file = get_json_filename env in
     let oc = open_out json_file in
     Yojson.Safe.to_channel oc json;
     close_out oc;
@@ -290,13 +317,30 @@ module Html = struct
     MzPprint.enable_colors ();
   ;;
 
+  let launch env =
+    if Unix.fork () = 0 then begin
+      let filename =
+        let s = get_json_filename env in
+        let l1 = String.length "viewer/" in
+        let l2 = String.length s in
+        String.sub s l1 (l2 - l1)
+      in
+      Unix.execvp "firefox" [|
+        "firefox";
+        "-new-window";
+        Printf.sprintf "viewer/viewer.html?json_file=%s" filename;
+      |];
+    end;
+  ;;
+
 end
 
 
 let explain ?(text="") ?x env =
-  if !enabled = "html" then
+  if !enabled = "html" then begin
     Html.render env text;
-  if !enabled = "x11" then begin
+    Html.launch env;
+  end else if !enabled = "x11" then begin
     (* Reset the screen. *)
     flush stdout; flush stderr;
     reset ();
@@ -322,6 +366,8 @@ let explain ?(text="") ?x env =
 
 
 let explain_merge env sub_envs =
-  if !enabled = "html" then
+  if !enabled = "html" then begin
     Html.render_merge env sub_envs;
+    Html.launch (fst env);
+  end
 ;;

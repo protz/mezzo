@@ -480,10 +480,11 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
 
   (* [return t] creates a new var with type [t] available for it, and returns
    * the environment as well as the var *)
+  let env0 = env in
   let return env t =
     (* Not the most clever function, but will do for now on *)
     let hint = Option.map_none (fresh_auto_name "/x_") hint in
-    let env, x = bind_rigid env (hint, KTerm, location env) in
+    let env, x = bind_rigid env (hint, KTerm, location env0) in
     let env = Permissions.add env x t in
     match annot with
     | None ->
