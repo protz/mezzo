@@ -50,10 +50,17 @@ module Graph = struct
     internal_uniqvarid env var
   ;;
 
-  let draw_point buf env point permissions =
+  let draw_point buf env point is_conflict permissions =
     let id = id_of_point env point in
+
     let names = MzList.map_some
-      (function User (_, v) -> Some (Variable.print v) | Auto _ -> None)
+      (function
+        | User (m, v) ->
+            if Module.equal m (module_name env) then
+              Some (Variable.print v)
+            else
+              Some (Module.print m ^ "::" ^ Variable.print v)
+        | Auto _ -> None)
       (get_names env point)
     in
     let names = unique names in
@@ -145,6 +152,8 @@ module Graph = struct
     (* Print the node. *)
     Printf.bprintf buf "\"node%d\" [\n" id;
     Printf.bprintf buf "  id = \"node%d\"\n" id;
+    if is_conflict then
+      Printf.bprintf buf "  color = \"#B00040\"\n";
     if String.length names > 0 then
       Printf.bprintf buf "  label = \"{{%s}|%s}\"\n" line names
     else
@@ -170,14 +179,15 @@ module Graph = struct
     let env = mark_reachable env (TyOpen root) in
     fold_terms env (fun () var permissions ->
       if is_marked env var then
-        draw_point buf env var permissions
+        draw_point buf env var false permissions
     ) ();
     write_outro buf;
   ;;
 
-  let write_graph buf env =
+  let write_graph buf (env, conflicts) =
     write_intro buf;
     fold_terms env (fun () var permissions ->
+      let is_conflict = List.exists (same env var) conflicts in
       let names = get_names env var in
       let in_current_module = function
         | Auto _ ->
@@ -188,14 +198,14 @@ module Graph = struct
             false
       in
       if List.exists in_current_module names then
-        draw_point buf env var permissions
+        draw_point buf env var is_conflict permissions
     ) ();
     write_outro buf;
   ;;
 
   let graph env =
     let ic, oc = Unix.open_process "dot -Tx11" in
-    MzString.bfprintf oc "%a" write_graph env;
+    MzString.bfprintf oc "%a" write_graph (env, []);
     close_out oc;
     close_in ic;
   ;;
@@ -243,10 +253,10 @@ module Html = struct
     ) []
   ;;
 
-  let render_svg env =
+  let render_svg env conflicts =
     (* Create the SVG. *)
     let ic, oc = Unix.open_process "dot -Tsvg" in
-    MzString.bfprintf oc "%a" Graph.write_graph env;
+    MzString.bfprintf oc "%a" Graph.write_graph (env, conflicts);
     close_out oc;
     let svg = Utils.read ic in
     close_in ic;
@@ -283,7 +293,7 @@ module Html = struct
 
     let extra = [
       ("type", `String "single");
-      ("svg", `String (render_svg env));
+      ("svg", `String (render_svg env []));
       ("points", `Assoc (json_of_points env));
       ("error_message", `String text);
     ] in
@@ -293,22 +303,29 @@ module Html = struct
     MzPprint.enable_colors ();
   ;;
 
-  let render_merge env sub_envs =
+  let render_merge env conflicts sub_envs =
     MzPprint.disable_colors ();
 
-    let render_env_point (env, point) =
+    let render_env_point ((env, point), conflicts) =
       `Assoc [
-        ("svg", `String (render_svg env));
+        ("svg", `String (render_svg env conflicts));
         ("root", `Int (Graph.id_of_point env point));
         ("points", `Assoc (json_of_points env));
-        ("dot", `String (MzString.bsprintf "%a" Graph.write_graph env));
+        ("dot", `String (MzString.bsprintf "%a" Graph.write_graph (env, conflicts)));
       ]
     in
 
     (* Create the JSON data. *)
+    let sub_envs =
+      match sub_envs with
+      | e1 :: e2 :: [] ->
+          (e1, fst conflicts) :: (e2, snd conflicts) :: []
+      | _ ->
+          List.map (fun x -> x, []) sub_envs
+    in
     let extra = [
       ("type", `String "merge");
-      ("merged_env", render_env_point env);
+      ("merged_env", render_env_point (env, []));
       ("sub_envs", `List (List.map render_env_point sub_envs));
     ] in
 
@@ -365,9 +382,9 @@ let explain ?(text="") ?x env =
 ;;
 
 
-let explain_merge env sub_envs =
+let explain_merge env conflicts sub_envs =
   if !enabled = "html" then begin
-    Html.render_merge env sub_envs;
+    Html.render_merge env conflicts sub_envs;
     Html.launch (fst env);
   end
 ;;

@@ -975,10 +975,10 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
       let hint_else = add_hint hint "else" in
       let result_else = check_expression false_env ?hint:hint_else ?annot e3 in
 
-      let dest = Merge.merge_envs env ?annot result_then result_else in
+      let dest, conflicts = Merge.merge_envs env ?annot result_then result_else in
 
       if explain then
-        Debug.explain_merge dest [result_then; result_else];
+        Debug.explain_merge dest conflicts [result_then; result_else];
 
       dest
 
@@ -999,10 +999,20 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
 
       (* Combine all of these left-to-right to obtain a single return
        * environment *)
-      let dest = MzList.reduce (Merge.merge_envs env ?annot) sub_envs in
+      let dest, conflicts =
+        match sub_envs with
+        | e1 :: e2 :: [] ->
+            Merge.merge_envs env ?annot e1 e2
+        | _ ->
+          let merge_no_conflicts e1 e2 =
+            Merge.merge_envs env ?annot e1 e2
+            |> fst
+          in
+          MzList.reduce merge_no_conflicts sub_envs, ([], [])
+      in
 
       if explain then
-        Debug.explain_merge dest sub_envs;
+        Debug.explain_merge dest conflicts sub_envs;
 
       dest
 

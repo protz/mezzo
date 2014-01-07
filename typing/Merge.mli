@@ -21,6 +21,8 @@
 
 open TypeCore
 
+type t = (env * var) * (var list * var list)
+
 (** When the control-flow diverges, one needs to merge the environments, that
  * is, compute a set of permissions that subsumes the two environments. In order
  * to run, the [merge_envs] function takes:
@@ -38,4 +40,4 @@ open TypeCore
  * Consider for example "if True then x else y"; the combined return value of
  * the two environments will try to reconcile the permissions available for "x"
  * and "y". *)
-val merge_envs: env -> ?annot:typ -> env * var -> env * var -> env * var
+val merge_envs: env -> ?annot:typ -> env * var -> env * var -> t
