@@ -22,7 +22,7 @@ open TypeCore
 open Types
 open Either
 
-type t = (env * var) * (var list * var list)
+type t = (env * var) * (var list * var list * var list)
 
 type outcome = MergeWith of var | Proceed | Abort
 
@@ -115,6 +115,7 @@ let actually_merge_envs (top: env) ?(annot: typ option) (left: env * var) (right
 
   let left_conflicts: var list ref = ref [] in
   let right_conflicts: var list ref = ref [] in
+  let dest_conflicts: var list ref = ref [] in
 
   (* This oracle decides what to do with a given job. There are three outcomes:
     - we've already mapped the left and right vars to a certain var in the
@@ -172,6 +173,9 @@ let actually_merge_envs (top: env) ?(annot: typ option) (left: env * var) (right
             right_conflicts := right_var :: (MzList.map_some (fun (l', r, _) ->
               if same left_env l l' then Some r else None
             ) !known_triples) @ !right_conflicts;
+            dest_conflicts := dest_var :: (MzList.map_some (fun (l', _, d) ->
+              if same left_env l l' then Some d else None
+            ) !known_triples) @ !dest_conflicts;
         | None ->
             ()
         end;
@@ -189,6 +193,9 @@ let actually_merge_envs (top: env) ?(annot: typ option) (left: env * var) (right
             left_conflicts := left_var :: (MzList.map_some (fun (l, r', _) ->
               if same left_env r r' then Some l else None
             ) !known_triples) @ !left_conflicts;
+            dest_conflicts := dest_var :: (MzList.map_some (fun (_, r', d) ->
+              if same right_env r r' then Some d else None
+            ) !known_triples) @ !dest_conflicts;
         | None ->
             ()
         end;
@@ -1101,15 +1108,15 @@ let actually_merge_envs (top: env) ?(annot: typ option) (left: env * var) (right
   Permissions.safety_check dest_env;
 
   (* So return it. *)
-  (dest_env, dest_root), (!left_conflicts, !right_conflicts)
+  (dest_env, dest_root), (!left_conflicts, !right_conflicts, !dest_conflicts)
 ;;
 
 
 let merge_envs (top: env) ?(annot: typ option) (left: env * var) (right: env * var): t =
   if is_inconsistent (fst left) then
-    right, ([], [])
+    right, ([], [], [])
   else if is_inconsistent (fst right) then
-    left, ([], [])
+    left, ([], [], [])
   else
     actually_merge_envs top ?annot left right
 ;;

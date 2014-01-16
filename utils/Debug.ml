@@ -23,6 +23,9 @@ open Types
 open TypePrinter
 open Bash
 
+(* An environment annotated with a list of conflicting variables. *)
+type cenv = (env * var) * var list
+
 let enabled = ref "";;
 let enable_trace v = enabled := v;;
 
@@ -184,8 +187,35 @@ module Graph = struct
     write_outro buf;
   ;;
 
+  let mark_interesting env conflicts =
+    let env = refresh_mark env in
+    let env = List.fold_left mark env conflicts in
+    fold_terms env (fun env var permissions ->
+      List.fold_left (fun env perm ->
+        match perm with
+        | TyConcrete { branch_fields; _ } ->
+            if List.length branch_fields > 0 then
+              let env = mark env var in
+              List.fold_left (fun env (_, t) ->
+                mark env !!=t
+              ) env branch_fields
+            else
+              env
+        | TyTuple ts ->
+            if List.length ts > 0 then
+              let env = mark env var in
+              List.fold_left (fun env t -> mark env !!=t) env ts
+            else
+              env
+        | _ ->
+            env
+      ) env permissions
+    ) env
+  ;;
+
   let write_graph buf (env, conflicts) =
     write_intro buf;
+    let env = mark_interesting env conflicts in
     fold_terms env (fun () var permissions ->
       let is_conflict = List.exists (same env var) conflicts in
       let names = get_names env var in
@@ -197,7 +227,7 @@ module Graph = struct
         | _ ->
             false
       in
-      if List.exists in_current_module names then
+      if List.exists in_current_module names && is_marked env var then
         draw_point buf env var is_conflict permissions
     ) ();
     write_outro buf;
@@ -303,7 +333,7 @@ module Html = struct
     MzPprint.enable_colors ();
   ;;
 
-  let render_merge env conflicts sub_envs =
+  let render_merge (env: cenv) (sub_envs: cenv list) =
     MzPprint.disable_colors ();
 
     let render_env_point ((env, point), conflicts) =
@@ -316,20 +346,13 @@ module Html = struct
     in
 
     (* Create the JSON data. *)
-    let sub_envs =
-      match sub_envs with
-      | e1 :: e2 :: [] ->
-          (e1, fst conflicts) :: (e2, snd conflicts) :: []
-      | _ ->
-          List.map (fun x -> x, []) sub_envs
-    in
     let extra = [
       ("type", `String "merge");
-      ("merged_env", render_env_point (env, []));
+      ("merged_env", render_env_point env);
       ("sub_envs", `List (List.map render_env_point sub_envs));
     ] in
 
-    render_base (fst env) extra;
+    render_base (fst @@ fst env) extra;
 
     MzPprint.enable_colors ();
   ;;
@@ -381,10 +404,9 @@ let explain ?(text="") ?x env =
   end
 ;;
 
-
-let explain_merge env conflicts sub_envs =
+let explain_merge (env: cenv) (sub_envs: cenv list) =
   if !enabled = "html" then begin
-    Html.render_merge env conflicts sub_envs;
-    Html.launch (fst env);
+    Html.render_merge env sub_envs;
+    Html.launch (fst @@ fst env);
   end
 ;;

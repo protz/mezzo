@@ -21,7 +21,7 @@
 
 open TypeCore
 
-type t = (env * var) * (var list * var list)
+type t = (env * var) * (var list * var list * var list)
 
 (** When the control-flow diverges, one needs to merge the environments, that
  * is, compute a set of permissions that subsumes the two environments. In order

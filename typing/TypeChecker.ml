@@ -32,6 +32,12 @@ let add_hint =
   Permissions.add_hint
 ;;
 
+let merge_and_pack_conflicts env ?annot left right =
+  let dest, conflicts = Merge.merge_envs env ?annot left right in
+  let left_conflicts, right_conflicts, dest_conflicts = conflicts in
+  (dest, dest_conflicts), [left, left_conflicts; right, right_conflicts]
+;;
+
 
 (* The condition of an if-then-else statement is well-typed if it is a
  * data type with two branches. *)
@@ -975,12 +981,12 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
       let hint_else = add_hint hint "else" in
       let result_else = check_expression false_env ?hint:hint_else ?annot e3 in
 
-      let dest, conflicts = Merge.merge_envs env ?annot result_then result_else in
+      let dest, sub_envs = merge_and_pack_conflicts env ?annot result_then result_else in
 
       if explain then
-        Debug.explain_merge dest conflicts [result_then; result_else];
+        Debug.explain_merge dest sub_envs;
 
-      dest
+      fst dest
 
   | EMatch (explain, e, patexprs) ->
       let hint = add_hint hint "match" in 
@@ -999,22 +1005,19 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
 
       (* Combine all of these left-to-right to obtain a single return
        * environment *)
-      let dest, conflicts =
-        match sub_envs with
-        | e1 :: e2 :: [] ->
-            Merge.merge_envs env ?annot e1 e2
-        | _ ->
-          let merge_no_conflicts e1 e2 =
-            Merge.merge_envs env ?annot e1 e2
-            |> fst
-          in
-          MzList.reduce merge_no_conflicts sub_envs, ([], [])
-      in
-
-      if explain then
-        Debug.explain_merge dest conflicts sub_envs;
-
-      dest
+      begin match sub_envs with
+      | e1 :: e2 :: [] ->
+          let dest, sub_envs = merge_and_pack_conflicts env ?annot e1 e2 in
+          if explain then
+            Debug.explain_merge dest sub_envs;
+          fst dest
+      | _ ->
+        let merge_no_conflicts e1 e2 =
+          Merge.merge_envs env ?annot e1 e2
+          |> fst
+        in
+        MzList.reduce merge_no_conflicts sub_envs
+      end
 
   | EGive (x, e) ->
       (* Small helper function. *)
