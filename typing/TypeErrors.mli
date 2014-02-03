@@ -88,9 +88,6 @@ val print_error : Buffer.t -> error -> unit
 (** ... or displayed as an HTML error. *)
 val html_error: error -> unit
 
-(** This is only for display purposes. *)
-val fold_type : env -> typ -> typ option
-
 (**/**)
 
 val internal_extracterror: error -> raw_error

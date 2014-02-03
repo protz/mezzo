@@ -105,7 +105,7 @@ and very_loose_type ty =
   | TyTuple ((_ :: _ :: _) as tys) ->
       (* I do not insert parentheses by default. They will be inserted
         if required. *)
-      separate_map commabreak consumes_type tys
+      group (separate_map commabreak consumes_type tys)
   | TyTuple [ _ ] ->
       assert false (* unexpected *)
   | _ ->

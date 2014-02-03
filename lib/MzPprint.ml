@@ -112,7 +112,7 @@ let jump ?(indent=2) body =
 ;;
 
 let english_join =
-  separate2 (string ", ") (string ", and ")
+  separate2 (string ", ") (string " and ")
 
 let render doc =
   let buf = Buffer.create 1024 in

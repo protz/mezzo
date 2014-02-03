@@ -162,6 +162,14 @@ let rec gather_explanation derivation =
   | Good _ ->
       Log.error "This function's only for failed derivations."
 
+let print_stype env t = 
+  match ResugarFold.fold_type env t with
+  | Some t ->
+      SurfaceSyntaxPrinter.print (Resugar.resugar env t)
+  | None ->
+      SurfaceSyntaxPrinter.print (Resugar.resugar env t)
+
+
 let print_short d =
   let explanation = gather_explanation d in
   let useful_permission env x =
@@ -187,14 +195,16 @@ let print_short d =
         match useful_permission env x with
         | [] ->
             words "because we have nothing"
-        | [p] ->
+        | ps ->
+            let ps = english_join @@ List.map
+              (fun p ->
+                print_var env name ^^^ at ^^^ print_stype env p)
+              ps
+            in
             words "because all we have is: " ^^ nest 2 (
               break 0 ^^
-              print_var env name ^^^ at ^^^
-              print_type env p
+              ps ^^ break 0
             )
-        | _ ->
-            empty
       in
       let loc_text =
         let open Lexing in
@@ -216,12 +226,12 @@ let print_short d =
       words "Could not obtain the following permission: " ^^ nest 2 (
         break 0 ^^
         print_var env name ^^^ at ^^^
-        print_type env t
-      ) ^^ break 0 ^^ extra ^^ hardline ^^
+        print_stype env t
+      ) ^^ break 0 ^^ extra ^^ break 0 ^^
       loc_text
   | MissingAbstract (env, t) -> 
       words "Could not obtain the following permission: " ^^ break 0 ^^
-      print_type env t
+      print_stype env t
   | NoRuleForJudgement d ->
       words "No idea how to prove the following: " ^^ break 0 ^^
       print_derivation d

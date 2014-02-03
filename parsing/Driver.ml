@@ -405,7 +405,7 @@ let print_signature (buf: Buffer.t) (env: TypeCore.env): unit =
       List.iter (fun t ->
         let open MzPprint in
         (* First try to fold the type (e.g. turn "(=x, =y)" into "(int, int)"). *)
-        let t = Option.map_none t (TypeErrors.fold_type env t) in
+        let t = Option.map_none t (ResugarFold.fold_type env t) in
         (* And then try to convert it to the surface syntax. *)
         let t = SurfaceSyntaxPrinter.print (Resugar.resugar env t) in
         (* Print it! *)
