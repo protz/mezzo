@@ -42,3 +42,6 @@ val print_position: Buffer.t -> Ulexing.lexbuf -> unit
 (** [p] displays the position that is passed as an argument. It can be used
     to build (say) type error messages. *)
 val p: Buffer.t -> Lexing.position * Lexing.position -> unit
+
+(** For error messages. *)
+val highlight_range: Lexing.position -> Lexing.position -> string

@@ -22,3 +22,5 @@
 
 val print_derivation : Derivations.derivation -> MzPprint.document
 val pderivation : Buffer.t -> Derivations.derivation -> unit
+val print_short : Derivations.derivation -> MzPprint.document
+val pshort : Buffer.t -> Derivations.derivation -> unit

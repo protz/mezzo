@@ -17,6 +17,7 @@
 (*                                                                           *)
 (*****************************************************************************)
 
+open TypeCore
 open Types
 open Derivations
 open TypePrinter
@@ -88,3 +89,144 @@ and print_derivation = function
 
 let pderivation buf arg =
   pdoc buf ((fun d -> print_derivation d), arg)
+
+
+(* A possibly human-readable explanation. *)
+type explanation =
+  | MissingAnchored of env * var * typ
+  | MissingAbstract of env * typ
+  | NoRuleForJudgement of derivation
+  | NoGoodExplanation
+
+(* We're looking for atomic failures, i.e. a single missing permission, or
+ * constraint, that made the whole thing fail. *)
+let is_atomic env = function
+  | JSubVar (_, t) ->
+      List.length (snd (collect t)) = 0
+  | JSubPerm p ->
+      List.length (flatten_star env p) = 1
+  | JSubPerms ps ->
+      List.length (MzList.flatten_map (flatten_star env) ps) = 1
+  | _ ->
+      false
+
+(* This function assumes an atomic judgement. *)
+let make_up_explanation env j =
+  let anchored_or_abstract t =
+    let t = modulo_flex env t in
+    let t = expand_if_one_branch env t in
+    match t with
+    | TyAnchoredPermission (x, t) ->
+        MissingAnchored (env, !!x, t)
+    | TyApp _ | TyOpen _ ->
+        MissingAbstract (env, t)
+    | _ ->
+        assert false
+  in
+  match j with
+  | JSubVar (x, t) ->
+      MissingAnchored (env, x, t)
+  | JSubPerm p ->
+      anchored_or_abstract p
+  | JSubPerms ps ->
+      anchored_or_abstract (List.hd ps)
+  | _ ->
+      assert false
+
+(* For a given derivation, try to find an easily-explainable, single point of
+ * failure. *)
+let rec gather_explanation derivation =
+  match derivation with
+  | Bad (env, j, rs) ->
+      if is_atomic env j then begin
+        Log.debug ~level:4 "This is atomic: %a\n" pdoc (print_judgement env, j);
+        make_up_explanation env j
+      end else begin
+        let explanations = List.map (fun (_rule_name, premises) ->
+          let d = MzList.last premises in
+          Log.check (is_bad_derivation d) "Inconsistency in the premises of a failed rule.";
+          gather_explanation d
+        ) rs in
+        match explanations with
+        | [] ->
+            NoRuleForJudgement derivation
+        | e :: [] ->
+            e
+        | _es ->
+            (* TODO: figure out if all branches agree on the same point of
+             * failure. Possibly hard because of sub-environments that we're
+             * going to have to compare. *)
+            NoGoodExplanation
+      end
+
+  | Good _ ->
+      Log.error "This function's only for failed derivations."
+
+let print_short d =
+  let explanation = gather_explanation d in
+  let useful_permission env x =
+    let ps = get_permissions env x in
+    let ps = List.filter (function
+      | TySingleton _ | TyUnknown -> false
+      | _ -> true
+    ) ps in
+    ps
+  in
+  let possibly_useful_name env x =
+    let names = get_names env x in
+    let user_names = List.filter is_user names in
+    if List.length user_names > 0 then
+      List.hd user_names
+    else
+      List.hd names
+  in
+  match explanation with
+  | MissingAnchored (env, x, t) ->
+      let name = possibly_useful_name env x in
+      let extra =
+        match useful_permission env x with
+        | [] ->
+            words "because we have nothing"
+        | [p] ->
+            words "because all we have is: " ^^ nest 2 (
+              break 0 ^^
+              print_var env name ^^^ at ^^^
+              print_type env p
+            )
+        | _ ->
+            empty
+      in
+      let loc_text =
+        let open Lexing in
+        let locs = get_locations env x in
+        let locs = List.filter (fun ({ pos_fname; _ }, _) -> pos_fname <> "") locs in
+        let locs = List.sort (
+          fun ({ pos_cnum = x; _ }, { pos_cnum = x'; _ })
+              ({ pos_cnum = y; _ }, { pos_cnum = y'; _ }) ->
+            if x = y then
+              compare x' y'
+            else
+              compare x y
+        ) locs in
+        let pos_start, pos_end = List.hd locs in
+        string "Variable" ^^^ print_var env name ^^^ string "is defined as follows." ^^ break 0
+        ^^ string (MzString.bsprintf "%a" Lexer.p (pos_start, pos_end)) ^^ break 0
+        ^^ string (Lexer.highlight_range pos_start pos_end)
+      in
+      words "Could not obtain the following permission: " ^^ nest 2 (
+        break 0 ^^
+        print_var env name ^^^ at ^^^
+        print_type env t
+      ) ^^ break 0 ^^ extra ^^ hardline ^^
+      loc_text
+  | MissingAbstract (env, t) -> 
+      words "Could not obtain the following permission: " ^^ break 0 ^^
+      print_type env t
+  | NoRuleForJudgement d ->
+      words "No idea how to prove the following: " ^^ break 0 ^^
+      print_derivation d
+  | NoGoodExplanation ->
+      words "No good explanation, sorry"
+
+let pshort buf d =
+  pdoc buf ((fun () -> print_short d), ())

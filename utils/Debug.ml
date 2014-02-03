@@ -82,10 +82,16 @@ module Graph = struct
     in
     let t = List.hd permissions in
 
+    (* When generating a block (tuple, record), this function, for each =x
+     * found inside the tuple or record, will generate the corresponding dot
+     * sub-string that stands for the field, as well as a pair of the field name
+     * and the dot node id that it should point to. *)
     let gen env name t =
       let p' =
+        (* The call to modulo_flex is required so that we get the "actual" id,
+         * not the one of an instantiated flexible variable. *)
         match t with
-        | TySingleton (TyOpen p') -> p'
+        | TySingleton t -> !!(modulo_flex env t)
         | _ -> Log.error "Need [unfold]"
       in
       let block = Printf.sprintf "<%s>%s" name name in
@@ -187,6 +193,10 @@ module Graph = struct
     write_outro buf;
   ;;
 
+  (* Our criterion for marking "interesting" things is: everything that's a
+   * structural permission + things that are pointed to by structural
+   * permissions. This yields some "interesting" graphs. For some definition of
+   * "interesting". *)
   let mark_interesting env conflicts =
     let env = refresh_mark env in
     let env = List.fold_left mark env conflicts in
@@ -233,9 +243,9 @@ module Graph = struct
     write_outro buf;
   ;;
 
-  let graph env =
+  let graph env interesting =
     let ic, oc = Unix.open_process "dot -Tx11" in
-    MzString.bfprintf oc "%a" write_graph (env, []);
+    MzString.bfprintf oc "%a" write_graph (env, interesting);
     close_out oc;
     close_in ic;
   ;;
@@ -290,6 +300,7 @@ module Html = struct
     close_out oc;
     let svg = Utils.read ic in
     close_in ic;
+    (* MzString.bprintf "%a" Graph.write_graph (env, conflicts); *)
     svg
   ;;
 
@@ -318,12 +329,12 @@ module Html = struct
     close_out oc;
   ;;
 
-  let render env text =
+  let render env text interesting =
     MzPprint.disable_colors ();
 
     let extra = [
       ("type", `String "single");
-      ("svg", `String (render_svg env []));
+      ("svg", `String (render_svg env interesting));
       ("points", `Assoc (json_of_points env));
       ("error_message", `String text);
     ] in
@@ -377,8 +388,9 @@ end
 
 
 let explain ?(text="") ?x env =
+  let interesting = Option.to_list x in
   if !enabled = "html" then begin
-    Html.render env text;
+    Html.render env text interesting;
     Html.launch env;
   end else if !enabled = "x11" then begin
     (* Reset the screen. *)
@@ -387,10 +399,10 @@ let explain ?(text="") ?x env =
 
     begin match x with
     | Some x ->
-      (* Print the current position. *)
-      MzString.bprintf "Last checked expression: %a at %a\n"
-        pnames (env, get_names env x)
-        Lexer.p (location env);
+        (* Print the current position. *)
+        MzString.bprintf "Last checked expression: %a at %a\n"
+          pnames (env, get_names env x)
+          Lexer.p (location env);
     | None ->
         ()
     end;
@@ -400,7 +412,7 @@ let explain ?(text="") ?x env =
     MzString.bprintf "%a\n\n" ppermissions env;
     MzString.bprintf "%s\n\n" (String.make twidth '-');
     flush stdout; flush stderr;
-    Graph.graph env
+    Graph.graph env interesting
   end
 ;;
 

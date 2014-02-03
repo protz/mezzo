@@ -247,15 +247,19 @@ let print_error buf (env, raw_error) =
   | ExpectedType (t, var, d) ->
       bprintf
         "Could not extract from this subexpression (named %a) the following type:\n%a\n\
-          some explanations follow:\n%a"
+          some explanations follow:\n%a\nHere's a tentatively short error \
+          message.\n%a"
         pnames (env, get_names env var)
         ptype (env, t)
         pderivation d
+        pshort d
   | ExpectedPermission (t, d) ->
       bprintf
-        "Could not extract the following perm:\n%a\nsome explanations follow:\n%a"
+        "Could not extract the following perm:\n%a\nsome explanations follow:\n%a\n\
+          Here's a tentatively short error message.\n%a"
         ptype (env, t)
         pderivation d
+        pshort d
   | RecursiveOnlyForFunctions ->
       bprintf
         "Recursive definitions are enabled for functions only"

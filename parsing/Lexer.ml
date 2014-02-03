@@ -84,6 +84,44 @@ let print_position buf lexbuf =
   let end_pos = end_pos lexbuf in
   p buf (start_pos, end_pos)
 
+let highlight_range pos_start pos_end =
+  let open Lexing in
+  let ic = open_in pos_start.pos_fname in
+  seek_in ic pos_start.pos_bol;
+  let buf_code = Buffer.create 256 in
+  let buf_hl = Buffer.create 256 in
+  let buf_final = Buffer.create 256 in
+  let cnum = ref pos_start.pos_bol in
+  begin try
+    while !cnum < pos_end.pos_cnum do
+      let c = input_char ic in
+      if c = '\n' then begin
+        Buffer.add_char buf_code c;
+        Buffer.add_char buf_hl c;
+        Buffer.add_buffer buf_final buf_code;
+        Buffer.add_buffer buf_final buf_hl;
+        Buffer.clear buf_code;
+        Buffer.clear buf_hl;
+      end else begin
+        Buffer.add_char buf_code c;
+        if !cnum >= pos_start.pos_cnum then
+          Buffer.add_char buf_hl '^'
+        else
+          Buffer.add_char buf_hl ' ';
+      end;
+      incr cnum;
+    done;
+    Buffer.add_string buf_code (input_line ic);
+  with End_of_file ->
+    close_in ic;
+  end;
+  let c = '\n' in
+  Buffer.add_char buf_code c;
+  Buffer.add_char buf_hl c;
+  Buffer.add_buffer buf_final buf_code;
+  Buffer.add_buffer buf_final buf_hl;
+  Buffer.contents buf_final
+
 (* ---------------------------------------------------------------------------- *)
 
 (* Error handling. *)
