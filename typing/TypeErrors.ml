@@ -116,8 +116,8 @@ let print_error buf (env, raw_error) =
   | ExpectedType (t, var, d) ->
       bprintf
         "Could not extract from this subexpression (named %a) the following type:\n%a\n\
-          some explanations follow:\n%a\n\nHere's a tentatively short error \
-          message.\n%a\n%a"
+          some explanations follow:\n%a\n\nHere's a tentatively short, \
+          potentially misleading error message.\n%a\n%a"
         pnames (env, get_names env var)
         ptype (env, t)
         pderivation d
@@ -126,7 +126,7 @@ let print_error buf (env, raw_error) =
   | ExpectedPermission (t, d) ->
       bprintf
         "Could not extract the following perm:\n%a\nsome explanations follow:\n%a\n\
-          \nHere's a tentatively short error message.\n%a\n%a"
+          \nHere's a tentatively short, potentially misleading error message.\n%a\n%a"
         ptype (env, t)
         pderivation d
         Lexer.p (location env)

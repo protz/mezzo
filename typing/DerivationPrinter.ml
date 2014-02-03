@@ -133,6 +133,15 @@ let make_up_explanation env j =
   | _ ->
       assert false
 
+let explanations_equal e1 e2 =
+  match e1, e2 with
+  | MissingAnchored (env1, v1, t1), MissingAnchored (env2, v2, t2) ->
+      env1 == env2 && same env1 v1 v2 && equal env1 t1 t2
+  | MissingAbstract (env1, t1), MissingAbstract (env2, t2) ->
+      env1 == env2 && equal env1 t1 t2
+  | _ ->
+      false
+
 (* For a given derivation, try to find an easily-explainable, single point of
  * failure. *)
 let rec gather_explanation derivation =
@@ -152,11 +161,32 @@ let rec gather_explanation derivation =
             NoRuleForJudgement derivation
         | e :: [] ->
             e
-        | _es ->
-            (* TODO: figure out if all branches agree on the same point of
-             * failure. Possibly hard because of sub-environments that we're
-             * going to have to compare. *)
-            NoGoodExplanation
+        | explanations ->
+            try
+              (* This is a total heuristic! *)
+              let explanations = List.filter (function
+                | NoRuleForJudgement _ -> false
+                | _ -> true
+              ) explanations in
+              let explanations = List.map (function
+                | MissingAnchored (sub_env, x, t) ->
+                    let x = !!(clean env sub_env (TyOpen x)) in
+                    let t = clean env sub_env t in
+                    MissingAnchored (env, x, t)
+                | MissingAbstract (sub_env, t) ->
+                    let t = clean env sub_env t in
+                    MissingAbstract (env, t)
+                | (NoRuleForJudgement _ | NoGoodExplanation) as e ->
+                    e
+              ) explanations in
+              let e = List.hd explanations in
+              let es = List.tl explanations in
+              if List.for_all (explanations_equal e) es then
+                e
+              else
+                NoGoodExplanation
+            with UnboundPoint ->
+              NoGoodExplanation
       end
 
   | Good _ ->
