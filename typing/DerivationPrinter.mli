@@ -20,7 +20,11 @@
 (** This module provide a convenient way to print a typing derivation into a
  * (supposedly) human-readable form. *)
 
+open TypeCore
+
 val print_derivation : Derivations.derivation -> MzPprint.document
 val pderivation : Buffer.t -> Derivations.derivation -> unit
 val print_short : Derivations.derivation -> MzPprint.document
 val pshort : Buffer.t -> Derivations.derivation -> unit
+val print_summary : env -> var -> MzPprint.document
+val psummary : Buffer.t -> env * var -> unit

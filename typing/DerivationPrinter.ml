@@ -172,10 +172,12 @@ let rec gather_explanation derivation =
                 | MissingAnchored (sub_env, x, t) ->
                     let x = !!(clean env sub_env (TyOpen x)) in
                     let t = clean env sub_env t in
-                    MissingAnchored (env, x, t)
+                    (* FIXME don't use the "raw" version *)
+                    MissingAnchored (import_flex_instanciations_raw env sub_env, x, t)
                 | MissingAbstract (sub_env, t) ->
                     let t = clean env sub_env t in
-                    MissingAbstract (env, t)
+                    (* FIXME *)
+                    MissingAbstract (import_flex_instanciations_raw env sub_env, t)
                 | (NoRuleForJudgement _ | NoGoodExplanation) as e ->
                     e
               ) explanations in
@@ -193,15 +195,38 @@ let rec gather_explanation derivation =
       Log.error "This function's only for failed derivations."
 
 let print_stype env t = 
-  match ResugarFold.fold_type env t with
-  | Some t ->
-      SurfaceSyntaxPrinter.print (Resugar.resugar env t)
-  | None ->
-      SurfaceSyntaxPrinter.print (Resugar.resugar env t)
+  let t = ResugarFold.fold_type env t in
+  SurfaceSyntaxPrinter.print (Resugar.resugar env t)
 
+let possibly_useful_name env x =
+  let names = get_names env x in
+  let user_names = List.filter is_user names in
+  if List.length user_names > 0 then
+    List.hd user_names
+  else
+    List.hd names
 
-let print_short d =
-  let explanation = gather_explanation d in
+let print_summary env x =
+  let name = possibly_useful_name env x in
+  (* Print information about where the variable is located. *)
+  let loc_text =
+    let open Lexing in
+    let locs = get_locations env x in
+    let locs = List.filter (fun ({ pos_fname; _ }, _) -> pos_fname <> "") locs in
+    let locs = List.sort (
+      fun ({ pos_cnum = x; _ }, { pos_cnum = x'; _ })
+          ({ pos_cnum = y; _ }, { pos_cnum = y'; _ }) ->
+        if x = y then
+          compare x' y'
+        else
+          compare x y
+    ) locs in
+    let pos_start, pos_end = List.hd locs in
+    string "Variable" ^^^ print_var env name ^^^ string "is defined as follows." ^^ break 1
+    ^^ string (MzString.bsprintf "%a" Lexer.p (pos_start, pos_end)) ^^ break 1
+    ^^ string (Lexer.highlight_range pos_start pos_end)
+  in
+  (* Find its useful permissions. *)
   let useful_permission env x =
     let ps = get_permissions env x in
     let ps = List.filter (function
@@ -210,60 +235,44 @@ let print_short d =
     ) ps in
     ps
   in
-  let possibly_useful_name env x =
-    let names = get_names env x in
-    let user_names = List.filter is_user names in
-    if List.length user_names > 0 then
-      List.hd user_names
-    else
-      List.hd names
+  let perm_text =
+    match useful_permission env x with
+    | [] ->
+        words "No useful permissions are available for it."
+    | ps ->
+        let ps = separate_map hardline
+          (fun p ->
+            print_var env name ^^^ at ^^^ print_stype env p)
+          ps
+        in
+        words "The following permissions are available for it: " ^^ nest 2 (
+          hardline ^^
+          ps
+        )
   in
+  loc_text ^^ break 1 ^^ perm_text
+
+
+let psummary buf (env, x) =
+  pdoc buf ((fun () -> print_summary env x), ())
+
+
+let print_short d =
+  let explanation = gather_explanation d in
   match explanation with
   | MissingAnchored (env, x, t) ->
       let name = possibly_useful_name env x in
-      let extra =
-        match useful_permission env x with
-        | [] ->
-            words "because we have nothing"
-        | ps ->
-            let ps = english_join @@ List.map
-              (fun p ->
-                print_var env name ^^^ at ^^^ print_stype env p)
-              ps
-            in
-            words "because all we have is: " ^^ nest 2 (
-              break 0 ^^
-              ps ^^ break 0
-            )
-      in
-      let loc_text =
-        let open Lexing in
-        let locs = get_locations env x in
-        let locs = List.filter (fun ({ pos_fname; _ }, _) -> pos_fname <> "") locs in
-        let locs = List.sort (
-          fun ({ pos_cnum = x; _ }, { pos_cnum = x'; _ })
-              ({ pos_cnum = y; _ }, { pos_cnum = y'; _ }) ->
-            if x = y then
-              compare x' y'
-            else
-              compare x y
-        ) locs in
-        let pos_start, pos_end = List.hd locs in
-        string "Variable" ^^^ print_var env name ^^^ string "is defined as follows." ^^ break 0
-        ^^ string (MzString.bsprintf "%a" Lexer.p (pos_start, pos_end)) ^^ break 0
-        ^^ string (Lexer.highlight_range pos_start pos_end)
-      in
       words "Could not obtain the following permission: " ^^ nest 2 (
-        break 0 ^^
+        break 1 ^^
         print_var env name ^^^ at ^^^
-        print_stype env t
-      ) ^^ break 0 ^^ extra ^^ break 0 ^^
-      loc_text
+        print_stype env t ^^ break 1
+      ) ^^ break 1 ^^
+      print_summary env x
   | MissingAbstract (env, t) -> 
-      words "Could not obtain the following permission: " ^^ break 0 ^^
+      words "Could not obtain the following permission: " ^^ break 1 ^^
       print_stype env t
   | NoRuleForJudgement d ->
-      words "No idea how to prove the following: " ^^ break 0 ^^
+      words "No idea how to prove the following: " ^^ break 1 ^^
       print_derivation d
   | NoGoodExplanation ->
       words "No good explanation, sorry"

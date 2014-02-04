@@ -84,7 +84,7 @@ let print_error buf (env, raw_error) =
   let bprintf s = Printf.bprintf buf s in
   (* Extra verbose debugging output. *)
   if Log.debug_level () >= 5 then begin
-    bprintf "\nOH NOES. Printing permissions.\n\n%a" MzPprint.pdoc (print_permissions, env);
+    bprintf "\nPrinting permissions.\n\n%a" MzPprint.pdoc (print_permissions, env);
     bprintf "\nError message follows.\n\n";
   end;
   (* A few error messages are printed *without* an error location. *)
@@ -101,18 +101,11 @@ let print_error buf (env, raw_error) =
         showing the cycle in a more explicit manner would be useful *)
       bprintf "There is a cyclic dependency on module %a" Module.p m
   | NotAFunction p ->
-      begin match fold_var env p with
-      | Some t ->
-          bprintf
-            "%a is not a function, it has type:\n%a"
-            pname (env, p)
-            ptype (env, t)
-      | None ->
-          bprintf
-            "%a is not a function, the only permissions available for it are:\n%a"
-            pname (env, p)
-            ppermission_list (env, p)
-      end
+      let t = fold_var env p in
+      bprintf
+        "%a is not a function, it has type:\n%a"
+        pname (env, p)
+        ptype (env, t)
   | ExpectedType (t, var, d) ->
       bprintf
         "Could not extract from this subexpression (named %a) the following type:\n%a\n\
@@ -143,60 +136,32 @@ let print_error buf (env, raw_error) =
         "Field %a is superfluous in that constructor"
         Field.p f
   | NoTwoConstructors var ->
-      begin match fold_var env var with
-      | Some t ->
-          bprintf
-            "%a has type:\n%a\nIt is not a type with two constructors"
-            pname (env, var)
-            ptype (env, t)
-      | None ->
-          bprintf
-            "%a has no suitable permission for a type with two constructors;\n\
-              the only permissions available for it are:\n%a"
-            pname (env, var)
-            ppermission_list (env, var)
-      end
+      bprintf
+        "Variable %a doesn't have a type with two constructors.\n%a"
+        pname (env, var)
+        psummary (env, var)
   | NoSuchField (var, f) ->
-      begin match fold_var env var with
-      | Some t ->
-          bprintf
-            "%a has type:\n%a\nThere is no field named %a"
-            pname (env, var)
-            ptype (env, t)
-            Field.p f
-      | None ->
-          bprintf
-            "%a has no suitable permission with field %a;\n\
-              the only permissions available for it are:\n%a"
-            pname (env, var)
-            Field.p f
-            ppermission_list (env, var)
-      end
+      bprintf
+        "Variable %a has no field named %a.\n%a"
+        pname (env, var)
+        Field.p f
+        psummary (env, var)
   | CantAssignTag var ->
-      begin match fold_var env var with
-      | Some t ->
-          bprintf
-            "%a has type:\n%a\nWe can't assign a tag to it"
-            pname (env, var)
-            ptype (env, t)
-      | None ->
-          bprintf
-            "%a has no suitable permission that would accept a tag update, \
-              the only permissions available for it are:\n%a"
-            pname (env, var)
-            ppermission_list (env, var)
-      end
-  | MatchBadTuple p ->
       bprintf
-        "Trying to match a tuple against a var whose only \
-          permissions are:\n%a"
-        ppermission_list (env, p)
-  | MatchBadDatacon (p, datacon) ->
+        "Variable %a cannot be assigned a tag.\n%a"
+        pname (env, var)
+        psummary (env, var)
+  | MatchBadTuple var ->
       bprintf
-        "Trying to match data constructor %a against a var whose only \
-          permissions are:\n%a"
+        "Variable %a cannot be matched as a tuple.\n%a"
+        pname (env, var)
+        psummary (env, var)
+  | MatchBadDatacon (var, datacon) ->
+      bprintf
+        "Variable %a cannot be matched with data constructor %a.\n%a"
+        pname (env, var)
         Datacon.p datacon
-        ppermission_list (env, p)
+        psummary (env, var)
   | NoSuchFieldInPattern (pat, field) ->
       bprintf
         "The pattern %a mentions field %a which is unknown for that branch"
@@ -204,10 +169,10 @@ let print_error buf (env, raw_error) =
         Field.p field
   | BadPattern (pat, var) ->
       bprintf
-        "Cannot match pattern %a against %a, the only permissions available for it are:\n%a"
-        !internal_ppat (env, pat)
+        "Variable %a cannot be matched with pattern %a.\n%a"
         pname (env, var)
-        ppermission_list (env, var)
+        !internal_ppat (env, pat)
+        psummary (env, var)
   | BadField (datacon, name) ->
       bprintf "This pattern mentions field %a but data constructor \
           %a has no such field"
@@ -243,10 +208,9 @@ let print_error buf (env, raw_error) =
         ptype (env, t1)
         ptype (env, t2);
   | BadTypeApplication var ->
-      bprintf "Var %a does not have a polymorphic type, the only \
-          permissions available for it are %a"
+      bprintf "Variable %a does not have a polymorphic type.\n%a"
         pnames (env, get_names env var)
-        ppermission_list (env, var)
+        psummary (env, var)
   | IllKindedTypeApplication (t, k, k') ->
       bprintf "While applying type %a: this type has kind %a but \
           the sub-expression has a polymorphic type with kind %a"
@@ -262,17 +226,15 @@ let print_error buf (env, raw_error) =
         pnames (env, get_names env p)
         ppermission_list (env, p)
   | NotDynamic p ->
-      bprintf "Cannot take %a as it is not dynamic, the only \
-          permissions available for it are %a"
+      bprintf "Variable %a cannot be taken, as it has no dynamic type.\n%a"
         pnames (env, get_names env p)
-        ppermission_list (env, p)
+        psummary (env, p)
   | NoSuitableTypeForAdopts (p, t) ->
-      bprintf "Trying to give/take %a to/from some expression, but \
-          the expression adopts %a and the only permissions available for %a are %a"
+      let t = fold_type env t in
+      bprintf "Variable %a is given or taken. There is a mismatch: the adopter adopts %a.\n%a"
         pnames (env, get_names env p)
         ptype (env, t)
-        pnames (env, get_names env p)
-        ppermission_list (env, p)
+        psummary (env, p)
   | AdoptsNoAnnotation ->
       bprintf "In this “give e1 to e2” statement, please provide a \
           type annotation for e1"
@@ -284,12 +246,14 @@ let print_error buf (env, raw_error) =
         ptype (right_env, right_var)
         ptype (left_env, left_t)
         ptype (right_env, right_t)
-  | NoSuchTypeInSignature (p, t, d) ->
+  | NoSuchTypeInSignature (var, t, d) ->
+      let t = fold_type env t in
       bprintf "This file exports a variable named %a, but it does \
-        not have type %a, the only permissions available for it are: %a\n%a"
-        pname (env, p)
+        not have type %a. Here's a tentatively short, \
+        potentially misleading error message.\n%a\n%a"
+        pname (env, var)
         ptype (env, t)
-        ppermission_list (env, p)
+        Lexer.p (location env)
         pderivation d
   | DataTypeMismatchInSignature (x, reason) ->
       bprintf "Cannot match the definition of %a against the \
