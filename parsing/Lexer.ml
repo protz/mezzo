@@ -84,13 +84,12 @@ let print_position buf lexbuf =
   let end_pos = end_pos lexbuf in
   p buf (start_pos, end_pos)
 
-let highlight_range pos_start pos_end =
+let prange buf_final (pos_start, pos_end) =
   let open Lexing in
   let ic = open_in pos_start.pos_fname in
   seek_in ic pos_start.pos_bol;
   let buf_code = Buffer.create 256 in
   let buf_hl = Buffer.create 256 in
-  let buf_final = Buffer.create 256 in
   let cnum = ref pos_start.pos_bol in
   begin try
     while !cnum < pos_end.pos_cnum do
@@ -119,8 +118,12 @@ let highlight_range pos_start pos_end =
   Buffer.add_char buf_code c;
   Buffer.add_char buf_hl c;
   Buffer.add_buffer buf_final buf_code;
-  Buffer.add_buffer buf_final buf_hl;
-  Buffer.contents buf_final
+  Buffer.add_buffer buf_final buf_hl
+
+let highlight_range pos_start pos_end =
+  let buf = Buffer.create 256 in
+  prange buf (pos_start, pos_end);
+  Buffer.contents buf
 
 (* ---------------------------------------------------------------------------- *)
 

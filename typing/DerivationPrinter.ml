@@ -127,7 +127,7 @@ let print_summary env x =
           compare x y
     ) locs in
     let pos_start, pos_end = List.hd locs in
-    string "Variable" ^^^ print_var env name ^^^ string "is defined as follows." ^^ break 1
+    print_username env x ^^^ string "is defined there:" ^^ break 1
     ^^ string (MzString.bsprintf "%a" Lexer.p (pos_start, pos_end)) ^^ break 1
     ^^ string (Lexer.highlight_range pos_start pos_end)
   in

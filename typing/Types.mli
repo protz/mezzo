@@ -251,6 +251,8 @@ module TypePrinter :
       env -> name list -> MzPprint.document
     val pnames : Buffer.t -> env * name list -> unit
     val pname : Buffer.t -> env * var -> unit
+    val print_username : env -> var -> MzPprint.document
+    val puname : Buffer.t -> env * var -> unit
     val print_quantified :
       env ->
       string ->

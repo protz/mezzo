@@ -44,4 +44,5 @@ val print_position: Buffer.t -> Ulexing.lexbuf -> unit
 val p: Buffer.t -> Lexing.position * Lexing.position -> unit
 
 (** For error messages. *)
+val prange: Buffer.t -> (Lexing.position * Lexing.position) -> unit
 val highlight_range: Lexing.position -> Lexing.position -> string

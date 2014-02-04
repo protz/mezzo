@@ -597,6 +597,15 @@ module TypePrinter = struct
       colors.red ^^ string "[no name]" ^^ colors.default
   ;;
 
+  let print_username env p =
+    let names = get_names env p in
+    let user_names = List.filter is_user names in
+    if List.length user_names > 0 then
+      string "Variable " ^^ print_var env (List.hd user_names)
+    else
+      string "The subexpression " ^^ print_var env (List.hd names)
+  ;;
+
   let pnames buf (env, names) =
     pdoc buf (print_names env, names)
   ;;
@@ -632,6 +641,10 @@ module TypePrinter = struct
 
   let pname buf (env, point) =
     pdoc buf ((fun () -> print_point env point), ())
+  ;;
+
+  let puname buf (env, point) =
+    pdoc buf ((fun () -> print_username env point), ())
   ;;
 
   internal_pnames := pnames;;

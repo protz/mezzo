@@ -110,20 +110,32 @@ let print_error buf (env, raw_error) =
       bprintf
         "Could not extract from this subexpression (named %a) the following type:\n%a\n\
           some explanations follow:\n%a\n\nHere's a tentatively short, \
-          potentially misleading error message.\n%a\n%a"
+          potentially misleading error message.\n%a\n%a\n%a"
         pnames (env, get_names env var)
         ptype (env, t)
         pderivation d
         Lexer.p (location env)
+        Lexer.prange (location env)
         pshort d
   | ExpectedPermission (t, d) ->
       bprintf
         "Could not extract the following perm:\n%a\nsome explanations follow:\n%a\n\
-          \nHere's a tentatively short, potentially misleading error message.\n%a\n%a"
+          \nHere's a tentatively short, potentially misleading error message.\n%a\n%a\n%a"
         ptype (env, t)
         pderivation d
         Lexer.p (location env)
+        Lexer.prange (location env)
         pshort d
+  | NoSuchTypeInSignature (var, t, d) ->
+      let t = fold_type env t in
+      bprintf "This file exports a variable named %a, but it does \
+        not have type %a. Here's a tentatively short, \
+        potentially misleading error message.\n%a\n%a\n%a"
+        pname (env, var)
+        ptype (env, t)
+        Lexer.p (location env)
+        Lexer.prange (location env)
+        pderivation d
   | RecursiveOnlyForFunctions ->
       bprintf
         "Recursive definitions are enabled for functions only"
@@ -137,29 +149,29 @@ let print_error buf (env, raw_error) =
         Field.p f
   | NoTwoConstructors var ->
       bprintf
-        "Variable %a doesn't have a type with two constructors.\n%a"
-        pname (env, var)
+        "%a doesn't have a type with two constructors.\n%a"
+        puname (env, var)
         psummary (env, var)
   | NoSuchField (var, f) ->
       bprintf
-        "Variable %a has no field named %a.\n%a"
-        pname (env, var)
+        "%a has no field named %a.\n%a"
+        puname (env, var)
         Field.p f
         psummary (env, var)
   | CantAssignTag var ->
       bprintf
-        "Variable %a cannot be assigned a tag.\n%a"
-        pname (env, var)
+        "%a cannot be assigned a tag.\n%a"
+        puname (env, var)
         psummary (env, var)
   | MatchBadTuple var ->
       bprintf
-        "Variable %a cannot be matched as a tuple.\n%a"
-        pname (env, var)
+        "%a cannot be matched as a tuple.\n%a"
+        puname (env, var)
         psummary (env, var)
   | MatchBadDatacon (var, datacon) ->
       bprintf
-        "Variable %a cannot be matched with data constructor %a.\n%a"
-        pname (env, var)
+        "%a cannot be matched with data constructor %a.\n%a"
+        puname (env, var)
         Datacon.p datacon
         psummary (env, var)
   | NoSuchFieldInPattern (pat, field) ->
@@ -169,8 +181,8 @@ let print_error buf (env, raw_error) =
         Field.p field
   | BadPattern (pat, var) ->
       bprintf
-        "Variable %a cannot be matched with pattern %a.\n%a"
-        pname (env, var)
+        "%a cannot be matched with pattern %a.\n%a"
+        puname (env, var)
         !internal_ppat (env, pat)
         psummary (env, var)
   | BadField (datacon, name) ->
@@ -208,8 +220,8 @@ let print_error buf (env, raw_error) =
         ptype (env, t1)
         ptype (env, t2);
   | BadTypeApplication var ->
-      bprintf "Variable %a does not have a polymorphic type.\n%a"
-        pnames (env, get_names env var)
+      bprintf "%a does not have a polymorphic type.\n%a"
+        puname (env, var)
         psummary (env, var)
   | IllKindedTypeApplication (t, k, k') ->
       bprintf "While applying type %a: this type has kind %a but \
@@ -226,13 +238,13 @@ let print_error buf (env, raw_error) =
         pnames (env, get_names env p)
         ppermission_list (env, p)
   | NotDynamic p ->
-      bprintf "Variable %a cannot be taken, as it has no dynamic type.\n%a"
-        pnames (env, get_names env p)
+      bprintf "%a cannot be taken, as it has no dynamic type.\n%a"
+        puname (env, p)
         psummary (env, p)
   | NoSuitableTypeForAdopts (p, t) ->
       let t = fold_type env t in
-      bprintf "Variable %a is given or taken. There is a mismatch: the adopter adopts %a.\n%a"
-        pnames (env, get_names env p)
+      bprintf "%a is given or taken. There is a mismatch: the adopter adopts %a.\n%a"
+        puname (env, p)
         ptype (env, t)
         psummary (env, p)
   | AdoptsNoAnnotation ->
@@ -246,15 +258,6 @@ let print_error buf (env, raw_error) =
         ptype (right_env, right_var)
         ptype (left_env, left_t)
         ptype (right_env, right_t)
-  | NoSuchTypeInSignature (var, t, d) ->
-      let t = fold_type env t in
-      bprintf "This file exports a variable named %a, but it does \
-        not have type %a. Here's a tentatively short, \
-        potentially misleading error message.\n%a\n%a"
-        pname (env, var)
-        ptype (env, t)
-        Lexer.p (location env)
-        pderivation d
   | DataTypeMismatchInSignature (x, reason) ->
       bprintf "Cannot match the definition of %a against the \
           signature because of: %s"
