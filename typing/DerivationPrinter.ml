@@ -95,108 +95,9 @@ let pderivation buf arg =
 type explanation =
   | MissingAnchored of env * var * typ
   | MissingAbstract of env * typ
+  | OnePossible of explanation
   | NoRuleForJudgement of derivation
   | NoGoodExplanation
-
-(* We're looking for atomic failures, i.e. a single missing permission, or
- * constraint, that made the whole thing fail. *)
-let is_atomic env = function
-  | JSubVar (_, t) ->
-      List.length (snd (collect t)) = 0
-  | JSubPerm p ->
-      List.length (flatten_star env p) = 1
-  | JSubPerms ps ->
-      List.length (MzList.flatten_map (flatten_star env) ps) = 1
-  | _ ->
-      false
-
-(* This function assumes an atomic judgement. *)
-let make_up_explanation env j =
-  let anchored_or_abstract t =
-    let t = modulo_flex env t in
-    let t = expand_if_one_branch env t in
-    match t with
-    | TyAnchoredPermission (x, t) ->
-        MissingAnchored (env, !!x, t)
-    | TyApp _ | TyOpen _ ->
-        MissingAbstract (env, t)
-    | _ ->
-        assert false
-  in
-  match j with
-  | JSubVar (x, t) ->
-      MissingAnchored (env, x, t)
-  | JSubPerm p ->
-      anchored_or_abstract p
-  | JSubPerms ps ->
-      anchored_or_abstract (List.hd ps)
-  | _ ->
-      assert false
-
-let explanations_equal e1 e2 =
-  match e1, e2 with
-  | MissingAnchored (env1, v1, t1), MissingAnchored (env2, v2, t2) ->
-      env1 == env2 && same env1 v1 v2 && equal env1 t1 t2
-  | MissingAbstract (env1, t1), MissingAbstract (env2, t2) ->
-      env1 == env2 && equal env1 t1 t2
-  | _ ->
-      false
-
-(* For a given derivation, try to find an easily-explainable, single point of
- * failure. *)
-let rec gather_explanation derivation =
-  match derivation with
-  | Bad (env, j, rs) ->
-      if is_atomic env j then begin
-        Log.debug ~level:4 "This is atomic: %a\n" pdoc (print_judgement env, j);
-        make_up_explanation env j
-      end else begin
-        let explanations = List.map (fun (_rule_name, premises) ->
-          let d = MzList.last premises in
-          Log.check (is_bad_derivation d) "Inconsistency in the premises of a failed rule.";
-          gather_explanation d
-        ) rs in
-        match explanations with
-        | [] ->
-            NoRuleForJudgement derivation
-        | e :: [] ->
-            e
-        | explanations ->
-            try
-              (* This is a total heuristic! *)
-              let explanations = List.filter (function
-                | NoRuleForJudgement _ -> false
-                | _ -> true
-              ) explanations in
-              let explanations = List.map (function
-                | MissingAnchored (sub_env, x, t) ->
-                    let x = !!(clean env sub_env (TyOpen x)) in
-                    let t = clean env sub_env t in
-                    (* FIXME don't use the "raw" version *)
-                    MissingAnchored (import_flex_instanciations_raw env sub_env, x, t)
-                | MissingAbstract (sub_env, t) ->
-                    let t = clean env sub_env t in
-                    (* FIXME *)
-                    MissingAbstract (import_flex_instanciations_raw env sub_env, t)
-                | (NoRuleForJudgement _ | NoGoodExplanation) as e ->
-                    e
-              ) explanations in
-              let e = List.hd explanations in
-              let es = List.tl explanations in
-              if List.for_all (explanations_equal e) es then
-                e
-              else
-                NoGoodExplanation
-            with UnboundPoint ->
-              NoGoodExplanation
-      end
-
-  | Good _ ->
-      Log.error "This function's only for failed derivations."
-
-let print_stype env t = 
-  let t = ResugarFold.fold_type env t in
-  SurfaceSyntaxPrinter.print (Resugar.resugar env t)
 
 let possibly_useful_name env x =
   let names = get_names env x in
@@ -205,6 +106,10 @@ let possibly_useful_name env x =
     List.hd user_names
   else
     List.hd names
+
+let print_stype env t = 
+  let t = ResugarFold.fold_type env t in
+  SurfaceSyntaxPrinter.print (Resugar.resugar env t)
 
 let print_summary env x =
   let name = possibly_useful_name env x in
@@ -252,13 +157,7 @@ let print_summary env x =
   in
   loc_text ^^ break 1 ^^ perm_text
 
-
-let psummary buf (env, x) =
-  pdoc buf ((fun () -> print_summary env x), ())
-
-
-let print_short d =
-  let explanation = gather_explanation d in
+let rec print_explanation explanation =
   match explanation with
   | MissingAnchored (env, x, t) ->
       let name = possibly_useful_name env x in
@@ -274,8 +173,96 @@ let print_short d =
   | NoRuleForJudgement d ->
       words "No idea how to prove the following: " ^^ break 1 ^^
       print_derivation d
+  | OnePossible e ->
+      words "Here's one, among several possible reasons for failure: " ^^ break 1 ^^
+      print_explanation e 
   | NoGoodExplanation ->
       words "No good explanation, sorry"
+
+let rec score = function
+  | MissingAnchored _ -> 10
+  | MissingAbstract _ -> 10
+  | OnePossible e -> score e - 1
+  | NoRuleForJudgement _ -> 5
+  | NoGoodExplanation -> 0
+
+(* We're looking for atomic failures, i.e. a single missing permission, or
+ * constraint, that made the whole thing fail. *)
+let is_atomic env = function
+  | JSubVar (_, t) ->
+      List.length (snd (collect t)) = 0
+  | JSubPerm p ->
+      List.length (flatten_star env p) = 1
+  | JSubPerms ps ->
+      List.length (MzList.flatten_map (flatten_star env) ps) = 1
+  | _ ->
+      false
+
+(* This function assumes an atomic judgement. *)
+let make_up_explanation env j =
+  let anchored_or_abstract t =
+    let t = modulo_flex env t in
+    let t = expand_if_one_branch env t in
+    match t with
+    | TyAnchoredPermission (x, t) ->
+        MissingAnchored (env, !!x, t)
+    | TyApp _ | TyOpen _ ->
+        MissingAbstract (env, t)
+    | _ ->
+        assert false
+  in
+  match j with
+  | JSubVar (x, t) ->
+      MissingAnchored (env, x, t)
+  | JSubPerm p ->
+      anchored_or_abstract p
+  | JSubPerms ps ->
+      anchored_or_abstract (List.hd ps)
+  | _ ->
+      assert false
+
+(* For a given derivation, try to find an easily-explainable, single point of
+ * failure. *)
+let rec gather_explanation derivation =
+  match derivation with
+  | Bad (env, j, rs) ->
+      if is_atomic env j then begin
+        Log.debug ~level:4 "This is atomic: %a\n" pdoc (print_judgement env, j);
+        make_up_explanation env j
+      end else begin
+        let explanations = List.map (fun (_rule_name, premises) ->
+          let d = MzList.last premises in
+          Log.check (is_bad_derivation d) "Inconsistency in the premises of a failed rule.";
+          gather_explanation d
+        ) rs in
+        match explanations with
+        | [] ->
+            NoRuleForJudgement derivation
+        | e :: [] ->
+            e
+        | explanations ->
+            (* This is a total heuristic! *)
+            let explanations = List.sort (fun x y -> compare (score y) (score x)) explanations in
+            match explanations with
+            | [] ->
+                NoGoodExplanation
+            | e :: [] ->
+                e
+            | e :: _ ->
+                OnePossible e
+      end
+
+  | Good _ ->
+      Log.error "This function's only for failed derivations."
+
+
+let psummary buf (env, x) =
+  pdoc buf ((fun () -> print_summary env x), ())
+
+
+let print_short d =
+  let explanation = gather_explanation d in
+  print_explanation explanation
 
 let pshort buf d =
   pdoc buf ((fun () -> print_short d), ())
