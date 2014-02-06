@@ -647,6 +647,13 @@ type substitution_kit = {
   names: Variable.name list;
 }
 
+let eloc = function
+  | ELocated (_, l) ->
+      l
+  | _ ->
+      assert false
+;;
+
 (* [eunloc e] removes any [ELocated] located in front of [e]. *)
 let rec eunloc = function
   | ELocated (e, _) ->

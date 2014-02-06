@@ -1048,6 +1048,7 @@ anonymous_function:
   (* Function body: = (x, x) *)
   EQUAL body = expression
     { let formal = List.fold_right (fun c ty -> TyAnd (c, ty)) cs formal in
+      let formal = TyLocated (formal, ($startpos(formal), $endpos(formal))) in
       EFun (type_parameters, formal, result, body) }
 
 (* ---------------------------------------------------------------------------- *)

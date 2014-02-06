@@ -74,6 +74,9 @@ val p_unit : pattern
 (** Remove any [ELocated] node in front of an expression. *)
 val eunloc : expression -> expression
 
+(** Assert a node is located and get its location. *)
+val eloc: expression -> location
+
 
 (** {2 Substitution functions for expressions.} *)
 

@@ -626,7 +626,9 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
       let sub_env = Permissions.keep_only_duplicable env in
 
       (* Introduce a variable [x] that stands for the function argument. *)
-      let sub_env, { subst_expr; vars; _ } = bind_evars sub_env [ fresh_auto_name "arg", KTerm, location sub_env ] in
+      let sub_env, { subst_expr; vars; _ } =
+        bind_evars sub_env [ fresh_auto_name "arg", KTerm, location sub_env ]
+      in
       (* Its scope is just the function body. *)
       let x = match vars with [ x ] -> x | _ -> assert false in
       let body = subst_expr body in

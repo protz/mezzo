@@ -117,18 +117,38 @@ let print_summary env x =
   let loc_text =
     let open Lexing in
     let locs = get_locations env x in
+    (* Is loc1 contained in loc2? *)
+    let loc_lt l1 l2 =
+      l1.pos_fname = l2.pos_fname &&
+      l1.pos_cnum <= l2.pos_cnum
+    in
+    let loc_included (start1, end1) (start2, end2) =
+      loc_lt start2 start1 && loc_lt end1 end2
+    in
     let locs = List.filter (fun ({ pos_fname; _ }, _) -> pos_fname <> "") locs in
     let locs = List.sort (
-      fun ({ pos_cnum = x; _ }, { pos_cnum = x'; _ })
-          ({ pos_cnum = y; _ }, { pos_cnum = y'; _ }) ->
-        if x = y then
-          compare x' y'
+      fun loc1 loc2 ->
+        if loc_included loc1 loc2 then
+          -1
+        else if loc_included loc2 loc1 then
+          1
+        else if fst loc1 = fst loc2 then
+          0
+        else if loc_lt (fst loc1) (fst loc2) then
+          -1
         else
-          compare x y
+          1
     ) locs in
     if List.length locs > 0 then
       let pos_start, pos_end = List.hd locs in
-      print_username env x ^^^ string "is defined there:" ^^ break 1
+      print_username env x ^^^ string "is defined there:"
+      ^^ (
+        if Log.debug_level () > 0 then
+          space ^^ int (List.length locs) ^^^ words "location(s) total"
+        else
+          empty
+      )
+      ^^ break 1
       ^^ string (MzString.bsprintf "%a" Lexer.p (pos_start, pos_end)) ^^ break 1
       ^^ string (Lexer.highlight_range pos_start pos_end)
     else

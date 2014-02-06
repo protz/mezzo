@@ -178,13 +178,16 @@ let perm_not_flex env t =
 (** Wraps "t1" into "∃x.(=x|x@t1)". This is really useful because if this is
  * meant to be added afterwards, then [t1] will be added in expanded form with a
  * free call to [unfold]! *)
-let wrap_bar t1 =
+let wrap_bar env t1 =
   let t1, perms = collect t1 in
   match t1 with
   | TySingleton _ ->
       TyBar (t1, fold_star perms)
   | _ ->
-      let binding = Auto (Utils.fresh_var "sp"), KTerm, location empty_env in
+      let v = Utils.fresh_var "sp" in
+      (* if Variable.print v = "sp483" then
+        assert false; *)
+      let binding = Auto v, KTerm, location env in
       TyQ (Exists, binding, AutoIntroduced,
         TyBar (
           TySingleton (TyBound 0),
@@ -278,7 +281,11 @@ class open_all_rigid_in (env : env ref) = object (self)
   method! visit (side, deconstructed) ty =
     let ty = modulo_flex !env ty in
     let ty = expand_if_one_branch !env ty in
-    let ty = if deconstructed && not (is_singleton !env ty) && side = Left then wrap_bar ty else ty in
+    let ty =
+      if deconstructed && not (is_singleton !env ty) && side = Left
+      then wrap_bar !env ty
+      else ty
+    in
     match ty, side with
 
     (* We stop at the following constructors. *)
