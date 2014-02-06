@@ -15,9 +15,9 @@ let surface_print_point env point =
   try
     match surface_print_var env (get_name env point), is_flexible env point with
     | S.Unqualified x, true ->
-       S.Unqualified (Variable.register (Variable.print x ^ "*"))
-    | _, true ->
-       assert false
+       S.Unqualified (Variable.register ("?" ^ Variable.print x))
+    | S.Qualified (m, x), true ->
+       S.Qualified (m, Variable.register ("?" ^ Variable.print x))
     | x, false ->
        x
   with UnboundPoint ->

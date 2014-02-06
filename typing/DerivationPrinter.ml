@@ -54,7 +54,7 @@ let print_judgement env = function
       words "prove subtyping relation:" ^^^
       print_type env t1 ^^^ utf8string "≥" ^^^ print_type env t2
   | JNothing ->
-      empty
+      words "succeed"
   | JAdd t ->
       words "perform:" ^^^ string "P" ^^^ equals ^^^
       string "P" ^^^ utf8string "∗" ^^^ print_type env t
@@ -126,10 +126,13 @@ let print_summary env x =
         else
           compare x y
     ) locs in
-    let pos_start, pos_end = List.hd locs in
-    print_username env x ^^^ string "is defined there:" ^^ break 1
-    ^^ string (MzString.bsprintf "%a" Lexer.p (pos_start, pos_end)) ^^ break 1
-    ^^ string (Lexer.highlight_range pos_start pos_end)
+    if List.length locs > 0 then
+      let pos_start, pos_end = List.hd locs in
+      print_username env x ^^^ string "is defined there:" ^^ break 1
+      ^^ string (MzString.bsprintf "%a" Lexer.p (pos_start, pos_end)) ^^ break 1
+      ^^ string (Lexer.highlight_range pos_start pos_end)
+    else
+      empty
   in
   (* Find its useful permissions. *)
   let useful_permission env x =
