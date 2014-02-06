@@ -685,15 +685,15 @@ and sub (env: env) (var: var) (t: typ): result =
     let t = modulo_flex env t in
     let t = expand_if_one_branch env t in
 
-    let try_proof = try_proof env judgement in
+    let try_proof_root = try_proof env judgement in
 
     if is_inconsistent env then
-      try_proof "Inconsistent" begin
+      try_proof_root "Inconsistent" begin
         qed env
       end
 
     else if is_singleton env t then
-      try_proof "Must-Be-Singleton" begin
+      try_proof_root "Must-Be-Singleton" begin
         sub_type env (ty_equals var) t >>=
         qed
       end
@@ -726,13 +726,24 @@ and sub (env: env) (var: var) (t: typ): result =
           (* [t_x] is the "original" type found in the list of permissions for [x].
            * -- see [tests/fact-inconsistency.mz] as to why I believe it's correct
            * to check [t_x] for duplicity and not just [t]. *)
+          let was_duplicable = FactInference.is_duplicable env t_x in
           let env =
-            if FactInference.is_duplicable env t_x then
+            if was_duplicable then
               env
             else
               set_permissions env var remaining
           in
-          sub_type env ~no_singleton:() t_x t
+          try_proof env JNothing "Maybe-Duplicable" begin
+            sub_type env ~no_singleton:() t_x t >>= fun env ->
+            (* Instantiations may have happened during the call to [sub_type]! *)
+            let now_duplicable = FactInference.is_duplicable env t_x in
+            if not was_duplicable && now_duplicable then
+              let sub_env = set_permissions env var (t_x :: remaining) in
+              apply_axiom env (JAdd t_x) "Add" sub_env >>=
+              qed
+            else
+              qed env
+          end
         )
 
 
