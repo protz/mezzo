@@ -388,30 +388,28 @@ end
 
 
 let explain ?(text="") ?x env =
+  (* By default, explanations print verbose information if debug is enabled, and
+   * a short summary (always). *)
+  Option.iter (fun x ->
+    Log.debug ~level:1 "Debug is enabled, here's some verbose information.";
+    Log.debug ~level:1 "Last checked expression: %a at %a\n"
+      pnames (env, get_names env x)
+      Lexer.p (location env);
+
+    Log.debug ~level:1 "\n";
+    Log.debug ~level:1 "%a\n\n" ppermissions env;
+    Log.debug ~level:1 "%s\n\n%!" (String.make twidth '-');
+
+    MzString.bprintf "%a\n%!" DerivationPrinter.psummary (env, x);
+  ) x;
+
+  (* If we're given a specific variable, then it's an interesting one, and it
+   * should be highlighted in whatever format we want. *)
   let interesting = Option.to_list x in
   if !enabled = "html" then begin
     Html.render env text interesting;
     Html.launch env;
   end else if !enabled = "x11" then begin
-    (* Reset the screen. *)
-    flush stdout; flush stderr;
-    reset ();
-
-    begin match x with
-    | Some x ->
-        (* Print the current position. *)
-        MzString.bprintf "Last checked expression: %a at %a\n"
-          pnames (env, get_names env x)
-          Lexer.p (location env);
-    | None ->
-        ()
-    end;
-
-    (* Print MOAR. *)
-    MzString.bprintf "\n";
-    MzString.bprintf "%a\n\n" ppermissions env;
-    MzString.bprintf "%s\n\n" (String.make twidth '-');
-    flush stdout; flush stderr;
     Graph.graph env interesting
   end
 ;;

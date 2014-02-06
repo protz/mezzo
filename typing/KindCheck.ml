@@ -1109,9 +1109,6 @@ and check_expression env (expr : expression) : unit =
   | EInt _ ->
       ()
 
-  | EExplained e ->
-      check_expression env e
-
   | EFail ->
       ()
 

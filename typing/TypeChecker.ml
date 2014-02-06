@@ -474,15 +474,16 @@ let refine_perms_in_place_for_pattern env var pat =
 
 let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (expr: expression): env * var =
 
-  let find_qualified_type m x =
+  let find_qualified m x =
     (* lazy because we need to typecheck the core modules too! *)
     lazy begin
       let x = Exports.find_qualified_var env (Module.register m) (Variable.register x) in
       TyOpen x
     end
   in
-  let t_int = find_qualified_type "int" "int" in
-  let t_bool = find_qualified_type "bool" "bool" in
+  let t_int = find_qualified "int" "int" in
+  let t_bool = find_qualified "bool" "bool" in
+  let f_info = find_qualified "info" "info" in
 
   (* [return t] creates a new var with type [t] available for it, and returns
    * the environment as well as the var *)
@@ -748,6 +749,11 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
       let hint2 = add_hint hint "arg" in
       let env, x1 = check_expression env ?hint:hint1 e1 in
       let env, x2 = check_expression env ?hint:hint2 e2 in
+      (* Print debug information now (check_function_call consumes permissions,
+       * and only [return env ...] puts them back, so we would be printing
+       * inaccurate information. *)
+      if same env x1 !!(!*f_info) then
+        Debug.explain env ~x:x2;
       (* Give an error message that mentions the entire function call. We should
        * probably have a function called nearest_loc that returns the location
        * of [e2] so that we can be even more precise in the error message. *)
@@ -1118,13 +1124,6 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
       if not (List.exists (FactInference.is_exclusive env) (get_permissions env y)) then
         raise_error env (NoAdoptsClause y);
       return env !*t_bool
-
-  | EExplained e ->
-      let env, x = check_expression env ?hint e in
-      Debug.explain env ~x;
-      (* Log.debug "%a" TypePrinter.penv env;
-      if true then failwith "Explanation above"; *)
-      env, x
 
   | EFail ->
       let name = Auto (Variable.register "/inconsistent") in

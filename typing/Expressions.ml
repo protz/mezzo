@@ -419,10 +419,6 @@ and tsubst_expr t2 i e =
   | EInt _ ->
       e
 
-  | EExplained e ->
-      let e = tsubst_expr t2 i e in
-      EExplained e
-
   | ETake (e1, e2) ->
       let e1 = tsubst_expr t2 i e1 in
       let e2 = tsubst_expr t2 i e2 in
@@ -581,10 +577,6 @@ and esubst e2 i e1 =
 
   | EInt _ ->
       e1
-
-  | EExplained e ->
-      let e = esubst e2 i e in
-      EExplained e
 
   | ETake (e, e') ->
       let e = esubst e2 i e in
@@ -925,9 +917,6 @@ module ExprPrinter = struct
 
     | EInt i ->
         int i
-
-    | EExplained e ->
-        print_expr env e ^^ space ^^ string "explained"
 
     | EGive (e1, e2) ->
         string "give" ^^ space ^^ print_expr env e1 ^^ space ^^

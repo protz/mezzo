@@ -886,10 +886,6 @@ let rec translate_expr (env: env) (expr: expression): E.expression =
   | EInt i ->
       E.EInt i
 
-  | EExplained e ->
-      let e = translate_expr env e in
-      E.EExplained e
-
   | EGive (x, e) ->
       E.EGive (translate_expr env x, translate_expr env e)
 

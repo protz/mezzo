@@ -934,8 +934,6 @@ raw_reasonable_expression:
     { EAssert t }
 | PACK t1 = very_loose_type WITNESS t2 = very_loose_type
     { EPack (t1, t2) }
-| e = algebraic_expression EXPLAIN
-    { EExplained e }
 (* An expression that carries a type constraint. We cannot allow a fat type
    here because they have BARs in them and that would create an ambiguity
    when used inside a match construct! *)

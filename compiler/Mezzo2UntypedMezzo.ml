@@ -215,8 +215,6 @@ and transl (loc : location) (e : expression) (k : continuation) : U.expression =
       transl loc e k
   | EInt i ->
       k (U.EInt i)
-  | EExplained e ->
-      transl loc e k
 
   (* Compilation of adoption and abandon: [give], [take], and [owns]. *)
 
