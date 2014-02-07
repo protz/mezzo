@@ -264,8 +264,8 @@ let rec transl (e : expression) : O.expression =
       )
   | EWhile (e1, e2) ->
       O.EWhile (
-  gtz (O.EGetTag (transl e1)),
-  transl e2
+        gtz (O.EGetTag (transl e1)),
+        transl e2
       )
   | EFor (x, e1, f, e2, e) ->
       let mkop s = EVar (Unqualified (Variable.register s)) in

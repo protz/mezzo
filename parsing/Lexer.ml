@@ -77,7 +77,7 @@ let p buf (start_pos, end_pos: Lexing.position * Lexing.position) =
   else
     Printf.bprintf buf "File \"%s\", line %i, char %i to line %i, char %i:\n"
       filename start_line start_col end_line end_col
-
+ 
 let print_position buf lexbuf =
   let open Lexing in
   let start_pos = start_pos lexbuf in
@@ -124,6 +124,28 @@ let highlight_range pos_start pos_end =
   let buf = Buffer.create 256 in
   prange buf (pos_start, pos_end);
   Buffer.contents buf
+
+(* Is loc1 contained in loc2? *)
+let loc_lt l1 l2 =
+  let open Lexing in
+  l1.pos_fname = l2.pos_fname &&
+  l1.pos_cnum <= l2.pos_cnum
+
+let loc_included (start1, end1) (start2, end2) =
+  loc_lt start2 start1 && loc_lt end1 end2
+
+let compare_locs loc1 loc2 =
+  if loc_included loc1 loc2 then
+    -1
+  else if loc_included loc2 loc1 then
+    1
+  else if fst loc1 = fst loc2 then
+    0
+  else if loc_lt (fst loc1) (fst loc2) then
+    -1
+  else
+    1
+
 
 (* ---------------------------------------------------------------------------- *)
 

@@ -259,11 +259,6 @@ let is_singleton env t =
  * This function actually does quite a bit of work, in the sense that it
  * performs unfolding on demand: if there is a missing structure point that
  * could potentially be a rigid variable, it creates it... *)
-
-(* TEMPORARY calling [wrap_bar] causes an existential to appear, so it
-   seems interesting only if on the Left side. If on the right side, on
-   the contrary, it could prevent us from making progress? *)
-
 class open_all_rigid_in (env : env ref) = object (self)
 
   (* The type environment [env] has type [env ref], and is threaded
@@ -309,6 +304,7 @@ class open_all_rigid_in (env : env ref) = object (self)
     | TyQ (Forall, binding, _, ty), Right
     | TyQ (Exists, binding, _, ty), Left ->
         let new_env, ty, _ = bind_rigid_in_type !env binding ty in
+        let new_env = locate new_env (thd3 binding) in
         env := new_env;
         self#visit (side, false) ty
 
@@ -349,6 +345,15 @@ class open_all_rigid_in (env : env ref) = object (self)
     (* We descend into the right-hand side of [TyAnchoredPermission] and [TyAnd]. *)
 
     | TyAnchoredPermission (ty1, ty2), _ ->
+        let new_env =
+          let locs = get_locations !env !!ty1 in
+          let locs = List.sort Lexer.compare_locs locs in
+          if List.length locs > 0 then
+            locate !env (List.hd locs)
+          else
+            !env
+        in
+        env := new_env;
         TyAnchoredPermission (ty1, self#visit (side, false) ty2)
     | TyAnd (c, ty), _ ->
         TyAnd (c, self#visit (side, false) ty)
@@ -370,9 +375,10 @@ class open_all_rigid_in (env : env ref) = object (self)
 end
 
 let open_all_rigid_in (env : env) (ty : typ) (side : side) : env * typ =
+  let loc = location env in
   let env = ref env in
   let ty = (new open_all_rigid_in env) # visit (side, false) ty in
-  !env, ty
+  locate !env loc, ty
 
 (* -------------------------------------------------------------------------- *)
 

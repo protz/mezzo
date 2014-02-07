@@ -39,7 +39,7 @@ let rec is_unit = function
 let abandon v1 v2 success failure =
   let open U in
   (* if v1.adopter == v2 *)
-  EIfThenElse (
+  U.EIfThenElse (
     EApply (
       EBuiltin "_mz_address_eq",
       ETuple [
