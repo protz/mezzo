@@ -31,7 +31,7 @@ let print_judgement env = function
       words "subtract:" ^^^
       print_type env t1 ^^^ minus ^^^ print_type env t2
   | JSubVar (v, t) ->
-      words "from" ^^^ print_point env v ^^^
+      words "from" ^^^ print_var env v ^^^
       words "subtract" ^^^ print_type env t
   | JSubPerm t ->
       words "subtract permission" ^^^ print_type env t
@@ -121,7 +121,7 @@ let print_summary env x =
     let locs = List.sort Lexer.compare_locs locs in
     if List.length locs > 0 then
       let pos_start, pos_end = List.hd locs in
-      print_username env x ^^^ string "is defined around there:"
+      print_uservar env x ^^^ string "is defined around there:"
       ^^ (
         if Log.debug_level () > 0 then
           space ^^ int (List.length locs) ^^^ words "location(s) total"
@@ -150,7 +150,7 @@ let print_summary env x =
     | ps ->
         let ps = separate_map hardline
           (fun p ->
-            print_var env name ^^^ at ^^^ print_stype env p)
+            print_name env name ^^^ at ^^^ print_stype env p)
           ps
         in
         words "The following permissions are available for it: " ^^ nest 2 (
@@ -166,7 +166,7 @@ let rec print_explanation explanation =
       let name = possibly_useful_name env x in
       words "Could not obtain the following permission: " ^^ nest 2 (
         break 1 ^^
-        print_var env name ^^^ at ^^^
+        print_name env name ^^^ at ^^^
         print_stype env t ^^ break 1
       ) ^^ break 1 ^^
       print_summary env x

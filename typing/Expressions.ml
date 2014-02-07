@@ -766,10 +766,10 @@ module ExprPrinter = struct
 
   and print_pat env = function
     | PVar (v, _) ->
-        print_var env (User (module_name env, v))
+        print_name env (User (module_name env, v))
 
     | POpen var ->
-        print_var env (get_name env var)
+        print_name env (get_name env var)
 
     | PTuple pats ->
         lparen ^^
@@ -799,7 +799,7 @@ module ExprPrinter = struct
   and print_tapp env = function
     | Named (x, t) ->
         let x = User (module_name env, x) in
-        print_var env x ^^ space ^^ equals ^^ space ^^ print_type env t
+        print_name env x ^^ space ^^ equals ^^ space ^^ print_type env t
     | Ordered t ->
         print_type env t
 
@@ -811,7 +811,7 @@ module ExprPrinter = struct
         string "EVar(" ^^ int i ^^ string ")"
 
     | EOpen var ->
-        print_var env (get_name env var)
+        print_name env (get_name env var)
 
     | EBuiltin b ->
         string "builtin" ^^ space ^^ string b
@@ -950,7 +950,7 @@ module ExprPrinter = struct
 
   and print_ebinder env ((name, kind, _), f) =
     let f = if f = AutoIntroduced then star else empty in
-    print_var env name ^^ f ^^ space ^^ colon ^^ space ^^ print_kind kind
+    print_name env name ^^ f ^^ space ^^ colon ^^ space ^^ print_kind kind
 
   and print_binder env (((name: Variable.name), kind, pos), f) =
     print_ebinder env ((User (module_name env, name), kind, pos), f)
@@ -962,7 +962,7 @@ module ExprPrinter = struct
   ;;
 
   let print_sig_item env (x, t) =
-    print_var env (User (module_name env, x)) ^^ space ^^ at ^^ space ^^ print_type env t
+    print_name env (User (module_name env, x)) ^^ space ^^ at ^^ space ^^ print_type env t
   ;;
 
   let psigitem buf (env, arg) =

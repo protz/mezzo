@@ -8,11 +8,11 @@ open TypePrinter
 
 (* Prints an abstract data type. Very straightforward. *)
 let print_abstract_type_def print_env name kind =
-  string "abstract" ^^ space ^^ print_var print_env name ^^ space ^^ colon ^^ space ^^
+  string "abstract" ^^ space ^^ print_name print_env name ^^ space ^^ colon ^^ space ^^
   print_kind kind
 ;;
 
-let print_variance = function
+let print_nameiance = function
   | Invariant ->
       empty
   | Covariant ->
@@ -30,7 +30,7 @@ let print_data_type_def (env: env) name kind variance branches =
   (* Turn the list of parameters into letters *)
   let letters: string list = name_gen (List.length params) in
   let letters = List.map2 (fun variance letter ->
-    print_variance variance ^^ utf8string letter
+    print_nameiance variance ^^ utf8string letter
   ) variance letters in
   let env, _, branches =
     bind_datacon_parameters env kind branches
@@ -38,7 +38,7 @@ let print_data_type_def (env: env) name kind variance branches =
   let sep = break 1 ^^ bar ^^ space in
   (* The whole blurb *)
   string "data" ^^ space ^^ lparen ^^
-  print_var env name ^^ space ^^ colon ^^ space ^^
+  print_name env name ^^ space ^^ colon ^^ space ^^
   print_kind kind ^^ rparen ^^ concat_map (precede space) letters ^^
   space ^^ equals ^^
   jump
@@ -51,13 +51,13 @@ let print_abbrev_type_def (env: env) name kind variance t =
   let env, points = make_datacon_letters env kind false in
   let letters = List.map (fun p -> get_name env p) points in
   let letters = List.map2 (fun variance letter ->
-    print_variance variance ^^ print_var env letter
+    print_nameiance variance ^^ print_name env letter
   ) variance letters in
   let vars = List.map (fun x -> TyOpen x) points in
   let t = instantiate_type t vars in
   (* The whole blurb *)
   string "alias" ^^ space ^^ lparen ^^
-  print_var env name ^^ space ^^ colon ^^ space ^^
+  print_name env name ^^ space ^^ colon ^^ space ^^
   print_kind kind ^^ rparen ^^ concat_map (precede space) letters ^^
   space ^^ equals ^^ space ^^ print_type env t
 ;;

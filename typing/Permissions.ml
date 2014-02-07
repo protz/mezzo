@@ -178,15 +178,18 @@ let perm_not_flex env t =
 (** Wraps "t1" into "∃x.(=x|x@t1)". This is really useful because if this is
  * meant to be added afterwards, then [t1] will be added in expanded form with a
  * free call to [unfold]! *)
-let wrap_bar env t1 =
+let wrap_bar env ?name t1 =
   let t1, perms = collect t1 in
   match t1 with
   | TySingleton _ ->
       TyBar (t1, fold_star perms)
   | _ ->
-      let v = Utils.fresh_var "sp" in
-      (* if Variable.print v = "sp483" then
-        assert false; *)
+      let v = match name with
+        | Some s -> Variable.register s
+        | None -> Utils.fresh_var "sp"
+      in
+      if Variable.print v = "sp475" then
+        assert false;
       let binding = Auto v, KTerm, location env in
       TyQ (Exists, binding, AutoIntroduced,
         TyBar (
@@ -269,16 +272,18 @@ class open_all_rigid_in (env : env ref) = object (self)
      and [deconstructed], a Boolean flag that is set to [true] when
      a structural type was just deconstructed and we are expected
      to invoke [wrap_bar]. *)
-  inherit [side * bool] map as super
+  inherit [side * bool * string option] map as super
 
   (* We re-implement the main visitor in order to receive a warning
-     when new cases appear and in order to share code. *)
-  method! visit (side, deconstructed) ty =
+   * when new cases appear and in order to share code. The optional [name]
+   * parameter stands for the name of our immediate parent: when generating
+   * names for the fields of a record/tuple, that may give use better ideas. *)
+  method! visit (side, deconstructed, name) ty =
     let ty = modulo_flex !env ty in
     let ty = expand_if_one_branch !env ty in
     let ty =
       if deconstructed && not (is_singleton !env ty) && side = Left
-      then wrap_bar !env ty
+      then wrap_bar !env ?name ty
       else ty
     in
     match ty, side with
@@ -306,7 +311,7 @@ class open_all_rigid_in (env : env ref) = object (self)
         let new_env, ty, _ = bind_rigid_in_type !env binding ty in
         let new_env = locate new_env (thd3 binding) in
         env := new_env;
-        self#visit (side, false) ty
+        self#visit (side, false, None) ty
 
     (* As a special case, when we find [t -> u] on the right-hand side,
        we go look for existential quantifiers inside [t], and hoist them
@@ -325,26 +330,31 @@ class open_all_rigid_in (env : env ref) = object (self)
        changes only from [Right] to [Left]. *)
 
     | TyArrow (ty1, ty2), Right ->
-        let ty1 = self#visit (Left, false) ty1 in
+        let ty1 = self#visit (Left, false, None) ty1 in
         TyArrow (ty1, ty2)
 
     (* We descend into the following constructs. *)
 
     | TyTuple _, _
     | TyConcrete _, _ ->
-        super#visit (side, true) ty
+        super#visit (side, true, name) ty
         (* Setting [deconstructed] to [true] forces the fields to
           become named with a point, if they weren't already. *)
 
     | TyBar (t, p), _ ->
-        TyBar (self # visit (side, true) t, self # visit (side, false) p)
+        TyBar (self # visit (side, true, None) t, self # visit (side, false, None) p)
 
     | TyStar _, _ ->
-        super#visit (side, false) ty
+        super#visit (side, false, None) ty
 
     (* We descend into the right-hand side of [TyAnchoredPermission] and [TyAnd]. *)
 
     | TyAnchoredPermission (ty1, ty2), _ ->
+        (* This is important: for variables that are automatically introduced,
+         * we want them to be as close as possible to their parent. For
+         * instance, if I have a function that takes [x: ref int], I want the
+         * variable that stands for [x.contents] to have the same location as
+         * [x]. *)
         let new_env =
           let locs = get_locations !env !!ty1 in
           let locs = List.sort Lexer.compare_locs locs in
@@ -353,10 +363,11 @@ class open_all_rigid_in (env : env ref) = object (self)
           else
             !env
         in
+        let name = Some (TypePrinter.string_of_name !env (get_name !env !!ty1)) in
         env := new_env;
-        TyAnchoredPermission (ty1, self#visit (side, false) ty2)
+        TyAnchoredPermission (ty1, self#visit (side, false, name) ty2)
     | TyAnd (c, ty), _ ->
-        TyAnd (c, self#visit (side, false) ty)
+        TyAnd (c, self#visit (side, false, None) ty)
 
   (* At [TyConcrete], we descend into the fields, but not into
      the datacon or into the adopts clause. *)
@@ -367,17 +378,18 @@ class open_all_rigid_in (env : env ref) = object (self)
 
   (* At physical fields, we set [deconstructed] to [true]. At permission
      fields, we do not; it makes sense only at kind [type]. *)
-  method! field (side, _) (field, ty) =
+  method! field (side, _, name) (field, ty) =
+    let name = Option.map (fun x -> x ^ "." ^ Field.print field) name in
     (* Setting [deconstructed] to [true] forces the fields to
       become named with a point, if they weren't already. *)
-    field, self#visit (side, true) ty
+    field, self#visit (side, true, name) ty
 
 end
 
 let open_all_rigid_in (env : env) (ty : typ) (side : side) : env * typ =
   let loc = location env in
   let env = ref env in
-  let ty = (new open_all_rigid_in env) # visit (side, false) ty in
+  let ty = (new open_all_rigid_in env) # visit (side, false, None) ty in
   locate !env loc, ty
 
 (* -------------------------------------------------------------------------- *)

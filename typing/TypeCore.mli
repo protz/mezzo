@@ -265,6 +265,9 @@ val set_floating_permissions: env -> typ list -> env
 
 (** Get the names associated to a variable. *)
 val get_names : env -> var -> name list
+
+(** This function returns the user-provided name, if any. The auto-generated
+ * name, otherwise. *)
 val get_name : env -> var -> name
 
 (** Get the kind of any given variable. *)

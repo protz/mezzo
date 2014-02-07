@@ -104,7 +104,7 @@ let print_error buf (env, raw_error) =
       let t = fold_var env p in
       bprintf
         "%a is not a function, it has type:\n%a"
-        pname (env, p)
+        pvar (env, p)
         ptype (env, t)
   | ExpectedType (t, var, d) ->
       bprintf
@@ -131,7 +131,7 @@ let print_error buf (env, raw_error) =
       bprintf "This file exports a variable named %a, but it does \
         not have type %a. Here's a tentatively short, \
         potentially misleading error message.\n%a\n%a\n%a"
-        pname (env, var)
+        pvar (env, var)
         ptype (env, t)
         Lexer.p (location env)
         Lexer.prange (location env)
@@ -150,28 +150,28 @@ let print_error buf (env, raw_error) =
   | NoTwoConstructors var ->
       bprintf
         "%a doesn't have a type with two constructors.\n%a"
-        puname (env, var)
+        puvar (env, var)
         psummary (env, var)
   | NoSuchField (var, f) ->
       bprintf
         "%a has no field named %a.\n%a"
-        puname (env, var)
+        puvar (env, var)
         Field.p f
         psummary (env, var)
   | CantAssignTag var ->
       bprintf
         "%a cannot be assigned a tag.\n%a"
-        puname (env, var)
+        puvar (env, var)
         psummary (env, var)
   | MatchBadTuple var ->
       bprintf
         "%a cannot be matched as a tuple.\n%a"
-        puname (env, var)
+        puvar (env, var)
         psummary (env, var)
   | MatchBadDatacon (var, datacon) ->
       bprintf
         "%a cannot be matched with data constructor %a.\n%a"
-        puname (env, var)
+        puvar (env, var)
         Datacon.p datacon
         psummary (env, var)
   | NoSuchFieldInPattern (pat, field) ->
@@ -182,7 +182,7 @@ let print_error buf (env, raw_error) =
   | BadPattern (pat, var) ->
       bprintf
         "%a cannot be matched with pattern %a.\n%a"
-        puname (env, var)
+        puvar (env, var)
         !internal_ppat (env, pat)
         psummary (env, var)
   | BadField (datacon, name) ->
@@ -221,7 +221,7 @@ let print_error buf (env, raw_error) =
         ptype (env, t2);
   | BadTypeApplication var ->
       bprintf "%a does not have a polymorphic type.\n%a"
-        puname (env, var)
+        puvar (env, var)
         psummary (env, var)
   | IllKindedTypeApplication (t, k, k') ->
       bprintf "While applying type %a: this type has kind %a but \
@@ -239,12 +239,12 @@ let print_error buf (env, raw_error) =
         ppermission_list (env, p)
   | NotDynamic p ->
       bprintf "%a cannot be taken, as it has no dynamic type.\n%a"
-        puname (env, p)
+        puvar (env, p)
         psummary (env, p)
   | NoSuitableTypeForAdopts (p, t) ->
       let t = fold_type env t in
       bprintf "%a is given or taken. There is a mismatch: the adopter adopts %a.\n%a"
-        puname (env, p)
+        puvar (env, p)
         ptype (env, t)
         psummary (env, p)
   | AdoptsNoAnnotation ->

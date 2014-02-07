@@ -3,7 +3,7 @@ open TypeCore
 open DeBruijn
 module S = SurfaceSyntax
 
-let surface_print_var env = function
+let surface_print_name env = function
   | User (m, x) when Module.equal (module_name env) m ->
       S.Unqualified x
   | User (m, x) ->
@@ -11,9 +11,9 @@ let surface_print_var env = function
   | Auto x ->
       S.Unqualified x
 
-let surface_print_point env point =
+let surface_print_var env point =
   try
-    match surface_print_var env (get_name env point), is_flexible env point with
+    match surface_print_name env (get_name env point), is_flexible env point with
     | S.Unqualified x, true ->
        S.Unqualified (Variable.register ("?" ^ Variable.print x))
     | S.Qualified (m, x), true ->
@@ -24,7 +24,7 @@ let surface_print_point env point =
     S.Unqualified (Variable.register "!! ☠ !!")
 
 let resugar_binding env (x, kind, loc) =
-  S.destruct_unqualified (surface_print_var env x), kind, loc
+  S.destruct_unqualified (surface_print_name env x), kind, loc
 
 (* TEMPORARY
    - is our choice of names hygienic?
@@ -41,7 +41,7 @@ let rec resugar env (points : unit VarMap.t ref) (soup : typ VarMap.t ref) ty =
   | TyBound _ ->
       assert false
   | TyOpen x ->
-      S.TyVar (surface_print_point env x)
+      S.TyVar (surface_print_var env x)
   | TyQ (Forall, binding, UserIntroduced, ty) ->
       (* This universal quantifier was introduced by the user. We
          do not attempt it to make it implicit. Furthermore, we
@@ -68,7 +68,7 @@ let rec resugar env (points : unit VarMap.t ref) (soup : typ VarMap.t ref) ty =
       resugar_resolved_branch env points soup branch
   | TySingleton (TyOpen x) ->
       (* Construct a name for this variable. *)
-      let name = surface_print_point env x in
+      let name = surface_print_var env x in
       (* If this is one the points for which we would like to create
         a [TyNameIntro] introduction form, then create such a form,
         and update [points] by removing [x] from it: this indicates

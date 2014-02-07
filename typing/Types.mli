@@ -241,23 +241,44 @@ val make_datacon_letters :
 (** Our not-so-pretty printer for types. *)
 module TypePrinter :
   sig
-    val print_var : env -> name -> MzPprint.document
-    val pvar : Buffer.t -> env * name -> unit
+    (** Everything comes in two version: one that is suitable for use with
+     * [PPrint], another one that's suitable for [MzString.* "%a"]. *)
+
+    val string_of_name: env -> name -> string
+
+    (** Print the name of a variable, and pick the user-provided name, if any. *)
+    val print_name : env -> name -> MzPprint.document
+    val pname : Buffer.t -> env * name -> unit
+
+    (** Print a human-readable thing like "the subexpression blah" if blah is an
+     * [Auto] name, or "the variable bli" if bli is a [User] name. *)
+    val print_uservar : env -> var -> MzPprint.document
+    val puvar : Buffer.t -> env * var -> unit
+
+    (** Same thing as [print_name], except it's for a [var]. *)
+    val print_var : env -> var -> MzPprint.document
+    val pvar : Buffer.t -> env * var -> unit
+
+    (** All the names. *)
+    val print_names : env -> name list -> MzPprint.document
+    val pnames : Buffer.t -> env * name list -> unit
+
+    (** Print a set of permissions. *)
+    val print_permission_list : env * typ list -> MzPprint.document
+    val ppermission_list : Buffer.t -> env * var -> unit
+
+    (** Print all the permissions from the environment. *)
+    val print_permissions : env -> MzPprint.document
+    val ppermissions : Buffer.t -> env -> unit
+
     val print_datacon : Datacon.name -> MzPprint.document
     val print_field_name : Field.name -> MzPprint.document
     val print_field : SurfaceSyntax.field -> MzPprint.document
     val p_kind : Buffer.t -> kind -> unit
-    val print_names :
-      env -> name list -> MzPprint.document
-    val pnames : Buffer.t -> env * name list -> unit
-    val pname : Buffer.t -> env * var -> unit
-    val print_username : env -> var -> MzPprint.document
-    val puname : Buffer.t -> env * var -> unit
     val print_quantified :
       env ->
       string ->
       name -> kind -> typ -> MzPprint.document
-    val print_point : env -> var -> MzPprint.document
     val print_type : env -> typ -> MzPprint.document
     val print_constraint :
       env ->
@@ -270,11 +291,6 @@ module TypePrinter :
       MzPprint.document
     val pfact : Buffer.t -> Fact.fact -> unit
     val print_facts : env -> MzPprint.document
-    val print_permission_list :
-      env * typ list -> MzPprint.document
-    val ppermission_list : Buffer.t -> env * var -> unit
-    val print_permissions : env -> MzPprint.document
-    val ppermissions : Buffer.t -> env -> unit
     val ptype : Buffer.t -> env * typ -> unit
     val penv : Buffer.t -> env -> unit
     val pconstraint :
