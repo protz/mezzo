@@ -188,8 +188,6 @@ let wrap_bar env ?name t1 =
         | Some s -> Variable.register s
         | None -> Utils.fresh_var "sp"
       in
-      if Variable.print v = "sp475" then
-        assert false;
       let binding = Auto v, KTerm, location env in
       TyQ (Exists, binding, AutoIntroduced,
         TyBar (
