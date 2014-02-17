@@ -28,6 +28,12 @@ type cenv = (env * var) * var list
 
 let enabled = ref "";;
 let enable_trace v = enabled := v;;
+let is_osx =
+  lazy begin
+    Sys.unix &&
+    String.sub (Ocamlbuild_plugin.run_and_read "uname") 0 6 = "Darwin"
+  end
+;;
 
 let unique xs =
   let xs = List.sort compare xs in
@@ -307,7 +313,8 @@ module Html = struct
   let get_json_filename env =
     let f = (fst (location env)).Lexing.pos_fname in
     let f = MzString.replace "/" "_" f in
-    Printf.sprintf "viewer/data/%s.json" f
+    (* FIXME use Filename + temp_dir + properly package the viewer *)
+    Printf.sprintf "%s/viewer/data/%s.json" Configure.lib_dir f
   ;;
 
   let render_base env extra =
@@ -369,18 +376,19 @@ module Html = struct
   ;;
 
   let launch env =
+    if not Configure.has_firefox then
+      Log.error "Firefox was not detected for the -explain html feature.";
     if Unix.fork () = 0 then begin
-      let filename =
-        let s = get_json_filename env in
-        let l1 = String.length "viewer/" in
-        let l2 = String.length s in
-        String.sub s l1 (l2 - l1)
+      (* This now is an absolute path *)
+      let filename = get_json_filename env in
+      let page = 
+        Printf.sprintf "file://%s/viewer/viewer.html?json_file=%s"
+          Configure.lib_dir filename;
       in
-      Unix.execvp "firefox" [|
-        "firefox";
-        "-new-window";
-        Printf.sprintf "viewer/viewer.html?json_file=%s" filename;
-      |];
+      if !*is_osx then
+        Unix.execvp "open" [| "open"; "-a"; Configure.firefox; "--args"; page |]
+      else
+        Unix.execvp Configure.firefox [| Configure.firefox; "-new-window"; page |]
     end;
   ;;
 
