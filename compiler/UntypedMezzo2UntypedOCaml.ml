@@ -30,7 +30,7 @@ let identifier (x : string) =
 (* The Mezzo module name [array] becomes the OCaml module name [Mzarray]. *)
 
 let translate_module_name m =
-  "Mz" ^ Module.print m
+  "Mz_" ^ Module.print m
 
 (* ---------------------------------------------------------------------------- *)
 

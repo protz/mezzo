@@ -62,8 +62,8 @@ let apply_rules_and_flags ~boot event =
           "%(path)%(filename).mz";"%(path)%(filename).mzi"
         ](* the source files *)
         ~prods:[
-          "%(path:<**/>)mz%(filename:<*> and not <*.*>).ml";
-          "%(path:<**/>)mz%(filename:<*> and not <*.*>).mli"
+          "%(path:<**/>)mz_%(filename:<*> and not <*.*>).ml";
+          "%(path:<**/>)mz_%(filename:<*> and not <*.*>).mli"
         ] (* the target files *)
         compile;
 
@@ -73,7 +73,7 @@ let apply_rules_and_flags ~boot event =
           "%(path)%(filename).mz"
         ](* the source files *)
         ~prods:[
-          "%(path:<**/>)mz%(filename:<*> and not <*.*>).ml";
+          "%(path:<**/>)mz_%(filename:<*> and not <*.*>).ml";
         ] (* the target files *)
         compile;
 

@@ -10,7 +10,7 @@ let ($) x f =
 
 let translate_file_name (path : string) (extension : string) =
   Filename.dirname path ^
-  "/mz" ^
+  "/mz_" ^
   Filename.chop_suffix (Filename.basename path) ".mz" ^
   extension
 
