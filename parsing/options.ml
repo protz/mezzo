@@ -41,3 +41,7 @@ let warn_error =
 let boot =
   ref false
 ;;
+
+let print_interface =
+  ref false
+;;

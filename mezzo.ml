@@ -39,24 +39,32 @@ let _ =
   Arg.parse [
     "-explain", Arg.Set_string arg_trace, "<format>  The explain keyword \
       generates a graphical dump, where <format> is one of html, x11";
-    "-nofancypants", Arg.Clear arg_backtraces, " Don't catch type errors: \
+    "-nofancypants", Arg.Clear arg_backtraces, "  Don't catch type errors: \
       backtraces point to the place where the error was thrown";
     "-debug", Arg.Set_int arg_debug, " <level>  Output level: 0 (default) = no \
       messages, 5 = super super verbose";
     "-html-errors", Arg.Unit (fun () ->
         arg_html_errors := true;
         arg_trace := "html"), " Use a browser to display errors";
-    "-warn-error", Arg.Set_string arg_warn_error, " Decide which errors are fatal / warnings / silent. Same syntax as OCaml.";
+    "-warn-error", Arg.Set_string arg_warn_error, "  Decide which errors are fatal / warnings / silent. Same syntax as OCaml.";
+    "-print-interface", Arg.Set Options.print_interface, "  Print the inferred \
+      interface for a module.";
     "-I", Arg.String Driver.add_include_dir, " <dir>  Add <dir> to the list of \
       include directories";
     "-noautoinclude", Arg.Set Options.no_auto_include, "  Don't automatically \
-      open the corelib modules";
+      open the corelib modules (useful for debugging minimal testcases)";
+    (* This is for the intermediary state where:
+       - the [mezzo] binary we just built is set to find corelib and stdlib in
+         findlib's install directory;
+       - we use this binary to compile the corelib and stdlib which have not yet
+         been installed and are still found in the source directory.
+    *)
     "-boot", Arg.Set Options.boot, "  Used only when compiling the Mezzo \
       core and standard library";
     "-print-config", Arg.Set arg_print_config, "  Print Mezzo's configuration, e.g. include directories";
-    "-c", Arg.Unit (fun () -> arg_mode := TypecheckAndCompile), "type-check and compile";
-    "-i", Arg.Unit (fun () -> arg_mode := Interpret), "do not type-check; interpret";
-    "-t", Arg.Unit (fun () -> arg_mode := Typecheck), "just type-check (default)";
+    "-c", Arg.Unit (fun () -> arg_mode := TypecheckAndCompile), "  Type-check and compile";
+    "-i", Arg.Unit (fun () -> arg_mode := Interpret), "  Do not type-check; interpret";
+    "-t", Arg.Unit (fun () -> arg_mode := Typecheck), "  Just type-check (default)";
   ] (fun f ->
     if !Options.filename = "" then
       Options.filename := f
@@ -113,7 +121,7 @@ let _ =
         Driver.run opts (fun () -> Driver.process !Options.filename)
       in
       if !arg_mode = Typecheck then begin
-        if Log.debug_level () <= 0 then
+        if Log.debug_level () <= 0 && !Options.print_interface then
             MzString.bprintf "%a" Driver.print_signature env
         else
           Log.debug ~level:0 "\n%a"
