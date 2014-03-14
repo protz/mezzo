@@ -291,15 +291,6 @@ let html_error error =
   let text = MzString.bsprintf "%a\n" print_error error in
   (* Generate the HTML explanation. *)
   Debug.explain ~text env;
-  (* Find out about the command to run. *)
-  let f = (fst (TypeCore.location env)).Lexing.pos_fname in
-  let f = MzString.replace "/" "_" f in
-  let cmd = Printf.sprintf
-    "firefox -new-window \"viewer/viewer.html?json_file=data/%s.json\" &"
-    f
-  in
-  (* Let's do it! *)
-  ignore (Sys.command cmd)
 ;;
 
 let internal_extracterror = snd;;
