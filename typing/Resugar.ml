@@ -26,6 +26,8 @@ let surface_print_var env point =
 let resugar_binding env (x, kind, loc) =
   S.destruct_unqualified (surface_print_name env x), kind, loc
 
+let ( !! ) = function TyOpen x -> x | _ -> assert false;;
+
 (* TEMPORARY
    - is our choice of names hygienic?
    - understand better whether the structure of types is preserved
@@ -66,7 +68,9 @@ let rec resugar env (points : unit VarMap.t ref) (soup : typ VarMap.t ref) ty =
       S.TyTuple (List.map (resugar env points soup) tys)
   | TyConcrete branch ->
       resugar_resolved_branch env points soup branch
-  | TySingleton (TyOpen x) ->
+  | TySingleton t ->
+      let t = modulo_flex env t in
+      let x = !!t in
       (* Construct a name for this variable. *)
       let name = surface_print_var env x in
       (* If this is one the points for which we would like to create
@@ -92,14 +96,13 @@ let rec resugar env (points : unit VarMap.t ref) (soup : typ VarMap.t ref) ty =
       (* Otherwise, just create a normal singleton type node. *)
       else
        S.TySingleton (S.TyVar name)
-  | TySingleton _ ->
-      (* Only type variables have kind [KTerm]. *)
-      assert false
   | TyBar (ty, TyEmpty) ->
       resugar env points soup ty
   | TyBar (ty, TyStar (p, q)) ->
       resugar env points soup (TyBar (TyBar (ty, p), q))
-  | TyBar (ty, TyAnchoredPermission (TyOpen x, t)) ->
+  | TyBar (ty, TyAnchoredPermission (x, t)) ->
+      let x = modulo_flex env x in
+      let x = !!x in
       (* Add [x @ t] to the soup, and use it when translating [ty]. *)
       soup := VarMap.add x t !soup;
       resugar env points soup ty

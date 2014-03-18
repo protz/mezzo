@@ -163,7 +163,7 @@ module DataconMap: MzMap.S with type key = Module.name * Datacon.name
 (** This module provides a clean way to map a variable to any given piece of
  * data. Beware, however, that this module only works with rigid variables (it's
  * unclear what it should do for flexible variables), so it's up to the client
- * to properly run {!is_flexible} beforehand. *)
+ * to properly run {!is_flexible} and {!modulo_flex} beforehand. *)
 module VarMap: MzMap.S with type key = var
 
 (** This is an imperative version of [VarMap], in the form expected by [Fix]. *)
