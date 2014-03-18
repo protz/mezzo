@@ -65,7 +65,7 @@ val _ =
   let y = x in
   assert x @ writable;
   (* This one fails, naturally. *)
-  assert x @ writable * y @ writable;
+  (* assert x @ writable * y @ writable; *)
   (* Actually, there's a singleton type. *)
   assert x @ =y;
   (* There is syntactic sugar. *)
@@ -209,7 +209,7 @@ val _ =
       give n to g;
       match !work_list with
       | Cons { head; tail } ->
-          work_list := head;
+          work_list := tail;
           dfs head
       | Nil ->
           ()
