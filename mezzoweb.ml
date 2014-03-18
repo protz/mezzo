@@ -28,10 +28,15 @@
  * - TransSurface.translate_implementation
  *)
 
+let error s =
+  let s = Js.string s |> Js.Unsafe.inject in
+  Js.Unsafe.fun_call (Js.Unsafe.variable "mezzo_ui_log") s
+;;
+
 let lex_and_parse s entry_point =
   let s = Js.to_string s in
   let lexbuf = Ulexing.from_utf8_string s in
-  Driver.lex_and_parse_raw lexbuf "- toplevel" entry_point
+  Driver.lex_and_parse_raw lexbuf "toplevel" entry_point
 ;;
 
 let lex_and_parse_implementation _this s =
@@ -39,7 +44,7 @@ let lex_and_parse_implementation _this s =
 ;;
 
 let check_implementation _this program =
-  Driver.check_implementation (Module.register "- toplevel") program None
+  Driver.check_implementation (Module.register "toplevel") program None
 ;;
 
 let _ =

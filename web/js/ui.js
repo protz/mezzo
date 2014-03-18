@@ -1,7 +1,41 @@
-var mezzo_editor;
+var mezzo_fs_get;
+var mezzo_ui_log;
+var mezzo_ret_code;
 
-var mezzo_ui = (function () {
-  var files = {
+(function () {
+  "use strict";
+
+  // The Ace editor.
+  var editor;
+
+  // A glue to hide the fact that there is no filesystem, only files that can be
+  // fetched over http.
+  var fs_cache = {};
+  var fs = {
+    fetch: function (file, k) {
+      if (file in fs_cache) {
+        k(fs_cache[file]);
+      } else {
+        $.ajax({
+          url: src_dir+file,
+          success: function (data, textStatus) {
+            fs_cache[file] = data;
+            k(data);
+          },
+          dataType: "html"
+        });
+      }
+    },
+
+    get: function(file) {
+      if (!(file in fs_cache))
+        console.error("File not loaded: "+file);
+      return fs_cache[file];
+    },
+  };
+
+  // List of files that the user can load into the editor.
+  var mz_files = {
     "corelib": [
       "array.mz",
       "array.mzi",
@@ -18,7 +52,6 @@ var mezzo_ui = (function () {
       "lock.mzi",
       "magic.mz",
       "magic.mzi",
-      "myocamlbuild.ml",
       "nest.mz",
       "nest.mzi",
       "option.mz",
@@ -65,7 +98,6 @@ var mezzo_ui = (function () {
       "lazy.mzi",
       "list.mz",
       "list.mzi",
-      "Makefile",
       "memoize.mz",
       "memoize.mzi",
       "mlist.mz",
@@ -101,95 +133,107 @@ var mezzo_ui = (function () {
     ],
   };
 
+  // In case [corelib] and [stdlib] are not in the current directory.
   var src_dir = "";
 
-  var mezzo_ui = {
-    /* Utility functions */
+  var ui = {
+
+    // Write a message in the console.
     log: function (msg) {
       $("#console").append($("<div>").text(msg));
     },
 
-    fetch: function (file, k) {
-      $.ajax({
-        url: src_dir+file,
-        success: function (data, textStatus) {
-          k(data);
-        },
-        dataType: "html"
+    // Load a file in the editor.
+    load: function (file) {
+      fs.fetch(file, function (source) {
+        editor.setValue(source);
+        editor.clearSelection();
+        editor.gotoLine(0);
       });
     },
 
-    fetch_and_load: function (file) {
-      mezzo_ui.fetch(file, function (source) {
-        mezzo_editor.setValue(source);
-        mezzo_editor.clearSelection();
-        mezzo_editor.gotoLine(0);
-      });
-    },
-
-    files: files,
-
+    // The main driver for type-checking something.
     on_make: function (editor) {
+      mezzo_ret_code = 0;
       try {
         var impl = mezzo.lex_and_parse_implementation(editor.getValue());
         mezzo.check_implementation(impl);
-        mezzo_ui.log("Successfully type-checked 😸");
+        if (mezzo_ret_code == 0) {
+          ui.log("Successfully type-checked 😸");
+        } else {
+          ui.log("Mezzo terminated abruptly");
+        }
       } catch (e) {
-        mezzo_ui.log("Error 😱 : "+e); 
+        ui.log("Error 😱 : "+e); 
       }
-    }
+    },
+
+    // Builds the left pane with the list of files that can be loaded into the
+    // editor.
+    build_explorer: function () {
+      var list = $("#explorer ul");
+      $.each(mz_files, function (folder, files) {
+        var item = $("<li>");
+        item.append($("<span />").text(folder));
+        item.append($("<span />").text(" "));
+        var collapsed = false;
+        item.append($("<a href='#' style='font-size: 80%'></a>")
+          .text("(collapse)")
+          .click(function () {
+            $(this).next().toggle();
+            collapsed = !collapsed;
+            $(this).text(collapsed ? "(expand)" : "(collapse)");
+          })
+        );
+        list.append(item);
+
+        var sublist = $("<ul>")
+          .addClass("file-list");
+        $.each(files, function (i, f) {
+          var item = $("<li>");
+          item.append($("<a href='#'></a>")
+            .text(f)
+            .click(function () {
+              ui.load(folder+"/"+f);
+            })
+          );
+          sublist.append(item);
+        });
+        item.append(sublist);
+      });
+      list.prepend($("<li>").append(
+        $("<a href='#'>")
+          .text("new")
+          .click(function () {
+            editor.setValue("");
+          })));
+    },
+
+    // Setup the Ace editor.
+    setup_editor: function () {
+      editor = ace.edit("editor");
+      editor.setTheme("ace/theme/chrome");
+      editor.getSession().setMode("ace/mode/ocaml");
+
+      editor.commands.addCommand({
+        name: 'make',
+        bindKey: {win: 'Ctrl-M',  mac: 'Command-M'},
+        exec: ui.on_make,
+        readOnly: true
+      });
+    },
+
   };
-  return mezzo_ui;
+
+  // These functions are called from the OCaml side!
+  mezzo_fs_get = fs.get;
+  mezzo_ui_log = ui.log;
+
+  $(document).ready(function () {
+    ui.build_explorer();
+    ui.setup_editor();
+
+    ui.log("Editor successfully loaded, hit Ctrl-M or Command-M.");
+  });
+
 })();
-
-
-$(document).ready(function () {
-  /* Explorer logic */
-  var list = $("#explorer ul");
-  $.each(mezzo_ui.files, function (folder, files) {
-    var item = $("<li>");
-    item.append($("<span />").text(folder));
-    item.append($("<span />").text(" "));
-    var collapsed = false;
-    item.append($("<a href='#' style='font-size: 80%'></a>")
-      .text("(collapse)")
-      .click(function () {
-        $(this).next().toggle();
-        collapsed = !collapsed;
-        $(this).text(collapsed ? "(expand)" : "(collapse)");
-      })
-    );
-    list.append(item);
-
-    var sublist = $("<ul>");
-    $.each(files, function (i, f) {
-      var item = $("<li>");
-      item.append($("<a href='#'></a>")
-        .text(f)
-        .click(function () {
-          mezzo_ui.fetch_and_load(folder+"/"+f);
-        })
-      );
-      sublist.append(item);
-    });
-    item.append(sublist);
-  });
-
-  /* Main logic */
-  var editor = ace.edit("editor");
-  editor.setTheme("ace/theme/chrome");
-  editor.getSession().setMode("ace/mode/ocaml");
-
-  editor.commands.addCommand({
-    name: 'make',
-    bindKey: {win: 'Ctrl-M',  mac: 'Command-M'},
-    exec: mezzo_ui.on_make,
-    readOnly: true
-  });
-
-  // Assign into the global.
-  mezzo_editor = editor;
-
-  mezzo_ui.log("Editor successfully loaded, hit Ctrl-M or Command-M.");
-});
-
