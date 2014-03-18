@@ -23,9 +23,7 @@ open Lexer
 
 (* Lexing and parsing, built on top of [grammar]. *)
 
-let lex_and_parse file_path entry_var =
-  Utils.with_open_in file_path (fun file_desc ->
-  let lexbuf = Ulexing.from_utf8_channel file_desc in
+let lex_and_parse_raw lexbuf file_path entry_var =
   let the_parser = MenhirLib.Convert.Simplified.traditional2revised entry_var in
   try
     Lexer.init file_path;
@@ -47,6 +45,12 @@ let lex_and_parse file_path entry_var =
         MzString.beprintf "%a\n"
           Lexer.print_error (lexbuf, e);
         exit 252
+;;
+
+let lex_and_parse file_path entry_var =
+  Utils.with_open_in file_path (fun file_desc ->
+  let lexbuf = Ulexing.from_utf8_channel file_desc in
+  lex_and_parse_raw lexbuf file_path entry_var
   )
 ;;
 
@@ -99,7 +103,7 @@ let mkprefix path =
     in
     List.map (fun x ->
       SurfaceSyntax.OpenDirective (Module.register x)
-    ) modules 
+    ) modules
 ;;
 
 let lex_and_parse_implementation path : SurfaceSyntax.implementation =

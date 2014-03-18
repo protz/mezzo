@@ -17,37 +17,37 @@
 (*                                                                           *)
 (*****************************************************************************)
 
-(** This module sets up a lexer and a parser to create an AST. *)
+(* Functions we need to expose to JS for the JS driver to type-check a Mezzo
+ * program:
+ * - TypeErrors.html_error
+ * - TypeErrors.print_error
+ * - print a kind error somehow
+ * - lex_and_parse
+ * - Modules.all_dependencies... ?
+ * - KindCheck.check_implementation
+ * - TransSurface.translate_implementation
+ *)
 
-type run_options = {
-  html_errors: bool;
-  backtraces: bool;
-}
+let lex_and_parse s entry_point =
+  let s = Js.to_string s in
+  let lexbuf = Ulexing.from_utf8_string s in
+  Driver.lex_and_parse_raw lexbuf "- toplevel" entry_point
+;;
 
-(** Last directory included has higher precedence. *)
-val add_include_dir: string -> unit
+let lex_and_parse_implementation _this s =
+  lex_and_parse s Grammar.implementation
+;;
 
-(** For the -print-config option. *)
-val print_include_dirs: unit -> string
+let check_implementation _this program =
+  Driver.check_implementation (Module.register "- toplevel") program None
+;;
 
-(** [process] doesn't catch exceptions. This is useful for tests that want to
-    assert that a test program failed in a certain way. *)
-val process: string -> TypeCore.env
-
-(** [run] runs the specified function and prints any error that may pop up. *)
-val run: run_options -> (unit -> 'a) -> 'a
-
-(** [print_signature] prints out (in order, and in a fancy manner) the types that have been
-   found in the file. *)
-val print_signature: Buffer.t -> TypeCore.env -> unit
-
-(** [interpret] is a driver for the interpreter. It evaluates the
-    specified file, as well as the files that it depends upon, in
-    an appropriate order. *)
-val interpret: string -> unit
-
-val lex_and_parse_raw: Ulexing.lexbuf ->
-  string -> (Grammar.token, 'a) MenhirLib.Convert.traditional -> 'a
-
-val check_implementation: Module.name -> SurfaceSyntax.implementation ->
-  SurfaceSyntax.interface option -> TypeCore.env
+let _ =
+  let w = Js.Unsafe.coerce Dom_html.window in
+  w ## mezzo <- Js.Unsafe.obj [|
+    "lex_and_parse_implementation",
+      Js.wrap_meth_callback lex_and_parse_implementation |> Js.Unsafe.inject;
+    "check_implementation",
+      Js.wrap_meth_callback check_implementation |> Js.Unsafe.inject;
+  |]
+;;

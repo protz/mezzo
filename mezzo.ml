@@ -122,10 +122,10 @@ let _ =
       in
       if !arg_mode = Typecheck then begin
         if Log.debug_level () <= 0 && !Options.print_interface then
-            MzString.bprintf "%a" Driver.print_signature env
+          MzString.bprintf "%a" Driver.print_signature env
         else if Log.debug_level () > 0 then
           Log.debug ~level:0 "\n%a"
-           MzPprint.pdoc (Types.TypePrinter.print_permissions, env)
+            MzPprint.pdoc (Types.TypePrinter.print_permissions, env)
       end
   | Interpret ->
       Driver.run opts (fun () -> Driver.interpret !Options.filename)
