@@ -1,6 +1,6 @@
 (*****************************************************************************)
 (*  Mezzo, a programming language based on permissions                       *)
-(*  Copyright (C) 2011, 2012 Jonathan Protzenko and François Pottier         *)
+(*  Copyright (C) 2014 Jonathan Protzenko and François Pottier               *)
 (*                                                                           *)
 (*  This program is free software: you can redistribute it and/or modify     *)
 (*  it under the terms of the GNU General Public License as published by     *)
@@ -17,35 +17,16 @@
 (*                                                                           *)
 (*****************************************************************************)
 
-let pedantic =
-  ref false
-;;
+(* These functions are only filled in by [MezzoWeb], if compiled. *)
 
-let no_auto_include =
-  ref false
-;;
+let output_string_: (string -> unit) ref =
+  ref (fun _ -> assert false)
 
-let filename =
-  ref ""
-;;
+let output_string s =
+  !output_string_ s
 
-(* [false] : just type-check. [true] : type-check and compile down to OCaml. *)
-let please_compile =
-  ref false
-;;
+let get_file_: (string -> string) ref =
+  ref (fun _ -> assert false)
 
-let warn_error =
-  ref "-1+2..4-5+6"
-;;
-
-let boot =
-  ref false
-;;
-
-let print_interface =
-  ref false
-;;
-
-let js =
-  ref false
-;;
+let get_file f =
+  !get_file_ f

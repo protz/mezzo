@@ -1,6 +1,7 @@
-var mezzo_fs_get;
+var mezzo_fs;
 var mezzo_ui_log;
 var mezzo_ret_code;
+var mezzo_toplevel_filename = "::toplevel.mz";
 
 (function () {
   "use strict";
@@ -12,6 +13,12 @@ var mezzo_ret_code;
   // fetched over http.
   var fs_cache = {};
   var fs = {
+    normalize: function (file) {
+      if (file.substr(0, 2) == "./")
+        file = file.substring(2, file.length);
+      return file;
+    },
+
     fetch: function (file, k) {
       if (file in fs_cache) {
         k(fs_cache[file]);
@@ -28,15 +35,24 @@ var mezzo_ret_code;
     },
 
     get: function(file) {
+      file = fs.normalize(file);
+      if (file == mezzo_toplevel_filename)
+        return editor.getValue();
       if (!(file in fs_cache))
         console.error("File not loaded: "+file);
       return fs_cache[file];
+    },
+
+    exists: function (file) {
+      console.log("File exists?", file);
+      file = fs.normalize(file);
+      return (file == mezzo_toplevel_filename || (file in fs_cache));
     },
   };
 
   // List of files that the user can load into the editor.
   var mz_files = {
-    "corelib": [
+   "corelib": [
       "array.mz",
       "array.mzi",
       "autoarray.mz",
@@ -131,7 +147,11 @@ var mezzo_ret_code;
       "wref.mz",
       "wref.mzi",
     ],
-  };
+
+    "demos": [
+      "msr.mz",
+    ],
+   };
 
   // In case [corelib] and [stdlib] are not in the current directory.
   var src_dir = "";
@@ -140,7 +160,15 @@ var mezzo_ret_code;
 
     // Write a message in the console.
     log: function (msg) {
-      $("#console").append($("<div>").text(msg));
+      $("#console").append(
+        $("<div>").addClass("message").text(msg));
+    },
+
+    // Write a timestamp in the console
+    timestamp: function () {
+      $("#console").append(
+        $("<div>").addClass("timestamp").text(
+          (new Date()).toLocaleTimeString()));
     },
 
     // Load a file in the editor.
@@ -154,17 +182,18 @@ var mezzo_ret_code;
 
     // The main driver for type-checking something.
     on_make: function (editor) {
+      ui.timestamp();
       mezzo_ret_code = 0;
       try {
-        var impl = mezzo.lex_and_parse_implementation(editor.getValue());
-        mezzo.check_implementation(impl);
+        mezzo.process(new MlString(mezzo_toplevel_filename));
         if (mezzo_ret_code == 0) {
           ui.log("Successfully type-checked 😸");
         } else {
           ui.log("Mezzo terminated abruptly");
         }
       } catch (e) {
-        ui.log("Error 😱 : "+e); 
+        ui.log("Mezzo threw an Exception 😱 : "+e); 
+        throw e;
       }
     },
 
@@ -179,6 +208,7 @@ var mezzo_ret_code;
         var collapsed = false;
         item.append($("<a href='#' style='font-size: 80%'></a>")
           .text("(collapse)")
+          .addClass("toggle")
           .click(function () {
             $(this).next().toggle();
             collapsed = !collapsed;
@@ -200,6 +230,9 @@ var mezzo_ret_code;
           sublist.append(item);
         });
         item.append(sublist);
+
+        if (folder == "corelib" || folder == "stdlib")
+          item.find("a.toggle").click();
       });
       list.prepend($("<li>").append(
         $("<a href='#'>")
@@ -225,11 +258,39 @@ var mezzo_ret_code;
 
   };
 
+  var loader = {
+    // Brutally load all files. Improve this.
+    load_all: function () {
+      var count = 1;
+      var finish = function () {
+        if (--count == 0) {
+          ui.timestamp();
+          ui.log("All files loaded");
+        }
+      };
+      var grab = function (f) {
+        count++;
+        fs.fetch(f, finish);
+      };
+      ui.log("Loading files...");
+      grab("corelib/autoload");
+      finish();
+      $.each(mz_files, function (dir, files) {
+        $.each(files, function (i, f) {
+          grab(dir + "/" + f);
+        });
+      });
+    },
+  };
+
   // These functions are called from the OCaml side!
-  mezzo_fs_get = fs.get;
+  mezzo_fs = fs;
   mezzo_ui_log = ui.log;
 
   $(document).ready(function () {
+    ui.timestamp();
+    loader.load_all();
+
     ui.build_explorer();
     ui.setup_editor();
 

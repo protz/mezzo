@@ -85,7 +85,10 @@ let read ic =
 ;;
 
 let file_get_contents f =
-  with_open_in f read
+  if !Options.js then
+    JsGlue.get_file f
+  else
+    with_open_in f read
 ;;
 
 let ptag buf p =

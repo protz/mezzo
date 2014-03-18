@@ -47,12 +47,24 @@ let lex_and_parse_raw lexbuf file_path entry_var =
         exit 252
 ;;
 
-let lex_and_parse file_path entry_var =
+let lex_and_parse_normal file_path entry_var =
   Utils.with_open_in file_path (fun file_desc ->
   let lexbuf = Ulexing.from_utf8_channel file_desc in
   lex_and_parse_raw lexbuf file_path entry_var
   )
 ;;
+
+let lex_and_parse_js file_path entry_var =
+  let s = JsGlue.get_file file_path in
+  let lexbuf = Ulexing.from_utf8_string s in
+  lex_and_parse_raw lexbuf file_path entry_var
+;;
+
+let lex_and_parse file_path entry_var =
+  if !Options.js then
+    lex_and_parse_js file_path entry_var
+  else
+    lex_and_parse_normal file_path entry_var
 
 let mkprefix path =
   if !Options.no_auto_include && path = !Options.filename then
@@ -61,7 +73,9 @@ let mkprefix path =
     (* So it's the [lib_dir] that we want here, unless we're in the process of
      * pre-compiling the Mezzo core library, meaning that [lib_dir] isn't ready. *)
     let corelib_dir, corelib_build_dir =
-      if !Options.boot || Configure.local then
+      if !Options.js then
+        "corelib", ""
+      else if !Options.boot || Configure.local then
         Filename.concat Configure.src_dir "corelib",
         Filename.concat (Filename.concat Configure.src_dir "_build") "corelib"
       else

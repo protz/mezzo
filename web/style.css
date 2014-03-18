@@ -57,10 +57,15 @@ body {
   white-space: pre-wrap;
 }
 
-#console > div {
+#console > div.message {
   margin-bottom: 3px;
   padding-left: 3px;
   border-left: 2px solid #CB3587;
+}
+
+#console > div.timestamp {
+  font-size: 70%;
+  color: #888;
 }
 
 #editor {

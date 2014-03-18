@@ -60,8 +60,9 @@ function caml_sys_exit (status) {
   mezzo_ui_log("Exited with status "+status);
 }
 
-function caml_sys_file_exists () {
-  console.log("Not implemented: caml_sys_file_exists!");
+function caml_sys_file_exists (file) {
+  var f = file.toJsString();
+  return mezzo_fs.exists(f);
 }
 
 function caml_sys_getcwd () {

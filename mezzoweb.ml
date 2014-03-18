@@ -17,42 +17,33 @@
 (*                                                                           *)
 (*****************************************************************************)
 
-(* Functions we need to expose to JS for the JS driver to type-check a Mezzo
- * program:
- * - TypeErrors.html_error
- * - TypeErrors.print_error
- * - print a kind error somehow
- * - lex_and_parse
- * - Modules.all_dependencies... ?
- * - KindCheck.check_implementation
- * - TransSurface.translate_implementation
- *)
-
-let error s =
+let output_string (s: string): unit =
   let s = Js.string s |> Js.Unsafe.inject in
   Js.Unsafe.fun_call (Js.Unsafe.variable "mezzo_ui_log") [| s |]
 ;;
 
-let lex_and_parse s entry_point =
-  let s = Js.to_string s in
-  let lexbuf = Ulexing.from_utf8_string s in
-  Driver.lex_and_parse_raw lexbuf "toplevel" entry_point
-;;
-
-let lex_and_parse_implementation _this s =
-  lex_and_parse s Grammar.implementation
-;;
-
-let check_implementation _this program =
-  Driver.check_implementation (Module.register "toplevel") program None
+let get_file (f: string): string =
+  let f = Js.string f |> Js.Unsafe.inject in
+  let mezzo_fs = Js.Unsafe.variable "mezzo_fs" in
+  let get = Js.Unsafe.get mezzo_fs "get" in
+  Js.Unsafe.fun_call get [| f |] |>
+  Js.to_string
 ;;
 
 let _ =
   let w = Js.Unsafe.coerce Dom_html.window in
   w ## mezzo <- Js.Unsafe.obj [|
-    "lex_and_parse_implementation",
-      Js.wrap_meth_callback lex_and_parse_implementation |> Js.Unsafe.inject;
-    "check_implementation",
-      Js.wrap_meth_callback check_implementation |> Js.Unsafe.inject;
+    "process",
+      Js.wrap_callback Driver.process |> Js.Unsafe.inject;
   |]
 ;;
+
+let _ =
+  (* Log.enable_debug 5; *)
+  Driver.add_include_dir "corelib";
+  Driver.add_include_dir "stdlib";
+  Options.js := true;
+  JsGlue.output_string_ := output_string;
+  JsGlue.get_file_ := get_file;
+;;
+
