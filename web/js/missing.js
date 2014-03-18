@@ -55,8 +55,8 @@ function caml_sys_close () {
   console.log("Not implemented: caml_sys_close!");
 }
 
-function caml_sys_exit () {
-  console.log("Not implemented: caml_sys_exit!");
+function caml_sys_exit (status) {
+  mezzo_ui.log("Exited with status "+status);
 }
 
 function caml_sys_file_exists () {
