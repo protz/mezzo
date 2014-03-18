@@ -32,9 +32,13 @@ let get_file (f: string): string =
 
 let _ =
   let w = Js.Unsafe.coerce Dom_html.window in
+  let opts =
+    { Driver.html_errors = false; backtraces = false }
+  in
+  let process f = Driver.run opts (fun () -> Driver.process f) in
   w ## mezzo <- Js.Unsafe.obj [|
     "process",
-      Js.wrap_callback Driver.process |> Js.Unsafe.inject;
+      Js.wrap_callback process |> Js.Unsafe.inject;
   |]
 ;;
 

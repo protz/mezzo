@@ -29,14 +29,17 @@ function caml_ml_close_channel () {
 
 function caml_ml_input () {
   console.log("Not implemented: caml_ml_input!");
+  return 0;
 }
 
 function caml_ml_input_char () {
   console.log("Not implemented: caml_ml_input_char!");
+  return 0;
 }
 
 function caml_ml_input_scan_line () {
   console.log("Not implemented: caml_ml_input_scan_line!");
+  return 0;
 }
 
 function caml_ml_output_char () {
