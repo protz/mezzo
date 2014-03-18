@@ -57,6 +57,12 @@ body {
   white-space: pre-wrap;
 }
 
+#console > div {
+  margin-bottom: 3px;
+  padding-left: 3px;
+  border-left: 2px solid #CB3587;
+}
+
 #editor {
   flex: 6 1 auto;
 }

@@ -30,7 +30,7 @@
 
 let error s =
   let s = Js.string s |> Js.Unsafe.inject in
-  Js.Unsafe.fun_call (Js.Unsafe.variable "mezzo_ui_log") s
+  Js.Unsafe.fun_call (Js.Unsafe.variable "mezzo_ui_log") [| s |]
 ;;
 
 let lex_and_parse s entry_point =
