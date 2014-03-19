@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/sh
 
 # Check that ocamlfind is present as the Makefile assumes this
 if [ ! which ocamlfind > /dev/null 2>&1 ]; then
