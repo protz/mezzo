@@ -29,7 +29,7 @@ var mezzo_toplevel_filename = "::toplevel.mz";
             fs_cache[file] = data;
             k(data);
           },
-          dataType: "html"
+          mimeType: "textPlain",
         });
       }
     },

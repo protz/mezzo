@@ -44,6 +44,7 @@ let _ =
 
 let _ =
   (* Log.enable_debug 5; *)
+  TypeErrors.parse_warn_error !Options.warn_error;
   Driver.add_include_dir "corelib";
   Driver.add_include_dir "stdlib";
   Options.js := true;
