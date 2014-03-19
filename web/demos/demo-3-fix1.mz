@@ -1,0 +1,6 @@
+(* First fix *)
+
+data ref a = Ref { contents: a }
+
+val get [a] duplicable a => (r: ref a): a =
+  r.contents

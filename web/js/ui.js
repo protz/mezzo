@@ -149,7 +149,15 @@ var mezzo_toplevel_filename = "::toplevel.mz";
     ],
 
     "demos": [
-      "msr.mz",
+      "demo-1.mz",
+      "demo-2.mz",
+      "demo-2-fixed.mz",
+      "demo-3.mz",
+      "demo-3-fix1.mz",
+      "demo-3-fix2.mz",
+      "demo-4.mz",
+      "demo-5.mz",
+      "demo-5-fix.mz",
     ],
    };
 

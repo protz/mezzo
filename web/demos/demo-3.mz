@@ -1,0 +1,6 @@
+(* Third example: aliasing, rejected *)
+
+data ref a = Ref { contents: a }
+
+val get [a] (r: ref a): a =
+  r.contents
