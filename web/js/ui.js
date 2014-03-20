@@ -200,7 +200,8 @@ var mezzo_toplevel_filename = "::toplevel.mz";
           ui.log("Mezzo terminated abruptly");
         }
       } catch (e) {
-        ui.log("Mezzo threw an Exception 😱 : "+e); 
+        ui.log("Mezzo threw an Exception 😱 : "+e);
+        console.log(e.stack);
         throw e;
       }
     },
