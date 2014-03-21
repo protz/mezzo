@@ -263,6 +263,8 @@ var mezzo_toplevel_filename = "::toplevel.mz";
         exec: ui.on_make,
         readOnly: true
       });
+
+      editor.focus();
     },
 
   };
