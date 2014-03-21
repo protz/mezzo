@@ -168,8 +168,10 @@ var mezzo_toplevel_filename = "::toplevel.mz";
 
     // Write a message in the console.
     log: function (msg) {
-      $("#console").append(
+      var c = $("#console");
+      c.append(
         $("<div>").addClass("message").text(msg));
+      c.scrollTop(c.prop("scrollHeight"));
     },
 
     // Write a timestamp in the console
