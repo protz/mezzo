@@ -174,6 +174,10 @@ var mezzo_toplevel_filename = "::toplevel.mz";
       c.scrollTop(c.prop("scrollHeight"));
     },
 
+    clear: function () {
+      $("#console").empty();
+    },
+
     // Write a timestamp in the console
     timestamp: function () {
       $("#console").append(
@@ -195,7 +199,13 @@ var mezzo_toplevel_filename = "::toplevel.mz";
       ui.timestamp();
       mezzo_ret_code = 0;
       try {
-        mezzo.process(new MlString(mezzo_toplevel_filename));
+        mezzo.process(
+          new MlString(mezzo_toplevel_filename),
+          $("#option-typecheck").prop("checked"),
+          $("#option-interpret").prop("checked"),
+          parseInt($("#option-debug").val()),
+          new MlString($("#option-warnerror").val())
+        );
         if (mezzo_ret_code == 0) {
           ui.log("Successfully type-checked 😸");
         } else {
@@ -301,6 +311,11 @@ var mezzo_toplevel_filename = "::toplevel.mz";
   mezzo_ui_log = ui.log;
 
   $(document).ready(function () {
+    // Register all event listeners + default values
+    $("#command-clear").click(ui.clear);
+    $("#option-typecheck").prop("checked", true);
+    $("#option-warnerror").val("-1+2..4-5+6");
+
     ui.timestamp();
     loader.load_all();
 

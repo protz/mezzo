@@ -22,7 +22,7 @@ body {
 
 #explorer {
   background-color: white;
-  flex: 1 1 150px;
+  flex: 0 1 200px;
   padding: 5px;
   border-right: 5px solid #ebebeb;
   font-family: sans-serif;
@@ -35,16 +35,50 @@ body {
   margin-top: 5px;
 }
 
-#explorer a, #explorer a:hover, #explorer a:visited {
-  color: black;
+a, a:hover, a:visited {
+  text-decoration: none;
+  color: rgba(101, 48, 48, 1);
 }
 
-#explorer a:hover {
-  text-decoration: underline;
+a:hover {
+  text-decoration: none;
+  color: black;
 }
 
 .file-list {
   margin-bottom: 8px;
+}
+
+#buttons {
+  /* Trick to vertically center the buttons line */
+  flex: 0 1 25px;
+  line-height: 25px;
+
+  padding: 5px 0;
+  border-top: 5px solid #ebebeb;
+
+  font-family: sans-serif;
+  font-size: 80%;
+}
+
+#buttons-wrapper {
+  vertical-align: middle;
+}
+
+#buttons input {
+  vertical-align: middle;
+}
+
+#buttons label {
+  margin-right: 1em;
+}
+
+#option-debug {
+  width: 3em;
+}
+
+#option-warnerror {
+  width: 8em;
 }
 
 #console {
