@@ -178,18 +178,38 @@ let find_in_include_dirs (filename: string): string =
     s
 ;;
 
-let find_and_lex_interface : Module.name -> SurfaceSyntax.interface =
-  Module.memoize (fun mname ->
+let js_special_mname = Module.register "::toplevel"
+
+let find_and_lex_interface m =
+  let find_and_lex_interface_raw (mname: Module.name): SurfaceSyntax.interface =
     let filename = Module.print mname ^ ".mzi" in
     lex_and_parse_interface (find_in_include_dirs filename)
-  )
+  in
+
+  let find_and_lex_interface_memoized : Module.name -> SurfaceSyntax.interface =
+    Module.memoize find_and_lex_interface_raw
+  in
+
+  if Module.equal m js_special_mname then
+    find_and_lex_interface_raw m
+  else
+    find_and_lex_interface_memoized m
 ;;
 
-let find_and_lex_implementation : Module.name -> SurfaceSyntax.implementation =
-  Module.memoize (fun mname ->
+let find_and_lex_implementation m =
+  let find_and_lex_implementation_raw (mname: Module.name): SurfaceSyntax.implementation =
     let filename = Module.print mname ^ ".mz" in
     lex_and_parse_implementation (find_in_include_dirs filename)
-  )
+  in
+
+  let find_and_lex_implementation_memoized : Module.name -> SurfaceSyntax.implementation =
+    Module.memoize find_and_lex_implementation_raw
+  in
+
+  if Module.equal m js_special_mname then
+    find_and_lex_implementation_raw m
+  else
+    find_and_lex_implementation_memoized m
 ;;
 
 
