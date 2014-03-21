@@ -63,6 +63,7 @@ let _ =
 let _ =
   Driver.add_include_dir "corelib";
   Driver.add_include_dir "stdlib";
+  Driver.add_include_dir ".";
   Options.js := true;
   JsGlue.output_string_ := output_string;
   JsGlue.get_file_ := get_file;

@@ -1,5 +1,6 @@
 var mezzo_fs;
 var mezzo_ui_log;
+var mezzo_ui_log_char;
 var mezzo_ret_code;
 var mezzo_toplevel_filename = "::toplevel.mz";
 
@@ -15,8 +16,9 @@ var mezzo_toplevel_filename = "::toplevel.mz";
   var fs = {
     normalize: function (file) {
       if (file.substr(0, 2) == "./")
-        file = file.substring(2, file.length);
-      return file;
+        return fs.normalize(file.substring(2, file.length));
+      else
+        return file;
     },
 
     fetch: function (file, k) {
@@ -174,6 +176,19 @@ var mezzo_toplevel_filename = "::toplevel.mz";
       c.scrollTop(c.prop("scrollHeight"));
     },
 
+    log_char: function (c) {
+      var console = $("#console");
+      var buf = console.children().last();
+      if (!buf.hasClass("char-buffer")) {
+        buf = $("<div />")
+          .addClass("char-buffer")
+          .addClass("message")
+          .appendTo(console);
+      }
+      buf.text(buf.text()+String.fromCharCode(c));
+      console.scrollTop(console.prop("scrollHeight"));
+    },
+
     clear: function () {
       $("#console").empty();
     },
@@ -207,7 +222,7 @@ var mezzo_toplevel_filename = "::toplevel.mz";
           new MlString($("#option-warnerror").val())
         );
         if (mezzo_ret_code == 0) {
-          ui.log("Successfully type-checked 😸");
+          ui.log("Mezzo invocation successful 😸");
         } else {
           ui.log("Mezzo terminated abruptly");
         }
@@ -309,12 +324,17 @@ var mezzo_toplevel_filename = "::toplevel.mz";
   // These functions are called from the OCaml side!
   mezzo_fs = fs;
   mezzo_ui_log = ui.log;
+  mezzo_ui_log_char = ui.log_char;
 
   $(document).ready(function () {
     // Register all event listeners + default values
     $("#command-clear").click(ui.clear);
     $("#option-typecheck").prop("checked", true);
     $("#option-warnerror").val("-1+2..4-5+6");
+    $("#show-more-options").click(function () {
+      $(this).next().show("slow");
+      $(this).remove();
+    });
 
     ui.timestamp();
     loader.load_all();

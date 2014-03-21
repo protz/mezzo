@@ -32,12 +32,15 @@
         <label>
           <input type="checkbox" id="option-interpret" /> interpret
         </label>
-        <label>
-          <input type="number" min="0" max="10" value="0" id="option-debug" /> debug level
-        </label>
-        <label>
-          <input type="text" id="option-warnerror" /> warn-error
-        </label>
+        <a href="#" id="show-more-options">(more options)</a>
+        <span class="more-options" style="display: none;">
+          <label>
+            <input type="number" min="0" max="10" value="0" id="option-debug" /> debug level
+          </label>
+          <label>
+            <input type="text" id="option-warnerror" /> warn-error
+          </label>
+        </span>
         <a href="#" id="command-clear">clear</a>
       </div>
     </div>

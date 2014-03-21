@@ -42,8 +42,8 @@ function caml_ml_input_scan_line () {
   return 0;
 }
 
-function caml_ml_output_char () {
-  console.log("Not implemented: caml_ml_output_char!");
+function caml_ml_output_char (chan, ch) {
+  mezzo_ui_log_char(ch);
 }
 
 function caml_ml_seek_in () {
