@@ -3,6 +3,7 @@ var mezzo_ui_log;
 var mezzo_ui_log_char;
 var mezzo_ret_code;
 var mezzo_toplevel_filename = "::toplevel.mz";
+var mezzo_toplevel_filename_i = "::toplevel.mzi";
 
 (function () {
   "use strict";
@@ -37,9 +38,13 @@ var mezzo_toplevel_filename = "::toplevel.mz";
     },
 
     get: function(file) {
+      console.log("get", file);
       file = fs.normalize(file);
       if (file == mezzo_toplevel_filename)
         return editor.getValue();
+      else if (file == mezzo_toplevel_filename_i)
+        // No interface for our toplevel
+        return "";
       if (!(file in fs_cache))
         console.error("File not loaded: "+file);
       return fs_cache[file];
@@ -48,7 +53,9 @@ var mezzo_toplevel_filename = "::toplevel.mz";
     exists: function (file) {
       console.log("File exists?", file);
       file = fs.normalize(file);
-      return (file == mezzo_toplevel_filename || (file in fs_cache));
+      return (file == mezzo_toplevel_filename ||
+              file == mezzo_toplevel_filename_i ||
+              (file in fs_cache));
     },
   };
 
@@ -169,24 +176,27 @@ var mezzo_toplevel_filename = "::toplevel.mz";
   var ui = {
 
     // Write a message in the console.
-    log: function (msg) {
-      var c = $("#console");
-      c.append(
-        $("<div>").addClass("message").text(msg));
-      c.scrollTop(c.prop("scrollHeight"));
-    },
-
-    log_char: function (c) {
+    log: function (msg, isCamlOutput) {
       var console = $("#console");
       var buf = console.children().last();
-      if (!buf.hasClass("char-buffer")) {
+      if (isCamlOutput && !buf.hasClass("char-buffer"))
+        // This is an output from ocaml, make sure the last div is a proper
+        // caml-buffer.
         buf = $("<div />")
           .addClass("char-buffer")
           .addClass("message")
           .appendTo(console);
-      }
-      buf.text(buf.text()+String.fromCharCode(c));
+      else if (!isCamlOutput)
+        // This is a regular output, always create a new div.
+        buf = $("<div />")
+          .addClass("message")
+          .appendTo(console);
+      buf.text(buf.text()+msg);
       console.scrollTop(console.prop("scrollHeight"));
+    },
+
+    log_char: function (c) {
+      ui.log(String.fromCharCode(c), true);
     },
 
     clear: function () {
