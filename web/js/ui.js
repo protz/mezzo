@@ -160,15 +160,15 @@ var mezzo_toplevel_filename_i = "::toplevel.mzi";
     ],
 
     "demos": [
-      "demo-1.mz",
-      "demo-2.mz",
-      "demo-2-fixed.mz",
-      "demo-3.mz",
-      "demo-3-fix1.mz",
-      "demo-3-fix2.mz",
-      "demo-4.mz",
-      "demo-5.mz",
-      "demo-5-fix.mz",
+      "write-once-refs.mz",
+      "a-race.mz",
+      "a-race-fixed.mz",
+      "ref-get.mz",
+      "ref-get-fix1.mz",
+      "ref-get-fix2.mz",
+      "list-append.mz",
+      "graph.mz",
+      "graph-fixed-dfs.mz",
     ],
    };
 
