@@ -77,7 +77,7 @@ let p buf (start_pos, end_pos: Lexing.position * Lexing.position) =
   else
     Printf.bprintf buf "File \"%s\", line %i, char %i to line %i, char %i:\n"
       filename start_line start_col end_line end_col
- 
+
 let print_position buf lexbuf =
   let open Lexing in
   let start_pos = start_pos lexbuf in

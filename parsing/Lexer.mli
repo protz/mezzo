@@ -48,3 +48,6 @@ val prange: Buffer.t -> (Lexing.position * Lexing.position) -> unit
 val highlight_range: Lexing.position -> Lexing.position -> string
 
 val compare_locs: (Lexing.position * Lexing.position) -> (Lexing.position * Lexing.position) -> int
+
+val start_pos: Ulexing.lexbuf -> Lexing.position
+val end_pos: Ulexing.lexbuf -> Lexing.position

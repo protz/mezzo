@@ -230,7 +230,7 @@ var mezzo_toplevel_filename_i = "::toplevel.mzi";
     },
 
     // The main driver for type-checking something.
-    on_make: function (editor) {
+    on_make: function () {
       ui.timestamp();
       editor.clearSelection();
       mezzo_ret_code = 0;

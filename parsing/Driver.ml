@@ -40,6 +40,11 @@ let lex_and_parse_raw lexbuf file_path entry_var =
     | Grammar.Error ->
         MzString.beprintf "%a\nError: Syntax error\n"
           print_position lexbuf;
+        if !Options.js then begin
+          let start_pos = Lexer.start_pos lexbuf in
+          let end_pos = Lexer.end_pos lexbuf in
+          JsGlue.highlight_range start_pos end_pos;
+        end;
         exit 253
     | Lexer.LexingError e ->
         MzString.beprintf "%a\n"
