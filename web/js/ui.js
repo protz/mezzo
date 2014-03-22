@@ -1,6 +1,5 @@
 var mezzo_fs;
-var mezzo_ui_log;
-var mezzo_ui_log_char;
+var mezzo_ui;
 var mezzo_ret_code;
 var mezzo_toplevel_filename = "::toplevel.mz";
 var mezzo_toplevel_filename_i = "::toplevel.mzi";
@@ -10,6 +9,9 @@ var mezzo_toplevel_filename_i = "::toplevel.mzi";
 
   // The Ace editor.
   var editor;
+
+  // Modules from Ace that we need
+  var Range = ace.require("./range").Range;
 
   // A glue to hide the fact that there is no filesystem, only files that can be
   // fetched over http.
@@ -175,6 +177,10 @@ var mezzo_toplevel_filename_i = "::toplevel.mzi";
 
   var ui = {
 
+    get editor () {
+      return editor;
+    },
+
     // Write a message in the console.
     log: function (msg, isCamlOutput) {
       var console = $("#console");
@@ -203,6 +209,10 @@ var mezzo_toplevel_filename_i = "::toplevel.mzi";
       $("#console").empty();
     },
 
+    highlight_range: function (r1, c1, r2, c2) {
+      editor.getSelection().addRange(new Range(r1, c1, r2, c2));
+    },
+
     // Write a timestamp in the console
     timestamp: function () {
       $("#console").append(
@@ -222,6 +232,7 @@ var mezzo_toplevel_filename_i = "::toplevel.mzi";
     // The main driver for type-checking something.
     on_make: function (editor) {
       ui.timestamp();
+      editor.clearSelection();
       mezzo_ret_code = 0;
       try {
         mezzo.process(
@@ -334,8 +345,7 @@ var mezzo_toplevel_filename_i = "::toplevel.mzi";
 
   // These functions are called from the OCaml side!
   mezzo_fs = fs;
-  mezzo_ui_log = ui.log;
-  mezzo_ui_log_char = ui.log_char;
+  mezzo_ui = ui;
 
   $(document).ready(function () {
     // Register all event listeners + default values

@@ -19,7 +19,9 @@
 
 let output_string (s: string): unit =
   let s = Js.string s |> Js.Unsafe.inject in
-  Js.Unsafe.fun_call (Js.Unsafe.variable "mezzo_ui_log") [| s |]
+  let mezzo_ui = Js.Unsafe.variable "mezzo_ui" in
+  let log = Js.Unsafe.get mezzo_ui "log" in
+  Js.Unsafe.fun_call log [| s |]
 ;;
 
 let get_file (f: string): string =
@@ -28,6 +30,17 @@ let get_file (f: string): string =
   let get = Js.Unsafe.get mezzo_fs "get" in
   Js.Unsafe.fun_call get [| f |] |>
   Js.to_string
+;;
+
+let highlight_range (l1: Lexing.position) (l2: Lexing.position): unit =
+  let open Lexing in
+  let row1 = l1.pos_lnum - 1 in
+  let col1 = l1.pos_cnum - l1.pos_bol in
+  let row2 = l2.pos_lnum - 1 in
+  let col2 = l2.pos_cnum - l2.pos_bol in
+  let mezzo_ui = Js.Unsafe.variable "mezzo_ui" in
+  let hl = Js.Unsafe.get mezzo_ui "highlight_range" in
+  Js.Unsafe.fun_call hl (Array.map Js.Unsafe.inject [| row1; col1; row2; col2 |])
 ;;
 
 let process
@@ -67,5 +80,6 @@ let _ =
   Options.js := true;
   JsGlue.output_string_ := output_string;
   JsGlue.get_file_ := get_file;
+  JsGlue.highlight_range_ := highlight_range;
 ;;
 

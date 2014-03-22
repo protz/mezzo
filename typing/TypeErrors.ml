@@ -92,7 +92,11 @@ let print_error buf (env, raw_error) =
     | CyclicDependency _ ->
         ()
     | _ ->
-      Lexer.p buf (location env)    
+        if !Options.js then begin
+          let pos_start, pos_end = location env in
+          JsGlue.highlight_range pos_start pos_end;
+        end;
+        Lexer.p buf (location env)
   end;
   (* Now, print an error-specific message. *)
   match raw_error with
@@ -107,25 +111,31 @@ let print_error buf (env, raw_error) =
         pvar (env, p)
         ptype (env, t)
   | ExpectedType (t, var, d) ->
-      bprintf
-        "Could not extract from this subexpression (named %a) the following type:\n%a\n\
-          some explanations follow:\n%a\n\nHere's a tentatively short, \
-          potentially misleading error message.\n%a\n%a\n%a"
-        pnames (env, get_names env var)
-        ptype (env, t)
-        pderivation d
-        Lexer.p (location env)
-        Lexer.prange (location env)
-        pshort d
+      if !Options.js then
+        bprintf "%a" pshort d
+      else
+        bprintf
+          "Could not extract from this subexpression (named %a) the following type:\n%a\n\
+            some explanations follow:\n%a\n\nHere's a tentatively short, \
+            potentially misleading error message.\n%a\n%a\n%a"
+          pnames (env, get_names env var)
+          ptype (env, t)
+          pderivation d
+          Lexer.p (location env)
+          Lexer.prange (location env)
+          pshort d
   | ExpectedPermission (t, d) ->
-      bprintf
-        "Could not extract the following perm:\n%a\nsome explanations follow:\n%a\n\
-          \nHere's a tentatively short, potentially misleading error message.\n%a\n%a\n%a"
-        ptype (env, t)
-        pderivation d
-        Lexer.p (location env)
-        Lexer.prange (location env)
-        pshort d
+      if !Options.js then
+        bprintf "%a" pshort d
+      else
+        bprintf
+          "Could not extract the following perm:\n%a\nsome explanations follow:\n%a\n\
+            \nHere's a tentatively short, potentially misleading error message.\n%a\n%a\n%a"
+          ptype (env, t)
+          pderivation d
+          Lexer.p (location env)
+          Lexer.prange (location env)
+          pshort d
   | NoSuchTypeInSignature (var, t, d) ->
       let t = fold_type env t in
       bprintf "This file exports a variable named %a, but it does \
@@ -227,7 +237,7 @@ let print_error buf (env, raw_error) =
       bprintf "While applying type %a: this type has kind %a but \
           the sub-expression has a polymorphic type with kind %a"
         !internal_ptapp (env, t)
-        MzPprint.pdoc (print_kind, k) 
+        MzPprint.pdoc (print_kind, k)
         MzPprint.pdoc (print_kind, k');
   | NonExclusiveAdoptee t ->
       bprintf "Type %a cannot be adopted, because it is not exclusive"
@@ -319,7 +329,7 @@ let errno_of_error = function
   | SeveralWorkingFunctionTypes _ ->
       6
   | _ ->
-      0 
+      0
 ;;
 
 let may_raise_error env raw_error =

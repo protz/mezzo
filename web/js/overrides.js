@@ -1,12 +1,12 @@
 //Provides: caml_ml_output
 function caml_ml_output (chan, buf, start, len) {
   var s = buf.toJsString();
-  mezzo_ui_log(s.substr(start, len), true);
+  mezzo_ui.log(s.substr(start, len), true);
 }
 
 //Provides: caml_ml_output_char
 function caml_ml_output_char (chan, ch) {
-  mezzo_ui_log_char(ch);
+  mezzo_ui.log_char(ch);
 }
 
 //Provides: caml_sys_const_big_endian

@@ -20,7 +20,7 @@ function caml_sys_close () {
 
 function caml_sys_exit (status) {
   mezzo_ret_code = status;
-  mezzo_ui_log("Exited with status "+status);
+  mezzo_ui.log("Exited with status "+status);
 }
 
 function caml_sys_is_directory () {

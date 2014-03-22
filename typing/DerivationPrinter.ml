@@ -107,7 +107,7 @@ let possibly_useful_name env x =
   else
     List.hd names
 
-let print_stype env t = 
+let print_stype env t =
   let t = ResugarFold.fold_type env t in
   SurfaceSyntaxPrinter.print (Resugar.resugar env t)
 
@@ -121,16 +121,19 @@ let print_summary env x =
     let locs = List.sort Lexer.compare_locs locs in
     if List.length locs > 0 then
       let pos_start, pos_end = List.hd locs in
-      print_uservar env x ^^^ string "is defined around there:"
-      ^^ (
-        if Log.debug_level () > 0 then
-          space ^^ int (List.length locs) ^^^ words "location(s) total"
-        else
-          empty
-      )
-      ^^ break 1
-      ^^ string (MzString.bsprintf "%a" Lexer.p (pos_start, pos_end)) ^^ break 1
-      ^^ string (Lexer.highlight_range pos_start pos_end)
+      if !Options.js then
+        empty
+      else
+        print_uservar env x ^^^ string "is defined around there:"
+        ^^ (
+          if Log.debug_level () > 0 then
+            space ^^ int (List.length locs) ^^^ words "location(s) total"
+          else
+            empty
+        )
+        ^^ break 1
+        ^^ string (MzString.bsprintf "%a" Lexer.p (pos_start, pos_end)) ^^ break 1
+        ^^ string (Lexer.highlight_range pos_start pos_end)
     else
       empty
   in
@@ -170,7 +173,7 @@ let rec print_explanation explanation =
         print_stype env t ^^ break 1
       ) ^^ break 1 ^^
       print_summary env x
-  | MissingAbstract (env, t) -> 
+  | MissingAbstract (env, t) ->
       words "Could not obtain the following permission: " ^^ break 1 ^^
       print_stype env t
   | NoRuleForJudgement d ->
@@ -178,7 +181,7 @@ let rec print_explanation explanation =
       print_derivation d
   | OnePossible e ->
       words "Here's one, among several possible reasons for failure: " ^^ break 1 ^^
-      print_explanation e 
+      print_explanation e
   | NoGoodExplanation ->
       words "No good explanation, sorry"
 

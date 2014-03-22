@@ -30,3 +30,9 @@ let get_file_: (string -> string) ref =
 
 let get_file f =
   !get_file_ f
+
+let highlight_range_: (Lexing.position -> Lexing.position -> unit) ref =
+  ref (fun _ _ -> assert false)
+
+let highlight_range l1 l2 =
+  !highlight_range_ l1 l2
