@@ -102,6 +102,10 @@ a:hover {
   color: #888;
 }
 
+#console > div.char-buffer {
+  background-color: rgba(254, 234, 234, 1);
+}
+
 #editor {
   flex: 6 1 auto;
 }
