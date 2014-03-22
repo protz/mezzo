@@ -340,6 +340,7 @@ var mezzo_toplevel_filename_i = "::toplevel.mzi";
   $(document).ready(function () {
     // Register all event listeners + default values
     $("#command-clear").click(ui.clear);
+    $("#command-go").click(ui.on_make);
     $("#option-typecheck").prop("checked", true);
     $("#option-warnerror").val("-1+2..4-5+6");
     $("#show-more-options").click(function () {

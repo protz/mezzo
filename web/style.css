@@ -69,7 +69,7 @@ a:hover {
   vertical-align: middle;
 }
 
-#buttons label, #show-more-options {
+#buttons label, #buttons a {
   margin-right: 1em;
 }
 
