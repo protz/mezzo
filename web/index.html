@@ -9,7 +9,6 @@
 <script type="text/javascript" charset="utf-8" src="js/ace-builds/src-noconflict/ace.js"></script>
 <script type="text/javascript" charset="utf-8" src="js/jquery-2.1.0.min.js"></script>
 <script type="text/javascript" charset="utf-8" src="js/mezzo.js"></script>
-<script type="text/javascript" charset="utf-8" src="js/overrides.js"></script>
 <script type="text/javascript" charset="utf-8" src="js/ui.js"></script>
 
 </head>
@@ -24,6 +23,26 @@
   <div id="vbox">
     <div id="editor">val _ = (1, 1)
 </div>
+    <div id="buttons">
+      <div id="buttons-wrapper">
+        <label>
+          <input type="checkbox" checked="checked" id="option-typecheck" /> type-check
+        </label>
+        <label>
+          <input type="checkbox" id="option-interpret" /> interpret
+        </label>
+        <a href="#" id="show-more-options">(more options)</a>
+        <span class="more-options" style="display: none;">
+          <label>
+            <input type="number" min="0" max="10" value="0" id="option-debug" /> debug level
+          </label>
+          <label>
+            <input type="text" id="option-warnerror" /> warn-error
+          </label>
+        </span>
+        <a href="#" id="command-clear">clear</a>
+      </div>
+    </div>
     <div id="console"></div>
   </div>
 </div>

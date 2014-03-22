@@ -1,7 +1,9 @@
 var mezzo_fs;
 var mezzo_ui_log;
+var mezzo_ui_log_char;
 var mezzo_ret_code;
 var mezzo_toplevel_filename = "::toplevel.mz";
+var mezzo_toplevel_filename_i = "::toplevel.mzi";
 
 (function () {
   "use strict";
@@ -15,8 +17,9 @@ var mezzo_toplevel_filename = "::toplevel.mz";
   var fs = {
     normalize: function (file) {
       if (file.substr(0, 2) == "./")
-        file = file.substring(2, file.length);
-      return file;
+        return fs.normalize(file.substring(2, file.length));
+      else
+        return file;
     },
 
     fetch: function (file, k) {
@@ -35,9 +38,13 @@ var mezzo_toplevel_filename = "::toplevel.mz";
     },
 
     get: function(file) {
+      console.log("get", file);
       file = fs.normalize(file);
       if (file == mezzo_toplevel_filename)
         return editor.getValue();
+      else if (file == mezzo_toplevel_filename_i)
+        // No interface for our toplevel
+        return "";
       if (!(file in fs_cache))
         console.error("File not loaded: "+file);
       return fs_cache[file];
@@ -46,7 +53,9 @@ var mezzo_toplevel_filename = "::toplevel.mz";
     exists: function (file) {
       console.log("File exists?", file);
       file = fs.normalize(file);
-      return (file == mezzo_toplevel_filename || (file in fs_cache));
+      return (file == mezzo_toplevel_filename ||
+              file == mezzo_toplevel_filename_i ||
+              (file in fs_cache));
     },
   };
 
@@ -167,9 +176,31 @@ var mezzo_toplevel_filename = "::toplevel.mz";
   var ui = {
 
     // Write a message in the console.
-    log: function (msg) {
-      $("#console").append(
-        $("<div>").addClass("message").text(msg));
+    log: function (msg, isCamlOutput) {
+      var console = $("#console");
+      var buf = console.children().last();
+      if (isCamlOutput && !buf.hasClass("char-buffer"))
+        // This is an output from ocaml, make sure the last div is a proper
+        // caml-buffer.
+        buf = $("<div />")
+          .addClass("char-buffer")
+          .addClass("message")
+          .appendTo(console);
+      else if (!isCamlOutput)
+        // This is a regular output, always create a new div.
+        buf = $("<div />")
+          .addClass("message")
+          .appendTo(console);
+      buf.text(buf.text()+msg);
+      console.scrollTop(console.prop("scrollHeight"));
+    },
+
+    log_char: function (c) {
+      ui.log(String.fromCharCode(c), true);
+    },
+
+    clear: function () {
+      $("#console").empty();
     },
 
     // Write a timestamp in the console
@@ -193,13 +224,20 @@ var mezzo_toplevel_filename = "::toplevel.mz";
       ui.timestamp();
       mezzo_ret_code = 0;
       try {
-        mezzo.process(new MlString(mezzo_toplevel_filename));
+        mezzo.process(
+          new MlString(mezzo_toplevel_filename),
+          $("#option-typecheck").prop("checked"),
+          $("#option-interpret").prop("checked"),
+          parseInt($("#option-debug").val()),
+          new MlString($("#option-warnerror").val())
+        );
         if (mezzo_ret_code == 0) {
-          ui.log("Successfully type-checked 😸");
+          ui.log("Mezzo invocation successful 😸");
         } else {
           ui.log("Mezzo terminated abruptly");
         }
       } catch (e) {
+        ui.log("Mezzo threw an Exception 😱 : "+e);
         ui.log("Mezzo threw an Exception 😱 : "+e);
         console.log(e.stack);
         throw e;
@@ -263,6 +301,8 @@ var mezzo_toplevel_filename = "::toplevel.mz";
         exec: ui.on_make,
         readOnly: true
       });
+
+      editor.focus();
     },
 
   };
@@ -295,8 +335,18 @@ var mezzo_toplevel_filename = "::toplevel.mz";
   // These functions are called from the OCaml side!
   mezzo_fs = fs;
   mezzo_ui_log = ui.log;
+  mezzo_ui_log_char = ui.log_char;
 
   $(document).ready(function () {
+    // Register all event listeners + default values
+    $("#command-clear").click(ui.clear);
+    $("#option-typecheck").prop("checked", true);
+    $("#option-warnerror").val("-1+2..4-5+6");
+    $("#show-more-options").click(function () {
+      $(this).next().show("slow");
+      $(this).remove();
+    });
+
     ui.timestamp();
     loader.load_all();
 

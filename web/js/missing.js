@@ -1,49 +1,9 @@
-function caml_sys_const_big_endian() {
-  return false;
-}
-
-function caml_sys_const_word_size() {
-  // Since the browser is 32-bit, I assume?
-  return 32;
-}
-
-function caml_sys_const_ostype_unix() {
-  return true;
-}
-
-function caml_sys_const_ostype_win32() {
-  return false;
-}
-
-function caml_sys_const_ostype_cygwin() {
-  return false;
-}
-
 function caml_ml_channel_size () {
   console.log("Not implemented: caml_ml_channel_size!");
 }
 
 function caml_ml_close_channel () {
   console.log("Not implemented: caml_ml_close_channel!");
-}
-
-function caml_ml_input () {
-  console.log("Not implemented: caml_ml_input!");
-  return 0;
-}
-
-function caml_ml_input_char () {
-  console.log("Not implemented: caml_ml_input_char!");
-  return 0;
-}
-
-function caml_ml_input_scan_line () {
-  console.log("Not implemented: caml_ml_input_scan_line!");
-  return 0;
-}
-
-function caml_ml_output_char () {
-  console.log("Not implemented: caml_ml_output_char!");
 }
 
 function caml_ml_seek_in () {
@@ -61,15 +21,6 @@ function caml_sys_close () {
 function caml_sys_exit (status) {
   mezzo_ret_code = status;
   mezzo_ui_log("Exited with status "+status);
-}
-
-function caml_sys_file_exists (file) {
-  var f = file.toJsString();
-  return mezzo_fs.exists(f);
-}
-
-function caml_sys_getcwd () {
-  return new MlString("/");
 }
 
 function caml_sys_is_directory () {
