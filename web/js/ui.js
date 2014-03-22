@@ -169,6 +169,7 @@ var mezzo_toplevel_filename_i = "::toplevel.mzi";
       "list-append.mz",
       "graph.mz",
       "graph-fixed-dfs.mz",
+      "borrow-w-ghost-code.mz",
     ],
    };
 

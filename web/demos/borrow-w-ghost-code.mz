@@ -1,0 +1,53 @@
+open list
+open either
+
+alias wand (pre: perm) (post: perm) =
+  {ammo: perm } (
+    (| consumes (pre * ammo)) -> (| post)
+  | ammo)
+
+alias focused a (post: perm) =
+  (x: a, release: wand (x @ a) post)
+
+val rec find [a] (consumes l: list a, pred: a -> bool):
+    either (| l @ list a) (focused a (l @ list a))
+  =
+  match l with
+  | Nil ->
+      left ()
+  | Cons { head; tail } ->
+      if pred head then
+        right (
+          head,
+          fun (| consumes (head @ a * tail @ list a)): (| l @ list a) =
+            ())
+      else
+        match find (tail, pred) with
+        | Left ->
+            left ()
+        | Right { contents = (elt, release) } ->
+            let flex s: perm in
+            right (
+              elt,
+              fun (| consumes (head @ a * elt @ a * s)): (| l @ list a) =
+                release ())
+        end
+  end
+
+val _ =
+  (* Create a sample list. *)
+  let l = cons (newref 1, cons (newref 2, nil)) in
+  (* Try to find an element greater than 1 *)
+  match find (l, fun (x: ref int): _ = !x > 1) with
+  | Left ->
+      (* No such element has been found *)
+      ()
+  | Right { contents = (elt, restore) } ->
+      (* The element [elt] has been found. *)
+      print elt;
+      (* Calling the (ghost) [restore] function allows one to give up ownership
+       * of [elt] and recover ownership of [l] instead. *)
+      restore ()
+  end;
+  (* In any case, we can use [l] afterwards. *)
+  assert l @ list (ref int)
