@@ -236,20 +236,33 @@ var mezzo_toplevel_filename_i = "::toplevel.mzi";
       editor.clearSelection();
       mezzo_ret_code = 0;
       try {
+        var typecheck = $("#option-typecheck").prop("checked");
+        var interpret = $("#option-interpret").prop("checked");
+        var t0 = Date.now();
         mezzo.process(
           new MlString(mezzo_toplevel_filename),
-          $("#option-typecheck").prop("checked"),
-          $("#option-interpret").prop("checked"),
+          typecheck,
+          interpret,
           parseInt($("#option-debug").val()),
           new MlString($("#option-warnerror").val())
         );
+
+        var delta = Date.now() - t0;
+        var action;
+        if (typecheck && interpret)
+          action = "Type-checked and interpreted";
+        else if (typecheck)
+          action = "Type-checked"
+        else if (interpret)
+          action = "Interpreted"
+        else
+          action = "Did nothing";
         if (mezzo_ret_code == 0) {
-          ui.log("Mezzo invocation successful 😸");
+          ui.log(action+" successfully (in about "+Math.round(delta/1000, 2)+"s) 😸");
         } else {
           ui.log("Mezzo terminated abruptly");
         }
       } catch (e) {
-        ui.log("Mezzo threw an Exception 😱 : "+e);
         ui.log("Mezzo threw an Exception 😱 : "+e);
         console.log(e.stack);
         throw e;
