@@ -126,11 +126,11 @@ and fold_branch env depth branch =
 ;;
 
 let fold_type env t =
-  snd @@ fold_type env 0 t
+  snd (fold_type env 0 t)
 ;;
 
 let fold_var env t =
-  snd @@ fold_var env 0 t
+  snd (fold_var env 0 t)
 ;;
 
 

@@ -30,7 +30,7 @@ let enabled = ref "";;
 let enable_trace v = enabled := v;;
 let is_osx =
   lazy begin
-    Sys.unix &&
+    Sys.os_type = "Unix" &&
     String.sub (Ocamlbuild_plugin.run_and_read "uname") 0 6 = "Darwin"
   end
 ;;
@@ -370,7 +370,7 @@ module Html = struct
       ("sub_envs", `List (List.map render_env_point sub_envs));
     ] in
 
-    render_base (fst @@ fst env) extra;
+    render_base (fst (fst env)) extra;
 
     MzPprint.enable_colors ();
   ;;
@@ -425,6 +425,6 @@ let explain ?(text="") ?x env =
 let explain_merge (env: cenv) (sub_envs: cenv list) =
   if !enabled = "html" then begin
     Html.render_merge env sub_envs;
-    Html.launch (fst @@ fst env);
+    Html.launch (fst (fst env));
   end
 ;;
