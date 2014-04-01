@@ -7,7 +7,7 @@ data cell a =
 | Cons { head: a; tail: thunk (cell a) }
 
 alias stream a =
-  (duplicable a | thunk (cell a))
+  (thunk (cell a) | duplicable a)
 
 (* Short-hands for constructing streams. *)
 

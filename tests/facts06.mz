@@ -1,3 +1,3 @@
 (* should be accepted because a is duplicable *)
-val copy [a] (duplicable a | (x: a)) : a =
+val copy [a] ((x: a) | duplicable a) : a =
   x

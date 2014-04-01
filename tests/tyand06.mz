@@ -1,4 +1,4 @@
-val f [a] (id: a -> a) : ((duplicable a | ()), (duplicable a => a -> a)) =
+val f [a] (id: a -> a) : ((() | duplicable a), (duplicable a => a -> a)) =
   (), id
 
 (* symmetric of tyand05.mz; just in case one of the tests happens to work

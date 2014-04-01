@@ -369,9 +369,6 @@ raw_normal_type:
 (* A type that carries a mode constraint (implication). *)
 | c = mode_constraint DBLARROW ty = normal_type
     { TyImply (c, ty) }
-(* A type that carries a mode constraint (conjunction). *)
-| c = mode_constraint BAR ty = normal_type
-    { TyAnd (c, ty) }
 (* A structural type with an [adopts] clause is a considered a normal type.
    This allows the type in the [adopts] clause to be itself a normal type. *)
 | b = data_type_branch ADOPTS t = normal_type
@@ -449,6 +446,9 @@ raw_fat_type:
     { TyBar (ty1, ty2) }
 | BAR ty2 = very_loose_type
     { TyBar (TyTuple [], ty2) }
+(* A type that carries a mode constraint (conjunction). *)
+| ty = fat_type BAR c = mode_constraint
+    { TyAnd (c, ty) }
 
 %inline arbitrary_type:
   ty = fat_type

@@ -13,7 +13,7 @@ fact duplicable a => duplicable (copycat a)
 fact exclusive a => exclusive (copycat a)
 
 data duplicable_thing a =
-  Dup { thing: (duplicable a | a) }
+  Dup { thing: (a | duplicable a) }
 
 val () =
   d [int] ();
@@ -23,13 +23,13 @@ val () =
   (* no more implications:
   d [[a] duplicable a => (a, a)] ();
   d [{a} duplicable a => a] ();
-  d [{a,b} (duplicable a => (duplicable b | b))] ();
+  d [{a,b} (duplicable a => (b | duplicable b))] ();
   d [duplicable (ref int) => ref int] ();
   *)
-  d [{a} duplicable a | a] ();
-  d [{a} (a, (duplicable a | a))] ();
-  d [{a,b} (a, (duplicable b | duplicable a | a))] ();
-  x [{a} (exclusive a | a)] ();
+  d [{a} (a | duplicable a)] ();
+  d [{a} (a, (a | duplicable a))] ();
+  d [{a,b} (a, (a | duplicable b | duplicable a))] ();
+  x [{a} (a | exclusive a)] ();
   d [[a] (a, a)] ();
   d [list int] ();
   d [list (int, int)] ();

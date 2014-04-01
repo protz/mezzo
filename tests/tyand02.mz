@@ -1,4 +1,4 @@
-val g [a] (id: (duplicable a | a -> a)) : () =
+val g [a] (id: (a -> a | duplicable a)) : () =
   fail
 
 val f [a] duplicable a => (id: a -> a) : () =

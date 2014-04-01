@@ -3,7 +3,7 @@
 
 data duplicability a =
   | NonDuplicable
-  | Duplicable { content: (duplicable a | ()) }
+  | Duplicable { content: (() | duplicable a) }
 
 (* Thus, if [d] has type [duplicability a], one can write [if d then ...
    else ...] and in the first branch, one can assume that the type [a] is

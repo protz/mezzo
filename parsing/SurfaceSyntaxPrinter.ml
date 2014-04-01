@@ -60,10 +60,6 @@ and normal_type ty =
       prefix 0 1
        (braces (commas binding bs))
        (normal_type ty)
-  | TyAnd (c, ty) ->
-        prefix 0 1
-          (mode_constraint c ^^ string " |")
-          (normal_type ty)
   | TyConcrete _ ->
       concrete ty
   | _ ->
@@ -126,6 +122,12 @@ and fat_type ty =
       group (
        nest 2 (break 0 ^^ fat_type ty1) ^/^
        string "| " ^^ nest 2 (very_loose_type ty2)
+      )
+  | TyAnd (c, ty) ->
+      (* Same appearance as above. *)
+      group (
+        nest 2 (break 0 ^^ fat_type ty) ^/^
+        string "| " ^^ nest 2 (mode_constraint c)
       )
   | _ ->
       very_loose_type ty
