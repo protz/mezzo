@@ -1,7 +1,7 @@
 (** A random access list is a data structure that implements a sequence
     of elements and supports efficient [cons] and [lookup] operations. *)
 
-(* More operations, including, [head], [tail], and [update], could be
+(* More operations, including [head], [tail], and [update], could be
    efficiently implemented if desired. *)
 
 (** ['a t] is the type of lists whose elements have type ['a]. *)
