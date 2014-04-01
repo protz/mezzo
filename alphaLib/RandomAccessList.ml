@@ -63,7 +63,7 @@ end
    interpreted as the representation of a number in skew binary
    form, where the digits are 0, 1, and 2, the weight of a digit
    of rank i is 2^{i+1} - 1, and only the lowest non-zero digit may
-   be 2. The representation is sparse: only non-zero are digits
+   be 2. The representation is sparse: only non-zero digits
    are represented, so we have constant-time access to the lowest
    non-zero digit. A digit is represented by its weight, or rather,
    by a tree of appropriate weight. If the lowest non-zero digit
