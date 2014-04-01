@@ -71,7 +71,7 @@ echo "libdir is $libdir"
 echo "srcdir is $srcdir"
 
 # Detect the GNU utilities
-function gnudetect () {
+gnudetect () {
   name=$(echo $1 | tr '[:lower:]' '[:upper:]')
   if which g$1 > /dev/null 2>&1 ; then
     echo "$1 found as g$1"
