@@ -27,7 +27,7 @@ If you want to hack on the compiler itself, you need:
 
 - OCaml 4.01.0
 - a properly-working ocamlfind command,
-- the following packages: menhir, yojson, ulex, pprint, functory, fix, js_of_ocaml
+- the following packages: menhir, yojson, ulex, pprint, functory, fix
 
 We recommend [OPAM](http://opam.ocamlpro.com) to easily install
 these dependencies. Once the dependencies are met, just run:
