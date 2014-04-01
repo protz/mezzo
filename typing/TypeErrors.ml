@@ -25,6 +25,7 @@ open Types
 open DerivationPrinter
 open ClFlags
 open ExpressionsCore
+open ResugarFold
 
 type error = env * raw_error
 
@@ -75,138 +76,6 @@ let raise_error env e =
 
 (* -------------------------------------------------------------------------- *)
 
-(* For pretty-printing. *)
-
-exception NotFoldable
-
-(** [fold_var env var] tries to find (hopefully) one "main" type for [var], by
-    folding back its "main" type [t] into a form that's suitable for one
-    thing, and one thing only: printing. *)
-let rec fold_var (env: env) (depth: int) (var: var): (env * typ) option =
-  if is_flexible env var || depth > 5 then raise NotFoldable;
-
-  let perms = get_permissions env var in
-  let perms = List.filter
-    (function
-      | TySingleton (TyOpen p) when same env p var ->
-          false
-      | TyUnknown ->
-          false
-      | _ ->
-          true
-    ) perms
-  in
-  match perms with
-  | [] ->
-      Some (env, TyUnknown)
-  | t :: []
-  | TyDynamic :: t :: []
-  | t :: TyDynamic :: [] ->
-      begin try
-        let env, t = fold_type env (depth + 1) t in
-        let env = set_permissions env var [TyDynamic] in
-        Some (env, t)
-      with NotFoldable ->
-        None
-      end
-  | _ ->
-      None
-
-
-and fold_type (env: env) (depth: int) (t: typ): env * typ =
-  if depth > 5 then
-    raise NotFoldable;
-
-  match t with
-  | TyUnknown
-  | TyDynamic ->
-      env, t
-
-  | TyBound _ ->
-      Log.error "All types should've been opened at that stage"
-
-  | TyOpen _ ->
-      env, t
-
-  | TyQ _
-  | TyApp _ ->
-      env, t
-
-  | TySingleton (TyOpen p) ->
-      begin match fold_var env (depth + 1) p with
-      | Some t ->
-          t
-      | None ->
-          raise NotFoldable
-      end
-
-  | TyTuple components ->
-      let env, components =
-        List.fold_left (fun (env, cs) t ->
-          let env, t = fold_type env (depth + 1) t in
-          env, t :: cs
-        ) (env, []) components
-      in
-      let components = List.rev components in
-      env, TyTuple components
-
-  | TyAnd (c, t) ->
-      let env, t = fold_type env (depth + 1) t in
-      env, TyAnd (c, t)
-
-  | TyConcrete branch ->
-      let env, branch = fold_branch env (depth + 1) branch in
-      env, TyConcrete branch
-
-  | TySingleton _ ->
-      env, t
-
-  | TyArrow _ ->
-      env, t
-
-  | TyBar (t, p) ->
-      let env, t = fold_type env (depth + 1) t in
-      env, TyBar (t, p)
-
-  | TyAnchoredPermission (x, t) ->
-      let env, t = fold_type env (depth + 1) t in
-      env, TyAnchoredPermission (x, t)
-
-  | TyEmpty ->
-      env, t
-
-  | TyStar _ ->
-      Log.error "Huh I don't think we should have that here"
-
-and fold_branch env depth branch =
-  let env, fields =
-    List.fold_left (fun (env, fields) (n, t) ->
-      let env, t = fold_type env depth t in
-      env, (n, t) :: fields
-    ) (env, []) branch.branch_fields in
-  let branch_fields = List.rev fields in
-  let env, branch_adopts = fold_type env depth branch.branch_adopts in
-  let branch = { branch with
-    branch_fields;
-    branch_adopts;
-  } in
-  env, branch
-;;
-
-let fold_type env t =
-  try
-    let _, t = fold_type env 0 t in
-    Some t
-  with NotFoldable ->
-    None
-;;
-
-let fold_var env t =
-  Option.map snd (fold_var env 0 t)
-;;
-
-(* -------------------------------------------------------------------------- *)
-
 (* The main error printing function. *)
 
 open TypePrinter
@@ -215,7 +84,7 @@ let print_error buf (env, raw_error) =
   let bprintf s = Printf.bprintf buf s in
   (* Extra verbose debugging output. *)
   if Log.debug_level () >= 5 then begin
-    bprintf "\nOH NOES. Printing permissions.\n\n%a" MzPprint.pdoc (print_permissions, env);
+    bprintf "\nPrinting permissions.\n\n%a" MzPprint.pdoc (print_permissions, env);
     bprintf "\nError message follows.\n\n";
   end;
   (* A few error messages are printed *without* an error location. *)
@@ -223,7 +92,11 @@ let print_error buf (env, raw_error) =
     | CyclicDependency _ ->
         ()
     | _ ->
-      Lexer.p buf (location env)    
+        if !Options.js then begin
+          let pos_start, pos_end = location env in
+          JsGlue.highlight_range pos_start pos_end;
+        end;
+        Lexer.p buf (location env)
   end;
   (* Now, print an error-specific message. *)
   match raw_error with
@@ -232,29 +105,46 @@ let print_error buf (env, raw_error) =
         showing the cycle in a more explicit manner would be useful *)
       bprintf "There is a cyclic dependency on module %a" Module.p m
   | NotAFunction p ->
-      begin match fold_var env p with
-      | Some t ->
-          bprintf
-            "%a is not a function, it has type:\n%a"
-            pname (env, p)
-            ptype (env, t)
-      | None ->
-          bprintf
-            "%a is not a function, the only permissions available for it are:\n%a"
-            pname (env, p)
-            ppermission_list (env, p)
-      end
+      let t = fold_var env p in
+      bprintf
+        "%a is not a function, it has type:\n%a"
+        pvar (env, p)
+        ptype (env, t)
   | ExpectedType (t, var, d) ->
-      bprintf
-        "Could not extract from this subexpression (named %a) the following type:\n%a\n\
-          some explanations follow:\n%a"
-        pnames (env, get_names env var)
-        ptype (env, t)
-        pderivation d
+      if !Options.js then
+        bprintf "%a" pshort d
+      else
+        bprintf
+          "Could not extract from this subexpression (named %a) the following type:\n%a\n\
+            some explanations follow:\n%a\n\nHere's a tentatively short, \
+            potentially misleading error message.\n%a\n%a\n%a"
+          pnames (env, get_names env var)
+          ptype (env, t)
+          pderivation d
+          Lexer.p (location env)
+          Lexer.prange (location env)
+          pshort d
   | ExpectedPermission (t, d) ->
-      bprintf
-        "Could not extract the following perm:\n%a\nsome explanations follow:\n%a"
+      if !Options.js then
+        bprintf "%a" pshort d
+      else
+        bprintf
+          "Could not extract the following perm:\n%a\nsome explanations follow:\n%a\n\
+            \nHere's a tentatively short, potentially misleading error message.\n%a\n%a\n%a"
+          ptype (env, t)
+          pderivation d
+          Lexer.p (location env)
+          Lexer.prange (location env)
+          pshort d
+  | NoSuchTypeInSignature (var, t, d) ->
+      let t = fold_type env t in
+      bprintf "This file exports a variable named %a, but it does \
+        not have type %a. Here's a tentatively short, \
+        potentially misleading error message.\n%a\n%a\n%a"
+        pvar (env, var)
         ptype (env, t)
+        Lexer.p (location env)
+        Lexer.prange (location env)
         pderivation d
   | RecursiveOnlyForFunctions ->
       bprintf
@@ -268,60 +158,32 @@ let print_error buf (env, raw_error) =
         "Field %a is superfluous in that constructor"
         Field.p f
   | NoTwoConstructors var ->
-      begin match fold_var env var with
-      | Some t ->
-          bprintf
-            "%a has type:\n%a\nIt is not a type with two constructors"
-            pname (env, var)
-            ptype (env, t)
-      | None ->
-          bprintf
-            "%a has no suitable permission for a type with two constructors;\n\
-              the only permissions available for it are:\n%a"
-            pname (env, var)
-            ppermission_list (env, var)
-      end
+      bprintf
+        "%a doesn't have a type with two constructors.\n%a"
+        puvar (env, var)
+        psummary (env, var)
   | NoSuchField (var, f) ->
-      begin match fold_var env var with
-      | Some t ->
-          bprintf
-            "%a has type:\n%a\nThere is no field named %a"
-            pname (env, var)
-            ptype (env, t)
-            Field.p f
-      | None ->
-          bprintf
-            "%a has no suitable permission with field %a;\n\
-              the only permissions available for it are:\n%a"
-            pname (env, var)
-            Field.p f
-            ppermission_list (env, var)
-      end
+      bprintf
+        "%a has no field named %a.\n%a"
+        puvar (env, var)
+        Field.p f
+        psummary (env, var)
   | CantAssignTag var ->
-      begin match fold_var env var with
-      | Some t ->
-          bprintf
-            "%a has type:\n%a\nWe can't assign a tag to it"
-            pname (env, var)
-            ptype (env, t)
-      | None ->
-          bprintf
-            "%a has no suitable permission that would accept a tag update, \
-              the only permissions available for it are:\n%a"
-            pname (env, var)
-            ppermission_list (env, var)
-      end
-  | MatchBadTuple p ->
       bprintf
-        "Trying to match a tuple against a var whose only \
-          permissions are:\n%a"
-        ppermission_list (env, p)
-  | MatchBadDatacon (p, datacon) ->
+        "%a cannot be assigned a tag.\n%a"
+        puvar (env, var)
+        psummary (env, var)
+  | MatchBadTuple var ->
       bprintf
-        "Trying to match data constructor %a against a var whose only \
-          permissions are:\n%a"
+        "%a cannot be matched as a tuple.\n%a"
+        puvar (env, var)
+        psummary (env, var)
+  | MatchBadDatacon (var, datacon) ->
+      bprintf
+        "%a cannot be matched with data constructor %a.\n%a"
+        puvar (env, var)
         Datacon.p datacon
-        ppermission_list (env, p)
+        psummary (env, var)
   | NoSuchFieldInPattern (pat, field) ->
       bprintf
         "The pattern %a mentions field %a which is unknown for that branch"
@@ -329,10 +191,10 @@ let print_error buf (env, raw_error) =
         Field.p field
   | BadPattern (pat, var) ->
       bprintf
-        "Cannot match pattern %a against %a, the only permissions available for it are:\n%a"
+        "%a cannot be matched with pattern %a.\n%a"
+        puvar (env, var)
         !internal_ppat (env, pat)
-        pname (env, var)
-        ppermission_list (env, var)
+        psummary (env, var)
   | BadField (datacon, name) ->
       bprintf "This pattern mentions field %a but data constructor \
           %a has no such field"
@@ -368,15 +230,14 @@ let print_error buf (env, raw_error) =
         ptype (env, t1)
         ptype (env, t2);
   | BadTypeApplication var ->
-      bprintf "Var %a does not have a polymorphic type, the only \
-          permissions available for it are %a"
-        pnames (env, get_names env var)
-        ppermission_list (env, var)
+      bprintf "%a does not have a polymorphic type.\n%a"
+        puvar (env, var)
+        psummary (env, var)
   | IllKindedTypeApplication (t, k, k') ->
       bprintf "While applying type %a: this type has kind %a but \
           the sub-expression has a polymorphic type with kind %a"
         !internal_ptapp (env, t)
-        MzPprint.pdoc (print_kind, k) 
+        MzPprint.pdoc (print_kind, k)
         MzPprint.pdoc (print_kind, k');
   | NonExclusiveAdoptee t ->
       bprintf "Type %a cannot be adopted, because it is not exclusive"
@@ -387,17 +248,15 @@ let print_error buf (env, raw_error) =
         pnames (env, get_names env p)
         ppermission_list (env, p)
   | NotDynamic p ->
-      bprintf "Cannot take %a as it is not dynamic, the only \
-          permissions available for it are %a"
-        pnames (env, get_names env p)
-        ppermission_list (env, p)
+      bprintf "%a cannot be taken, as it has no dynamic type.\n%a"
+        puvar (env, p)
+        psummary (env, p)
   | NoSuitableTypeForAdopts (p, t) ->
-      bprintf "Trying to give/take %a to/from some expression, but \
-          the expression adopts %a and the only permissions available for %a are %a"
-        pnames (env, get_names env p)
+      let t = fold_type env t in
+      bprintf "%a is given or taken. There is a mismatch: the adopter adopts %a.\n%a"
+        puvar (env, p)
         ptype (env, t)
-        pnames (env, get_names env p)
-        ppermission_list (env, p)
+        psummary (env, p)
   | AdoptsNoAnnotation ->
       bprintf "In this “give e1 to e2” statement, please provide a \
           type annotation for e1"
@@ -409,13 +268,6 @@ let print_error buf (env, raw_error) =
         ptype (right_env, right_var)
         ptype (left_env, left_t)
         ptype (right_env, right_t)
-  | NoSuchTypeInSignature (p, t, d) ->
-      bprintf "This file exports a variable named %a, but it does \
-        not have type %a, the only permissions available for it are: %a\n%a"
-        pname (env, p)
-        ptype (env, t)
-        ppermission_list (env, p)
-        pderivation d
   | DataTypeMismatchInSignature (x, reason) ->
       bprintf "Cannot match the definition of %a against the \
           signature because of: %s"
@@ -449,15 +301,6 @@ let html_error error =
   let text = MzString.bsprintf "%a\n" print_error error in
   (* Generate the HTML explanation. *)
   Debug.explain ~text env;
-  (* Find out about the command to run. *)
-  let f = (fst (TypeCore.location env)).Lexing.pos_fname in
-  let f = MzString.replace "/" "_" f in
-  let cmd = Printf.sprintf
-    "firefox -new-window \"viewer/viewer.html?json_file=data/%s.json\" &"
-    f
-  in
-  (* Let's do it! *)
-  ignore (Sys.command cmd)
 ;;
 
 let internal_extracterror = snd;;
@@ -486,7 +329,7 @@ let errno_of_error = function
   | SeveralWorkingFunctionTypes _ ->
       6
   | _ ->
-      0 
+      0
 ;;
 
 let may_raise_error env raw_error =

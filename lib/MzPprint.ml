@@ -60,8 +60,11 @@ let disable_colors () =
 ;;
 
 let _ =
-  if Sys.getenv "TERM" <> "dumb" && Unix.isatty Unix.stdout then
-    enable_colors ()
+  try
+    if Sys.getenv "TERM" <> "dumb" && Unix.isatty Unix.stdout then
+      enable_colors ()
+  with Not_found ->
+    ()
 
 let arrow =
   string "->"
@@ -112,7 +115,7 @@ let jump ?(indent=2) body =
 ;;
 
 let english_join =
-  separate2 (string ", ") (string ", and ")
+  separate2 (string ", ") (string " and ")
 
 let render doc =
   let buf = Buffer.create 1024 in

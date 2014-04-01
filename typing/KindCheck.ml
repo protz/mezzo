@@ -104,14 +104,14 @@ module P = struct
 
   (* For debugging only. *)
 
-  let print_var (v : 'v var) : string =
+  let print_name (v : 'v var) : string =
     match v with
     | Local level ->
        Printf.sprintf "level = %d" level
     | NonLocal _ ->
        "external point"
 
-  let print_variety = function
+  let print_nameiety = function
     | Real ->
         "real"
     | Fictional ->
@@ -120,9 +120,9 @@ module P = struct
   let print_env (env : 'v env) : document =
     (* We print just [env.variables]. *)
     V.print_global_env (fun (v, kind, variety) ->
-      string (print_var v) ^^ string ", " ^^
+      string (print_name v) ^^ string ", " ^^
       string "kind = " ^^ print_kind kind ^^ string ", " ^^
-      string "variety = " ^^ string (print_variety variety)
+      string "variety = " ^^ string (print_nameiety variety)
     ) env.variables
 
   let penv buf env =
@@ -1108,9 +1108,6 @@ and check_expression env (expr : expression) : unit =
 
   | EInt _ ->
       ()
-
-  | EExplained e ->
-      check_expression env e
 
   | EFail ->
       ()

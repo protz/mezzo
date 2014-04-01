@@ -1,0 +1,16 @@
+(* Fifth example: a node that points to itself (rejected) *)
+open list
+
+data mutable node a =
+  Node {
+    neighbors: list (node a);
+    value: a;
+  }
+
+val _: node int =
+  let x = Node {
+    neighbors = ();
+    value = 10;
+  } in
+  x.neighbors <- cons (x, nil);
+  x

@@ -1,0 +1,123 @@
+diff --git a/src/engine.ml b/src/engine.ml
+index 367008c..8e068d3 100644
+--- a/src/engine.ml
++++ b/src/engine.ml
+@@ -38,7 +38,7 @@ module Make (T : TABLE) = struct
+      [void]. This guarantees that they never return a value. Instead, they
+      must stop by raising an exception: either [Accept] or [Error]. *)
+ 
+-  type void
++  type void = unit
+ 
+   (* --------------------------------------------------------------------------- *)
+ 
+@@ -65,10 +65,73 @@ module Make (T : TABLE) = struct
+      Here, the code is structured in a slightly different way. It is up to
+      the caller of [run] to indicate whether to discard a token. *)
+ 
+-  let rec run env please_discard : void =
++  type env = (state, semantic_value, T.token) EngineTypes.env
++
++  type what =
++    | WRun of env * bool
++    | WContinue of env
++    | WAction of env
++    | WShift of env * bool * terminal * semantic_value * state
++    | WReduce of env * production
++    | WInitiate of env
++    | WErrorBookkeeping of env
++    | WError of env
++    | WErrorShift of env * bool * terminal * semantic_value * state
++    | WErrorReduce of env * production
++    | WErrorFail of env
++    | WInitial
++
++  let next = ref WInitial
++
++  (* We're breaking recursion by using the mutable store. Performing a recursive
++   * call just amounts to writing in the store the next action we need to
++   * perform. The while loop below then repeatedly performs the desired actions
++   * by poking at the reference. *)
++  let run env please_discard : void =
++    next := WRun (env, please_discard)
++
++  let continue env : void =
++    next := WContinue env
++
++  let action env : void =
++    next := WAction env
++
++  let shift env
++      (please_discard : bool)
++      (terminal : terminal)
++      (value : semantic_value)
++      (s' : state)
++      : void =
++    next := WShift (env, please_discard, terminal, value, s')
++
++  let reduce env (prod : production) : void =
++    next := WReduce (env, prod)
++
++  let initiate env : void =
++    next := WInitiate env
++
++  let errorbookkeeping env =
++    next := WErrorBookkeeping env
++
++  let error env : void =
++    next := WError env
++
++  let error_shift env please_discard terminal value s' =
++    next := WErrorShift (env, please_discard, terminal, value, s')
++
++  let error_reduce env prod =
++    next := WErrorReduce (env, prod)
++
++  let error_fail env =
++    next := WErrorFail env
++
++
++  (* The actual functions *)
++
++  let run env please_discard : void =
+ 
+     (* Log the fact that we just entered this state. *)
+-    
++
+     let s = env.current in
+     Log.state s;
+ 
+@@ -343,6 +406,33 @@ module Make (T : TABLE) = struct
+ 	 what we would use here, since the type [void] has zero cases. *)
+ 
+       let (_ : void) = run env false in
++      while true do
++        match !next with
++        | WRun (env, please_discard) ->
++            run env please_discard
++        | WContinue env ->
++            continue env
++        | WAction env ->
++            action env
++        | WShift (env, please_discard, terminal, value, s') ->
++            shift env please_discard terminal value s'
++        | WReduce (env, production) ->
++            reduce env production
++        | WInitiate env ->
++            initiate env
++        | WErrorBookkeeping env ->
++            errorbookkeeping env
++        | WError env ->
++            error env
++        | WErrorShift (env, please_discard, terminal, value, s') ->
++            error_shift env please_discard terminal value s'
++        | WErrorReduce (env, production) ->
++            error_reduce env production
++        | WErrorFail env ->
++            error_fail env
++        | WInitial ->
++            assert false
++      done;
+       assert false (* cannot fail *)
+ 
+     with

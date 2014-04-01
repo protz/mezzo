@@ -1,0 +1,220 @@
+(* This is the demo script for the presentation. *)
+
+(* Open the [info] module, to inspect variables, and the list module, to avoid
+ * writing  all the time. *)
+open info
+open list
+
+(* -------------------------------------------------------------------------- *)
+
+(* 1. Talking about state *)
+
+data mutable writable =
+  Writable { contents: () }
+
+data frozen a =
+  Frozen { contents: a }
+
+val new (): writable =
+  Writable { contents = () }
+
+val seal [a] (consumes r: writable, consumes x: a)
+           : (| r @ frozen a) =
+  r.contents <- x;
+  tag of r <- Frozen
+
+val get [a] (consumes r: frozen a): a =
+  r.contents
+
+val _: (int, int) =
+  (* empty *)
+  let r = new () in
+  (* r @ writable *)
+  let x = 3 in
+  (* r @ writable * x @ int *)
+  seal (r, x);
+  (* r @ frozen int *)
+  let y = get r and z = get r in
+  (* y @ int * z @ int *)
+  y, z
+
+(* -------------------------------------------------------------------------- *)
+
+(* 2. So, there is a notion of _duplicability_. *)
+
+val _ =
+  let x1 = new () in
+  (* info x1; *)
+  (* Fails. Why? *)
+  (* assert x1 @ writable * x1 @ writable; *)
+  seal (x1, 2);
+  (* info x2; *)
+  (* Works. Why? *)
+  assert x1 @ frozen int * x1 @ frozen int;
+  let x2 = new () in
+  seal (x2, new ());
+  (* info x2; *)
+  (* Fails. Why? *)
+  ()
+
+(* -------------------------------------------------------------------------- *)
+
+(* 3. Who owns what? A mechanism for tracking aliasing. *)
+val _ =
+  let x = new () in
+  let y = x in
+  assert x @ writable;
+  (* This one fails, naturally. *)
+  (* assert x @ writable * y @ writable; *)
+  (* Actually, there's a singleton type. *)
+  assert x @ =y;
+  (* There is syntactic sugar. *)
+  assert x = y;
+  (* This is not limited to just variables. *)
+  let z = x.contents in
+  (* Call mezzo -explain x11 *)
+  (* info x; *)
+  ()
+
+(* -------------------------------------------------------------------------- *)
+
+(* 4. A complete example: concat *)
+val rec append [a] (consumes xs: list a, consumes ys: list a): list a =
+  match xs with
+  | Nil ->
+      ys
+  | Cons { head; tail } ->
+      Cons { head; tail = append (tail, ys) }
+  end
+
+(* Usage: *)
+val _ =
+  (* Losing some permissions. *)
+  let l1: list (ref ()) = cons (newref (), nil) in
+  let l2: list (ref ()) = cons (newref (), nil) in
+  let l3 = append (l1, l2) in
+  (* assert l1 @ list (ref ()); *)
+  (* assert l2 @ list (ref ()); *)
+  (* Keeping the permissions! *)
+  let l1: list int = cons (5, nil) in
+  let l2: list int = cons (6, nil) in
+  let l3 = append (l1, l2) in
+  assert l1 @ list int;
+  assert l2 @ list int
+  (* This is call-site polymorphism! *)
+
+(* This function is sub-optimal: it is not tail-rec! *)
+
+(* How are we going to do that? Some pretty pictures on the slides. *)
+data mutable cell a =
+  Cell { head: a; tail: () }
+
+val rec appendAux [a] (consumes (dst: cell a, xs: list a, ys: list a))
+: (| dst @ list a)
+  =
+  match xs with
+  | Cons { tail } ->
+      let dst' = Cell { head = xs.head; tail = () } in
+      dst.tail <- dst';
+      tag of dst <- Cons;
+      (* assert dst  @ Cons { head: a; tail = dst' } * *)
+      (*        dst' @ cell a * *)
+      (*        tail @ list a * *)
+      (*        ys   @ list a; *)
+      appendAux (dst', tail, ys);
+      (* assert dst  @ Cons { head: a; tail = dst' } * *)
+      (*        dst' @ list a; *)
+      (* assert dst  @ list a; *)
+  | Nil ->
+      dst.tail <- ys;
+      tag of dst <- Cons;
+  end
+
+val append [a] (consumes (xs: list a, ys: list a)) : list a =
+  match xs with
+  | Cons ->
+      let dst = Cell { head = xs.head; tail = () } in
+      appendAux (dst, xs.tail, ys);
+      dst
+  | Nil ->
+      ys
+  end
+
+(* -------------------------------------------------------------------------- *)
+
+(* 5. Limitations: arbitrary aliasing of mutable data *)
+
+(* data mutable node a = *)
+(*   Node { *)
+(*     neighbors: list (node a); *)
+(*     value: a; *)
+(*   } *)
+
+(* val _: node int = *)
+(*   let x = Node { *)
+(*     neighbors = (); *)
+(*     value = 10; *)
+(*   } in *)
+(*   x.neighbors <- cons (x, nil); *)
+(*   x *)
+
+data mutable node a =
+  Node {
+    neighbors: list dynamic;
+    value: a;
+    seen: bool;
+  }
+
+and mutable graph a =
+  Graph {
+    roots: list dynamic;
+  } adopts node a
+
+val _ =
+  let g: graph int =
+    let x = Node {
+      neighbors = ();
+      value = 10;
+      seen = false;
+    } in
+    (* In the presence of a "more useful" type, [cons] attempts to construct a
+     * list of, say, [Node]s, which is _not_ what we want. Give a little hint
+     * here. *)
+    x.neighbors <- cons [dynamic] (x, nil);
+    (* The small hint for the type of [g] is due to the fact the [a] in the
+     * [adopts a] clause for [g] could be anything, as it hasn't been
+     * instantiated yet. Mezzo doesn't perform inference here (would be sketchy)
+     * and requires an annotation, either here, or later on in the [give]
+     * instruction. *)
+    let g: graph int = Graph { roots = cons [dynamic] (x, nil) } in
+    give x to g;
+    g
+  in
+  let dfs [a] (g: graph a, f: a -> ()): () =
+    let work_list = newref nil in
+    (* Interesting bit: since function types are duplicable, they cannot capture
+     * non-duplicable permissions in a closure, meaning that we need to
+     * explicitly specify which parts of the mutable store a function wants to
+     * touch. *)
+    let rec dfs (n: dynamic | g @ graph a * work_list @ ref (list dynamic)): () =
+      (* There are various opportunities for making mistakes here: putting the
+       * [give n to g] instruction too late; calling [f] without having
+       * ownership of the node; etc. etc. *)
+      take n from g;
+      if not n.seen then begin
+        f n.value;
+        work_list := append (n.neighbors, !work_list);
+        n.seen <- true;
+      end;
+      give n to g;
+      match !work_list with
+      | Cons { head; tail } ->
+          work_list := tail;
+          dfs head
+      | Nil ->
+          ()
+      end
+    in
+    iter (g.roots, dfs)
+  in
+  dfs (g, print)

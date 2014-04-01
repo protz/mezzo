@@ -1,4 +1,5 @@
 Makefile.local
+Makefile.config
 _build
 mezzo
 test
@@ -10,3 +11,5 @@ coverage*.out
 configure.ml
 callgrind.out.*
 tmp/*
+myocamlbuild.ml
+.DS_Store

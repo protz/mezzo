@@ -23,8 +23,35 @@ open Types
 open TypePrinter
 open Bash
 
+(* An environment annotated with a list of conflicting variables. *)
+type cenv = (env * var) * var list
+
 let enabled = ref "";;
 let enable_trace v = enabled := v;;
+let is_osx =
+  lazy begin
+    Sys.unix &&
+    String.sub (Ocamlbuild_plugin.run_and_read "uname") 0 6 = "Darwin"
+  end
+;;
+
+let unique xs =
+  let xs = List.sort compare xs in
+  let rec loop xs x1 = function
+    | [] ->
+        List.rev (x1 :: xs)
+    | x2 :: rest ->
+        if x1 = x2 then
+          loop xs x1 rest
+        else
+          loop (x1 :: xs) x2 rest
+  in
+  match xs with
+  | [] ->
+      []
+  | x1 :: rest ->
+      loop [] x1 rest
+;;
 
 module Graph = struct
 
@@ -32,24 +59,45 @@ module Graph = struct
     internal_uniqvarid env var
   ;;
 
-  let draw_point buf env point permissions =
+  let draw_point buf env point is_conflict permissions =
     let id = id_of_point env point in
+
     let names = MzList.map_some
-      (function User (_, v) -> Some (Variable.print v) | Auto _ -> None)
+      (function
+        | User (m, v) ->
+            if Module.equal m (module_name env) then
+              Some (Variable.print v)
+            else
+              Some (Module.print m ^ "::" ^ Variable.print v)
+        | Auto _ -> None)
       (get_names env point)
     in
+    let names = unique names in
     let names = String.concat " = " names in
 
     (* Get a meaningful type. *)
-    let t =
-      try List.find (function TySingleton (TyOpen _) -> false | _ -> true) permissions
-      with _ -> TyUnknown
+    let permissions = 
+      let sort = function
+        | TyDynamic -> 2
+        | TyUnknown -> 3
+        | TySingleton _ -> 4
+        | _ -> 1
+      in
+      let sort x y = sort x - sort y in
+      List.sort sort permissions
     in
+    let t = List.hd permissions in
 
+    (* When generating a block (tuple, record), this function, for each =x
+     * found inside the tuple or record, will generate the corresponding dot
+     * sub-string that stands for the field, as well as a pair of the field name
+     * and the dot node id that it should point to. *)
     let gen env name t =
       let p' =
+        (* The call to modulo_flex is required so that we get the "actual" id,
+         * not the one of an instantiated flexible variable. *)
         match t with
-        | TySingleton (TyOpen p') -> p'
+        | TySingleton t -> !!(modulo_flex env t)
         | _ -> Log.error "Need [unfold]"
       in
       let block = Printf.sprintf "<%s>%s" name name in
@@ -119,6 +167,8 @@ module Graph = struct
     (* Print the node. *)
     Printf.bprintf buf "\"node%d\" [\n" id;
     Printf.bprintf buf "  id = \"node%d\"\n" id;
+    if is_conflict then
+      Printf.bprintf buf "  color = \"#B00040\"\n";
     if String.length names > 0 then
       Printf.bprintf buf "  label = \"{{%s}|%s}\"\n" line names
     else
@@ -144,34 +194,64 @@ module Graph = struct
     let env = mark_reachable env (TyOpen root) in
     fold_terms env (fun () var permissions ->
       if is_marked env var then
-        draw_point buf env var permissions
+        draw_point buf env var false permissions
     ) ();
     write_outro buf;
   ;;
 
-  let write_graph buf env =
+  (* Our criterion for marking "interesting" things is: everything that's a
+   * structural permission + things that are pointed to by structural
+   * permissions. This yields some "interesting" graphs. For some definition of
+   * "interesting". *)
+  let mark_interesting env conflicts =
+    let env = refresh_mark env in
+    let env = List.fold_left mark env conflicts in
+    fold_terms env (fun env var permissions ->
+      List.fold_left (fun env perm ->
+        match perm with
+        | TyConcrete { branch_fields; _ } ->
+            if List.length branch_fields > 0 then
+              let env = mark env var in
+              List.fold_left (fun env (_, t) ->
+                mark env !!=t
+              ) env branch_fields
+            else
+              env
+        | TyTuple ts ->
+            if List.length ts > 0 then
+              let env = mark env var in
+              List.fold_left (fun env t -> mark env !!=t) env ts
+            else
+              env
+        | _ ->
+            env
+      ) env permissions
+    ) env
+  ;;
+
+  let write_graph buf (env, conflicts) =
     write_intro buf;
+    let env = mark_interesting env conflicts in
     fold_terms env (fun () var permissions ->
+      let is_conflict = List.exists (same env var) conflicts in
       let names = get_names env var in
-      let is_core = function
-(* TEMPORARY this code needs to be updated to recognize the modules in corelib?
-        | User (m, _) when Module.equal m (Module.register "core") ->
+      let in_current_module = function
+        | Auto _ ->
             true
-*)
+        | User (m, _) when Module.equal m (module_name env) ->
+            true
         | _ ->
             false
       in
-      if List.exists is_core names then
-        ()
-      else
-        draw_point buf env var permissions
+      if List.exists in_current_module names && is_marked env var then
+        draw_point buf env var is_conflict permissions
     ) ();
     write_outro buf;
   ;;
 
-  let graph env =
+  let graph env interesting =
     let ic, oc = Unix.open_process "dot -Tx11" in
-    MzString.bfprintf oc "%a" write_graph env;
+    MzString.bfprintf oc "%a" write_graph (env, interesting);
     close_out oc;
     close_in ic;
   ;;
@@ -201,7 +281,6 @@ module Html = struct
       let names = get_names env var in
       let locations = get_locations env var in
       let kind = get_kind env var in
-      let open TypePrinter in
       let names = `List (List.map (function
         | User (_, v) -> `List [`String "user"; `String (Variable.print v)]
         | Auto v -> `List [`String "auto"; `String (Variable.print v)]
@@ -220,14 +299,22 @@ module Html = struct
     ) []
   ;;
 
-  let render_svg env =
+  let render_svg env conflicts =
     (* Create the SVG. *)
     let ic, oc = Unix.open_process "dot -Tsvg" in
-    MzString.bfprintf oc "%a" Graph.write_graph env;
+    MzString.bfprintf oc "%a" Graph.write_graph (env, conflicts);
     close_out oc;
     let svg = Utils.read ic in
     close_in ic;
+    (* MzString.bprintf "%a" Graph.write_graph (env, conflicts); *)
     svg
+  ;;
+
+  let get_json_filename env =
+    let f = (fst (location env)).Lexing.pos_fname in
+    let f = MzString.replace "/" "_" f in
+    (* FIXME use Filename + temp_dir + properly package the viewer *)
+    Printf.sprintf "%s/viewer/data/%s.json" Configure.lib_dir f
   ;;
 
   let render_base env extra =
@@ -243,21 +330,18 @@ module Html = struct
     ] @ extra) in
 
     (* Output it to a file. *)
-    let json_file =
-      let f = MzString.replace "/" "_" f in
-      Printf.sprintf "viewer/data/%s.json" f
-    in
+    let json_file = get_json_filename env in
     let oc = open_out json_file in
     Yojson.Safe.to_channel oc json;
     close_out oc;
   ;;
 
-  let render env text =
+  let render env text interesting =
     MzPprint.disable_colors ();
 
     let extra = [
       ("type", `String "single");
-      ("svg", `String (render_svg env));
+      ("svg", `String (render_svg env interesting));
       ("points", `Assoc (json_of_points env));
       ("error_message", `String text);
     ] in
@@ -267,15 +351,15 @@ module Html = struct
     MzPprint.enable_colors ();
   ;;
 
-  let render_merge env sub_envs =
+  let render_merge (env: cenv) (sub_envs: cenv list) =
     MzPprint.disable_colors ();
 
-    let render_env_point (env, point) =
+    let render_env_point ((env, point), conflicts) =
       `Assoc [
-        ("svg", `String (render_svg env));
+        ("svg", `String (render_svg env conflicts));
         ("root", `Int (Graph.id_of_point env point));
         ("points", `Assoc (json_of_points env));
-        ("dot", `String (MzString.bsprintf "%a" Graph.write_graph env));
+        ("dot", `String (MzString.bsprintf "%a" Graph.write_graph (env, conflicts)));
       ]
     in
 
@@ -286,43 +370,61 @@ module Html = struct
       ("sub_envs", `List (List.map render_env_point sub_envs));
     ] in
 
-    render_base (fst env) extra;
+    render_base (fst @@ fst env) extra;
 
     MzPprint.enable_colors ();
+  ;;
+
+  let launch env =
+    if not Configure.has_firefox then
+      Log.error "Firefox was not detected for the -explain html feature.";
+    if Unix.fork () = 0 then begin
+      (* This now is an absolute path *)
+      let filename = get_json_filename env in
+      let page = 
+        Printf.sprintf "file://%s/viewer/viewer.html?json_file=%s"
+          Configure.lib_dir filename;
+      in
+      if !*is_osx then
+        Unix.execvp "open" [| "open"; "-a"; Configure.firefox; "--args"; page |]
+      else
+        Unix.execvp Configure.firefox [| Configure.firefox; "-new-window"; page |]
+    end;
   ;;
 
 end
 
 
 let explain ?(text="") ?x env =
-  if !enabled = "html" then
-    Html.render env text;
-  if !enabled = "x11" then begin
-    (* Reset the screen. *)
-    flush stdout; flush stderr;
-    reset ();
+  (* By default, explanations print verbose information if debug is enabled, and
+   * a short summary (always). *)
+  Option.iter (fun x ->
+    Log.debug ~level:1 "Debug is enabled, here's some verbose information.";
+    Log.debug ~level:1 "Last checked expression: %a at %a\n"
+      pnames (env, get_names env x)
+      Lexer.p (location env);
 
-    begin match x with
-    | Some x ->
-      (* Print the current position. *)
-      MzString.bprintf "Last checked expression: %a at %a\n"
-        pnames (env, get_names env x)
-        Lexer.p (location env);
-    | None ->
-        ()
-    end;
+    Log.debug ~level:1 "\n";
+    Log.debug ~level:1 "%a\n\n" ppermissions env;
+    Log.debug ~level:1 "%s\n\n%!" (String.make twidth '-');
 
-    (* Print MOAR. *)
-    MzString.bprintf "\n";
-    MzString.bprintf "%a\n\n" ppermissions env;
-    MzString.bprintf "%s\n\n" (String.make twidth '-');
-    flush stdout; flush stderr;
-    Graph.graph env
+    MzString.bprintf "%a\n%!" DerivationPrinter.psummary (env, x);
+  ) x;
+
+  (* If we're given a specific variable, then it's an interesting one, and it
+   * should be highlighted in whatever format we want. *)
+  let interesting = Option.to_list x in
+  if !enabled = "html" then begin
+    Html.render env text interesting;
+    Html.launch env;
+  end else if !enabled = "x11" then begin
+    Graph.graph env interesting
   end
 ;;
 
-
-let explain_merge env sub_envs =
-  if !enabled = "html" then
+let explain_merge (env: cenv) (sub_envs: cenv list) =
+  if !enabled = "html" then begin
     Html.render_merge env sub_envs;
+    Html.launch (fst @@ fst env);
+  end
 ;;

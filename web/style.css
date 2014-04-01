@@ -1,0 +1,112 @@
+body {
+  margin: 0;
+  padding: 0;
+}
+
+#hbox {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+
+  display: flex;
+  flex-direction: row;
+}
+
+#vbox {
+  display: flex;
+  flex-direction: column;
+  flex: 6 1 auto;
+}
+
+#explorer {
+  background-color: white;
+  flex: 0 1 200px;
+  padding: 5px;
+  border-right: 5px solid #ebebeb;
+  font-family: sans-serif;
+  font-size: 80%;
+  overflow: auto;
+}
+
+#explorer ul {
+  padding-left: 20px;
+  margin-top: 5px;
+}
+
+a, a:hover, a:visited {
+  text-decoration: none;
+  color: rgba(101, 48, 48, 1);
+}
+
+a:hover {
+  text-decoration: none;
+  color: black;
+}
+
+.file-list {
+  margin-bottom: 8px;
+}
+
+#buttons {
+  /* Trick to vertically center the buttons line */
+  flex: 0 1 25px;
+  line-height: 25px;
+
+  padding: 5px 0;
+  border-top: 5px solid #ebebeb;
+
+  font-family: sans-serif;
+  font-size: 80%;
+}
+
+#buttons-wrapper {
+  vertical-align: middle;
+}
+
+#buttons input {
+  vertical-align: middle;
+}
+
+#buttons label, #buttons a {
+  margin-right: 1em;
+}
+
+#option-debug {
+  width: 3em;
+}
+
+#option-warnerror {
+  width: 8em;
+}
+
+#console {
+  flex: 1 1 150px;
+  background-color: white;
+  overflow: auto;
+  border-top: 5px solid #ebebeb;
+  font-family: monospace;
+  padding: 5px;
+  white-space: pre-wrap;
+}
+
+#console > div.message {
+  margin-bottom: 3px;
+  padding-left: 3px;
+  border-left: 2px solid #CB3587;
+}
+
+#console > div.timestamp {
+  font-size: 70%;
+  color: #888;
+}
+
+#console > div.char-buffer {
+  background-color: rgba(254, 234, 234, 1);
+}
+
+#editor {
+  flex: 6 1 auto;
+}
+

@@ -1,0 +1,11 @@
+(* Second example: a race rejected by Mezzo *)
+
+val r = newref 1
+
+val incr (| r @ ref int): () = r := !r + 1
+
+val _ =
+  (* r @ ref int * incr @ ... *)
+  thread::spawn incr; 
+  (*               incr @ ... *)
+  thread::spawn incr; 

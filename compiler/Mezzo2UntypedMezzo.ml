@@ -39,7 +39,7 @@ let rec is_unit = function
 let abandon v1 v2 success failure =
   let open U in
   (* if v1.adopter == v2 *)
-  EIfThenElse (
+  U.EIfThenElse (
     EApply (
       EBuiltin "_mz_address_eq",
       ETuple [
@@ -215,8 +215,6 @@ and transl (loc : location) (e : expression) (k : continuation) : U.expression =
       transl loc e k
   | EInt i ->
       k (U.EInt i)
-  | EExplained e ->
-      transl loc e k
 
   (* Compilation of adoption and abandon: [give], [take], and [owns]. *)
 

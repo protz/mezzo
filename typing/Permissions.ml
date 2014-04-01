@@ -178,13 +178,17 @@ let perm_not_flex env t =
 (** Wraps "t1" into "∃x.(=x|x@t1)". This is really useful because if this is
  * meant to be added afterwards, then [t1] will be added in expanded form with a
  * free call to [unfold]! *)
-let wrap_bar t1 =
+let wrap_bar env ?name t1 =
   let t1, perms = collect t1 in
   match t1 with
   | TySingleton _ ->
       TyBar (t1, fold_star perms)
   | _ ->
-      let binding = Auto (Utils.fresh_var "sp"), KTerm, location empty_env in
+      let v = match name with
+        | Some s -> Variable.register s
+        | None -> Utils.fresh_var "sp"
+      in
+      let binding = Auto v, KTerm, location env in
       TyQ (Exists, binding, AutoIntroduced,
         TyBar (
           TySingleton (TyBound 0),
@@ -256,11 +260,6 @@ let is_singleton env t =
  * This function actually does quite a bit of work, in the sense that it
  * performs unfolding on demand: if there is a missing structure point that
  * could potentially be a rigid variable, it creates it... *)
-
-(* TEMPORARY calling [wrap_bar] causes an existential to appear, so it
-   seems interesting only if on the Left side. If on the right side, on
-   the contrary, it could prevent us from making progress? *)
-
 class open_all_rigid_in (env : env ref) = object (self)
 
   (* The type environment [env] has type [env ref], and is threaded
@@ -271,14 +270,20 @@ class open_all_rigid_in (env : env ref) = object (self)
      and [deconstructed], a Boolean flag that is set to [true] when
      a structural type was just deconstructed and we are expected
      to invoke [wrap_bar]. *)
-  inherit [side * bool] map as super
+  inherit [side * bool * string option] map as super
 
   (* We re-implement the main visitor in order to receive a warning
-     when new cases appear and in order to share code. *)
-  method! visit (side, deconstructed) ty =
+   * when new cases appear and in order to share code. The optional [name]
+   * parameter stands for the name of our immediate parent: when generating
+   * names for the fields of a record/tuple, that may give use better ideas. *)
+  method! visit (side, deconstructed, name) ty =
     let ty = modulo_flex !env ty in
     let ty = expand_if_one_branch !env ty in
-    let ty = if deconstructed && not (is_singleton !env ty) && side = Left then wrap_bar ty else ty in
+    let ty =
+      if deconstructed && not (is_singleton !env ty) && side = Left
+      then wrap_bar !env ?name ty
+      else ty
+    in
     match ty, side with
 
     (* We stop at the following constructors. *)
@@ -302,8 +307,9 @@ class open_all_rigid_in (env : env ref) = object (self)
     | TyQ (Forall, binding, _, ty), Right
     | TyQ (Exists, binding, _, ty), Left ->
         let new_env, ty, _ = bind_rigid_in_type !env binding ty in
+        let new_env = locate new_env (thd3 binding) in
         env := new_env;
-        self#visit (side, false) ty
+        self#visit (side, false, None) ty
 
     (* As a special case, when we find [t -> u] on the right-hand side,
        we go look for existential quantifiers inside [t], and hoist them
@@ -322,29 +328,44 @@ class open_all_rigid_in (env : env ref) = object (self)
        changes only from [Right] to [Left]. *)
 
     | TyArrow (ty1, ty2), Right ->
-        let ty1 = self#visit (Left, false) ty1 in
+        let ty1 = self#visit (Left, false, None) ty1 in
         TyArrow (ty1, ty2)
 
     (* We descend into the following constructs. *)
 
     | TyTuple _, _
     | TyConcrete _, _ ->
-        super#visit (side, true) ty
+        super#visit (side, true, name) ty
         (* Setting [deconstructed] to [true] forces the fields to
           become named with a point, if they weren't already. *)
 
     | TyBar (t, p), _ ->
-        TyBar (self # visit (side, true) t, self # visit (side, false) p)
+        TyBar (self # visit (side, true, None) t, self # visit (side, false, None) p)
 
     | TyStar _, _ ->
-        super#visit (side, false) ty
+        super#visit (side, false, None) ty
 
     (* We descend into the right-hand side of [TyAnchoredPermission] and [TyAnd]. *)
 
     | TyAnchoredPermission (ty1, ty2), _ ->
-        TyAnchoredPermission (ty1, self#visit (side, false) ty2)
+        (* This is important: for variables that are automatically introduced,
+         * we want them to be as close as possible to their parent. For
+         * instance, if I have a function that takes [x: ref int], I want the
+         * variable that stands for [x.contents] to have the same location as
+         * [x]. *)
+        let new_env =
+          let locs = get_locations !env !!ty1 in
+          let locs = List.sort Lexer.compare_locs locs in
+          if List.length locs > 0 then
+            locate !env (List.hd locs)
+          else
+            !env
+        in
+        let name = Some (TypePrinter.string_of_name !env (get_name !env !!ty1)) in
+        env := new_env;
+        TyAnchoredPermission (ty1, self#visit (side, false, name) ty2)
     | TyAnd (c, ty), _ ->
-        TyAnd (c, self#visit (side, false) ty)
+        TyAnd (c, self#visit (side, false, None) ty)
 
   (* At [TyConcrete], we descend into the fields, but not into
      the datacon or into the adopts clause. *)
@@ -355,17 +376,19 @@ class open_all_rigid_in (env : env ref) = object (self)
 
   (* At physical fields, we set [deconstructed] to [true]. At permission
      fields, we do not; it makes sense only at kind [type]. *)
-  method! field (side, _) (field, ty) =
+  method! field (side, _, name) (field, ty) =
+    let name = Option.map (fun x -> x ^ "." ^ Field.print field) name in
     (* Setting [deconstructed] to [true] forces the fields to
       become named with a point, if they weren't already. *)
-    field, self#visit (side, true) ty
+    field, self#visit (side, true, name) ty
 
 end
 
 let open_all_rigid_in (env : env) (ty : typ) (side : side) : env * typ =
+  let loc = location env in
   let env = ref env in
-  let ty = (new open_all_rigid_in env) # visit (side, false) ty in
-  !env, ty
+  let ty = (new open_all_rigid_in env) # visit (side, false, None) ty in
+  locate !env loc, ty
 
 (* -------------------------------------------------------------------------- *)
 
@@ -447,7 +470,9 @@ and add (env: env) (var: var) (t: typ): env =
   let t = modulo_flex env t in
   let t = expand_if_one_branch env t in
 
-  if is_flexible env var then begin
+  if is_flexible env var && not (is_singleton env t) then begin
+    (* The case where [t] is a singleton is treated further down, and we know
+     * how to take it into account. *)
     Log.debug ~level:1 "Notice: not adding %a to %a because its \
       left-hand side is flexible"
       TypePrinter.ptype (env, TyOpen var)
@@ -479,7 +504,7 @@ and add (env: env) (var: var) (t: typ): env =
     in
 
     begin match t with
-    | TySingleton (TyOpen p) when not (same env var p) ->
+    | TySingleton (TyOpen p) ->
         Log.debug ~level:4 "%s]%s (singleton)" Bash.colors.Bash.red Bash.colors.Bash.default;
         unify env var p
 
@@ -669,7 +694,7 @@ and add_type (env: env) (p: var) (t: typ): env =
 (** [sub env var t] tries to extract [t] from the available permissions for
     [var] and returns, if successful, the resulting environment. This is one of
     the two "sub" entry points that this module exports.*)
-and sub (env: env) (var: var) ?no_singleton (t: typ): result =
+and sub (env: env) (var: var) (t: typ): result =
   Log.check (is_term env var) "You can only subtract permissions from a var \
     that represents a program identifier.";
 
@@ -683,15 +708,15 @@ and sub (env: env) (var: var) ?no_singleton (t: typ): result =
     let t = modulo_flex env t in
     let t = expand_if_one_branch env t in
 
-    let try_proof = try_proof env judgement in
+    let try_proof_root = try_proof env judgement in
 
     if is_inconsistent env then
-      try_proof "Inconsistent" begin
+      try_proof_root "Inconsistent" begin
         qed env
       end
 
     else if is_singleton env t then
-      try_proof "Must-Be-Singleton" begin
+      try_proof_root "Must-Be-Singleton" begin
         sub_type env (ty_equals var) t >>=
         qed
       end
@@ -714,13 +739,6 @@ and sub (env: env) (var: var) ?no_singleton (t: typ): result =
       in
       let sort x y = sort x - sort y in
       let permissions = List.sort sort permissions in
-      let permissions =
-        if Option.unit_bool no_singleton then
-          List.filter (function TySingleton _ -> false | _ -> true) permissions
-        else
-          permissions
-      in
-
 
       try_several
         env
@@ -731,13 +749,24 @@ and sub (env: env) (var: var) ?no_singleton (t: typ): result =
           (* [t_x] is the "original" type found in the list of permissions for [x].
            * -- see [tests/fact-inconsistency.mz] as to why I believe it's correct
            * to check [t_x] for duplicity and not just [t]. *)
+          let was_duplicable = FactInference.is_duplicable env t_x in
           let env =
-            if FactInference.is_duplicable env t_x then
+            if was_duplicable then
               env
             else
               set_permissions env var remaining
           in
-          sub_type env ~no_singleton:() t_x t
+          try_proof env JNothing "Maybe-Duplicable" begin
+            sub_type env ~no_singleton:() t_x t >>= fun env ->
+            (* Instantiations may have happened during the call to [sub_type]! *)
+            let now_duplicable = FactInference.is_duplicable env t_x in
+            if not was_duplicable && now_duplicable then
+              let sub_env = set_permissions env var (t_x :: remaining) in
+              apply_axiom env (JAdd t_x) "Add" sub_env >>=
+              qed
+            else
+              qed env
+          end
         )
 
 
@@ -892,12 +921,8 @@ and sub_type (env: env) ?no_singleton (t1: typ) (t2: typ): result =
         qed
       end
 
-  | TyQ (Exists, binding, _, t1), _ ->
-      try_proof_root "Exists-L" begin
-        let env, t1, _ = bind_rigid_in_type env binding t1 in
-        sub_type env t1 t2 >>=
-        qed
-      end
+  | TyQ (Exists, _binding, _, _t1), _ ->
+      assert false
 
 
   (** Lower priority for binding flexible = existential quantifiers. *)
@@ -1157,7 +1182,7 @@ and sub_type (env: env) ?no_singleton (t1: typ) (t2: typ): result =
   | TySingleton t1, t2 when not (Option.unit_bool no_singleton) ->
       let var = !!t1 in
       try_proof_root "Singleton-Fold" begin
-        sub env var ~no_singleton:() t2 >>=
+        sub env var t2 >>=
         qed
       end
 

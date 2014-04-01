@@ -1,0 +1,14 @@
+(* Second fix *)
+
+data ref a = Ref { contents: a }
+
+val get [x: term] (r: Ref { contents = x }): (=x) =
+  r.contents
+
+(* Sample usage. *)
+val _ =
+  let x = (1, 2) in
+  let r = Ref { contents = x } in
+  let y = get r in
+  (* Call with mezzo -explain x11 here *)
+  info::info r;

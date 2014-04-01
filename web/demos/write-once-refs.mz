@@ -1,0 +1,19 @@
+(* First example: implementation of write-once references *)
+
+data mutable writable =
+  Writable { contents: () }
+
+data frozen a =
+  Frozen { contents: a }
+
+val new (): writable =
+  Writable { contents = () }
+
+val seal [a] (consumes r: writable, consumes x: a)
+           : (| r @ frozen a) =
+  r.contents <- x;
+  tag of r <- Frozen
+
+val get [a] (consumes r: frozen a): a =
+  r.contents
+

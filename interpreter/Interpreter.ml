@@ -703,9 +703,6 @@ let rec eval (env : env) (loc : location) (e : expression) : value =
   | EInt i ->
       VInt i
 
-  | EExplained e ->
-      eval env loc e
-
   | EGive (e1, e2) ->
       let b1 = asBlock (eval env loc e1) in
       let b2 = asBlock (eval env loc e2) in

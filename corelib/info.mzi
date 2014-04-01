@@ -1,0 +1,3 @@
+(* A special function that does nothing at run-time but that is caught by the
+ * type-checker so as to dump information about a variable. *)
+val info: [a] a -> ()

@@ -47,9 +47,12 @@ let unit_tests = [
   end, Some (), Pass);
 ];;
 
-(* make tests/unit/UnitTests.byte *)
+(* make UnitTests.byte *)
 (* let _ =
   Log.enable_debug 8;
-  List.iter (fun (_, (f, _, _)) ->
-    f ()
-  ) unit_tests *)
+  TypeErrors.parse_warn_error !Options.warn_error;
+  Driver.(run { html_errors = false; backtraces = true} (fun () ->
+    List.iter (fun (_, (f, _, _)) ->
+      f ()
+    ) unit_tests
+  )); *)

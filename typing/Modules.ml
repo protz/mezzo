@@ -103,8 +103,7 @@ let collect_dependencies (items: S.toplevel_item list): Module.name list =
     | ESequence (e1, e2) ->
         collect_expr e1 @ collect_expr e2
     | ELocated (expr, _)
-    | EAccess (expr, _)
-    | EExplained expr ->
+    | EAccess (expr, _) ->
         collect_expr expr
     | EAssignTag (expr, dref, _) ->
         collect_expr expr @

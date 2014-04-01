@@ -559,15 +559,19 @@ module TypePrinter = struct
 
   (* --------------------------------------------------------------------------- *)
 
-  let print_var env v =
-    let s = SurfaceSyntax.print_maybe_qualified Variable.print (Resugar.surface_print_var env v) in
+  let string_of_name env v =
+    SurfaceSyntax.print_maybe_qualified Variable.print (Resugar.surface_print_name env v)
+  ;;
+
+  let print_name env v =
+    let s = string_of_name env v in
     (* I have removed the color, it looks horrible in my terminal
        and produces garbage when output is redirected to a file. *)
     utf8string s
   ;;
 
-  let pvar buf (env, var) =
-    pdoc buf (print_var env, var)
+  let pname buf (env, var) =
+    pdoc buf (print_name env, var)
   ;;
 
   let print_datacon datacon =
@@ -589,12 +593,21 @@ module TypePrinter = struct
 
   let print_names env names =
     if List.length names > 0 then
-      let names = List.map (print_var env) names in
+      let names = List.map (print_name env) names in
       let names = List.map (fun x -> colors.blue ^^ x ^^ colors.default) names in
       let names = separate (string ", ") names in
       names
     else
       colors.red ^^ string "[no name]" ^^ colors.default
+  ;;
+
+  let print_uservar env p =
+    let names = get_names env p in
+    let user_names = List.filter is_user names in
+    if List.length user_names > 0 then
+      string "Variable " ^^ print_name env (List.hd user_names)
+    else
+      string "The subexpression " ^^ print_name env (List.hd names)
   ;;
 
   let pnames buf (env, names) =
@@ -622,16 +635,20 @@ module TypePrinter = struct
   ;;
 
 
-  let print_point env point =
-    print_var env (get_name env point) ^^
+  let print_var env point =
+    print_name env (get_name env point) ^^
     if Log.debug_level () > 0 then
       smallint (internal_uniqvarid env point)
     else
       empty
   ;;
 
-  let pname buf (env, point) =
-    pdoc buf ((fun () -> print_point env point), ())
+  let pvar buf (env, point) =
+    pdoc buf ((fun () -> print_var env point), ())
+  ;;
+
+  let puvar buf (env, point) =
+    pdoc buf ((fun () -> print_uservar env point), ())
   ;;
 
   internal_pnames := pnames;;
@@ -639,9 +656,9 @@ module TypePrinter = struct
   let print_binding env (x, k, _) =
     match k with
     | KType ->
-        print_var env x
+        print_name env x
     | _ ->
-        print_var env x ^^ string " : " ^^ print_kind k
+        print_name env x ^^ string " : " ^^ print_kind k
 
   let rec print_quantified
       (env: env)
@@ -649,17 +666,17 @@ module TypePrinter = struct
       (name: name)
       (kind: kind)
       (typ: typ) =
-    utf8string q ^^ lparen ^^ print_var env name ^^ space ^^ colon ^^ space ^^
+    utf8string q ^^ lparen ^^ print_name env name ^^ space ^^ colon ^^ space ^^
     print_kind kind ^^ rparen ^^ dot ^^ jump (print_type env typ)
 
   and print_open env point =
     try
       if is_flexible env point then
-        print_point env point ^^ star
+        print_var env point ^^ star
       else if internal_wasflexible point then
         lparen ^^ string "inst→" ^^ print_type env (modulo_flex env (TyOpen point)) ^^ rparen
       else
-        print_point env point
+        print_var env point
     with UnboundPoint | Assert_failure _ ->
       colors.red ^^ string "!! ☠ !!" ^^ colors.default
 
@@ -786,7 +803,7 @@ module TypePrinter = struct
         let head =
           print_type env (TyApp (TyOpen var, List.map (fun v -> TyOpen v) params))
         in
-        let printed_fact = string "Fact for" ^^ space ^^ print_var env name ^^
+        let printed_fact = string "Fact for" ^^ space ^^ print_name env name ^^
         colon ^^ jump (
           Fact.print param head fact
         ) in
@@ -870,7 +887,7 @@ module TypePrinter = struct
     utf8string "Γ (unordered) = " ^^
     separate
       (semi ^^ space)
-      (map env (fun var -> separate_map (string " = ") (print_var env) (get_names env var)))
+      (map env (fun var -> separate_map (string " = ") (print_name env) (get_names env var)))
   ;;
 
 

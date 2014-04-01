@@ -1,0 +1,70 @@
+(* Fourth (complete) example: concat *)
+data list a =
+  | Nil
+  | Cons { head: a; tail: list a }
+
+val cons (head: unknown, tail: unknown): Cons { head; tail } =
+  Cons { head; tail }
+val nil =
+  Nil
+
+val rec append [a] (consumes xs: list a, consumes ys: list a): list a =
+  match xs with
+  | Nil ->
+      ys
+  | Cons { head; tail } ->
+      Cons { head; tail = append (tail, ys) }
+  end
+
+(* Usage: *)
+val _ =
+  (* Losing some permissions. *)
+  let l1: list (ref ()) = cons (newref (), nil) in
+  let l2: list (ref ()) = cons (newref (), nil) in
+  let l3 = append (l1, l2) in
+  (* assert l1 @ list (ref ()); *)
+  (* assert l2 @ list (ref ()); *)
+  (* Keeping the permissions! *)
+  let l1: list int = cons (5, nil) in
+  let l2: list int = cons (6, nil) in
+  let l3 = append (l1, l2) in
+  assert l1 @ list int;
+  assert l2 @ list int
+  (* This is call-site polymorphism! *)
+
+(* This function is sub-optimal: it is not tail-rec! *)
+
+(* How are we going to do that? Some pretty pictures on the slides. *)
+data mutable cell a =
+  Cell { head: a; tail: () }
+
+val rec appendAux [a] (consumes (dst: cell a, xs: list a, ys: list a))
+: (| dst @ list a)
+  =
+  match xs with
+  | Cons { tail } ->
+      let dst' = Cell { head = xs.head; tail = () } in
+      dst.tail <- dst';
+      tag of dst <- Cons;
+      (* assert dst  @ Cons { head: a; tail = dst' } * *)
+      (*        dst' @ cell a * *)
+      (*        tail @ list a * *)
+      (*        ys   @ list a; *)
+      appendAux (dst', tail, ys);
+      (* assert dst  @ Cons { head: a; tail = dst' } * *)
+      (*        dst' @ list a; *)
+      (* assert dst  @ list a; *)
+  | Nil ->
+      dst.tail <- ys;
+      tag of dst <- Cons;
+  end
+
+val append [a] (consumes (xs: list a, ys: list a)) : list a =
+  match xs with
+  | Cons ->
+      let dst = Cell { head = xs.head; tail = () } in
+      appendAux (dst, xs.tail, ys);
+      dst
+  | Nil ->
+      ys
+  end

@@ -1,0 +1,48 @@
+(* A fix for the fifth example, using our adoption/abandon mechanism.  *)
+open list
+
+data mutable node a =
+  Node {
+    neighbors: list dynamic;
+    value: a;
+    seen: bool;
+  }
+
+and mutable graph a =
+  Graph {
+    roots: list dynamic;
+  } adopts node a
+
+val _ =
+  let g: graph int =
+    let x = Node {
+      neighbors = ();
+      value = 10;
+      seen = false;
+    } in
+    x.neighbors <- cons [dynamic] (x, nil);
+    let g: graph int = Graph { roots = cons [dynamic] (x, nil) } in
+    give x to g;
+    g
+  in
+  let dfs [a] (g: graph a, f: a -> ()): () =
+    let work_list = newref nil in
+    let rec dfs (n: dynamic | g @ graph a * work_list @ ref (list dynamic)): () =
+      take n from g;
+      if not n.seen then begin
+        f n.value;
+        work_list := append (n.neighbors, !work_list);
+        n.seen <- true;
+      end;
+      give n to g;
+      match !work_list with
+      | Cons { head; tail } ->
+          work_list := tail;
+          dfs head
+      | Nil ->
+          ()
+      end
+    in
+    iter (g.roots, dfs)
+  in
+  dfs (g, print)

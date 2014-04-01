@@ -24,7 +24,11 @@ type run_options = {
   backtraces: bool;
 }
 
+(** Last directory included has higher precedence. *)
 val add_include_dir: string -> unit
+
+(** For the -print-config option. *)
+val print_include_dirs: unit -> string
 
 (** [process] doesn't catch exceptions. This is useful for tests that want to
     assert that a test program failed in a certain way. *)
@@ -41,3 +45,9 @@ val print_signature: Buffer.t -> TypeCore.env -> unit
     specified file, as well as the files that it depends upon, in
     an appropriate order. *)
 val interpret: string -> unit
+
+val lex_and_parse_raw: Ulexing.lexbuf ->
+  string -> (Grammar.token, 'a) MenhirLib.Convert.traditional -> 'a
+
+val check_implementation: Module.name -> SurfaceSyntax.implementation ->
+  SurfaceSyntax.interface option -> TypeCore.env

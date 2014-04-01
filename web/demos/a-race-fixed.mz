@@ -1,0 +1,20 @@
+(* The second example, fixed in a generic manner *)
+
+val r = newref 1
+
+val incr (| r @ ref int): () = r := !r + 1
+
+val hide [a, b, s: perm]
+  (f: (consumes a | s) -> b | consumes s):
+      (consumes a    ) -> b =
+  let l: lock::lock s = lock::new () in
+  fun (consumes x: a): b =
+    lock::acquire l;
+    let r = f x in
+    lock::release l;
+    r
+
+val _ =
+  let incr = hide incr in
+  thread::spawn incr; 
+  thread::spawn incr; 

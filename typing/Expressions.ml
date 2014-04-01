@@ -419,10 +419,6 @@ and tsubst_expr t2 i e =
   | EInt _ ->
       e
 
-  | EExplained e ->
-      let e = tsubst_expr t2 i e in
-      EExplained e
-
   | ETake (e1, e2) ->
       let e1 = tsubst_expr t2 i e1 in
       let e2 = tsubst_expr t2 i e2 in
@@ -582,10 +578,6 @@ and esubst e2 i e1 =
   | EInt _ ->
       e1
 
-  | EExplained e ->
-      let e = esubst e2 i e in
-      EExplained e
-
   | ETake (e, e') ->
       let e = esubst e2 i e in
       let e' = esubst e2 i e' in
@@ -654,6 +646,13 @@ type substitution_kit = {
   (* the names, in left-to-right order *)
   names: Variable.name list;
 }
+
+let eloc = function
+  | ELocated (_, l) ->
+      l
+  | _ ->
+      assert false
+;;
 
 (* [eunloc e] removes any [ELocated] located in front of [e]. *)
 let rec eunloc = function
@@ -767,10 +766,10 @@ module ExprPrinter = struct
 
   and print_pat env = function
     | PVar (v, _) ->
-        print_var env (User (module_name env, v))
+        print_name env (User (module_name env, v))
 
     | POpen var ->
-        print_var env (get_name env var)
+        print_name env (get_name env var)
 
     | PTuple pats ->
         lparen ^^
@@ -800,7 +799,7 @@ module ExprPrinter = struct
   and print_tapp env = function
     | Named (x, t) ->
         let x = User (module_name env, x) in
-        print_var env x ^^ space ^^ equals ^^ space ^^ print_type env t
+        print_name env x ^^ space ^^ equals ^^ space ^^ print_type env t
     | Ordered t ->
         print_type env t
 
@@ -812,7 +811,7 @@ module ExprPrinter = struct
         string "EVar(" ^^ int i ^^ string ")"
 
     | EOpen var ->
-        print_var env (get_name env var)
+        print_name env (get_name env var)
 
     | EBuiltin b ->
         string "builtin" ^^ space ^^ string b
@@ -926,9 +925,6 @@ module ExprPrinter = struct
     | EInt i ->
         int i
 
-    | EExplained e ->
-        print_expr env e ^^ space ^^ string "explained"
-
     | EGive (e1, e2) ->
         string "give" ^^ space ^^ print_expr env e1 ^^ space ^^
         string "to" ^^ space ^^ print_expr env e2
@@ -954,7 +950,7 @@ module ExprPrinter = struct
 
   and print_ebinder env ((name, kind, _), f) =
     let f = if f = AutoIntroduced then star else empty in
-    print_var env name ^^ f ^^ space ^^ colon ^^ space ^^ print_kind kind
+    print_name env name ^^ f ^^ space ^^ colon ^^ space ^^ print_kind kind
 
   and print_binder env (((name: Variable.name), kind, pos), f) =
     print_ebinder env ((User (module_name env, name), kind, pos), f)
@@ -966,7 +962,7 @@ module ExprPrinter = struct
   ;;
 
   let print_sig_item env (x, t) =
-    print_var env (User (module_name env, x)) ^^ space ^^ at ^^ space ^^ print_type env t
+    print_name env (User (module_name env, x)) ^^ space ^^ at ^^ space ^^ print_type env t
   ;;
 
   let psigitem buf (env, arg) =

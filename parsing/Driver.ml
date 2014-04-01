@@ -23,9 +23,7 @@ open Lexer
 
 (* Lexing and parsing, built on top of [grammar]. *)
 
-let lex_and_parse file_path entry_var =
-  Utils.with_open_in file_path (fun file_desc ->
-  let lexbuf = Ulexing.from_utf8_channel file_desc in
+let lex_and_parse_raw lexbuf file_path entry_var =
   let the_parser = MenhirLib.Convert.Simplified.traditional2revised entry_var in
   try
     Lexer.init file_path;
@@ -42,20 +40,53 @@ let lex_and_parse file_path entry_var =
     | Grammar.Error ->
         MzString.beprintf "%a\nError: Syntax error\n"
           print_position lexbuf;
+        if !Options.js then begin
+          let start_pos = Lexer.start_pos lexbuf in
+          let end_pos = Lexer.end_pos lexbuf in
+          JsGlue.highlight_range start_pos end_pos;
+        end;
         exit 253
     | Lexer.LexingError e ->
         MzString.beprintf "%a\n"
           Lexer.print_error (lexbuf, e);
         exit 252
+;;
+
+let lex_and_parse_normal file_path entry_var =
+  Utils.with_open_in file_path (fun file_desc ->
+  let lexbuf = Ulexing.from_utf8_channel file_desc in
+  lex_and_parse_raw lexbuf file_path entry_var
   )
 ;;
+
+let lex_and_parse_js file_path entry_var =
+  let s = JsGlue.get_file file_path in
+  let lexbuf = Ulexing.from_utf8_string s in
+  lex_and_parse_raw lexbuf file_path entry_var
+;;
+
+let lex_and_parse file_path entry_var =
+  if !Options.js then
+    lex_and_parse_js file_path entry_var
+  else
+    lex_and_parse_normal file_path entry_var
 
 let mkprefix path =
   if !Options.no_auto_include && path = !Options.filename then
     []
   else
-    let corelib_dir =
-      Filename.concat Configure.root_dir "corelib"
+    (* So it's the [lib_dir] that we want here, unless we're in the process of
+     * pre-compiling the Mezzo core library, meaning that [lib_dir] isn't ready. *)
+    let corelib_dir, corelib_build_dir =
+      if !Options.js then
+        "corelib", ""
+      else if !Options.boot || Configure.local then
+        Filename.concat Configure.src_dir "corelib",
+        Filename.concat (Filename.concat Configure.src_dir "_build") "corelib"
+      else
+        (* ocamlfind requires us to have a flat directory structure, d'oh... *)
+        Configure.lib_dir,
+        ""
     in
     let autoload_path = Filename.concat corelib_dir "autoload" in
     let autoload_modules = MzString.split (Utils.file_get_contents autoload_path) '\n' in
@@ -74,9 +105,13 @@ let mkprefix path =
       in
       chop [] l
     in
+    (* So. In the case of a packaged mezzo, me_in_core_directory will return
+     * true even for stdlib modules, because findlib mandates a flat directory
+     * structure ($@#!!), however, it's mostly harmless, since [chop] will just
+     * run through the whole list without finding a match. *)
     let me_in_core_directory =
-         Utils.same_absolute_path  corelib_dir              my_dir
-      || Utils.same_absolute_path (corelib_dir ^ "/_build") my_dir
+      Utils.same_absolute_path corelib_dir my_dir ||
+      Utils.same_absolute_path corelib_build_dir my_dir
     in
     Log.debug "In core directory? %b" me_in_core_directory;
     let modules =
@@ -87,7 +122,7 @@ let mkprefix path =
     in
     List.map (fun x ->
       SurfaceSyntax.OpenDirective (Module.register x)
-    ) modules 
+    ) modules
 ;;
 
 let lex_and_parse_implementation path : SurfaceSyntax.implementation =
@@ -105,6 +140,10 @@ let lex_and_parse_interface path : SurfaceSyntax.interface =
 
 let include_dirs: string list ref =
   ref []
+;;
+
+let print_include_dirs () =
+  String.concat "\n  " !include_dirs
 ;;
 
 let add_include_dir dir =
@@ -144,18 +183,38 @@ let find_in_include_dirs (filename: string): string =
     s
 ;;
 
-let find_and_lex_interface : Module.name -> SurfaceSyntax.interface =
-  Module.memoize (fun mname ->
+let js_special_mname = Module.register "::toplevel"
+
+let find_and_lex_interface m =
+  let find_and_lex_interface_raw (mname: Module.name): SurfaceSyntax.interface =
     let filename = Module.print mname ^ ".mzi" in
     lex_and_parse_interface (find_in_include_dirs filename)
-  )
+  in
+
+  let find_and_lex_interface_memoized : Module.name -> SurfaceSyntax.interface =
+    Module.memoize find_and_lex_interface_raw
+  in
+
+  if Module.equal m js_special_mname then
+    find_and_lex_interface_raw m
+  else
+    find_and_lex_interface_memoized m
 ;;
 
-let find_and_lex_implementation : Module.name -> SurfaceSyntax.implementation =
-  Module.memoize (fun mname ->
+let find_and_lex_implementation m =
+  let find_and_lex_implementation_raw (mname: Module.name): SurfaceSyntax.implementation =
     let filename = Module.print mname ^ ".mz" in
     lex_and_parse_implementation (find_in_include_dirs filename)
-  )
+  in
+
+  let find_and_lex_implementation_memoized : Module.name -> SurfaceSyntax.implementation =
+    Module.memoize find_and_lex_implementation_raw
+  in
+
+  if Module.equal m js_special_mname then
+    find_and_lex_implementation_raw m
+  else
+    find_and_lex_implementation_memoized m
 ;;
 
 
@@ -389,7 +448,7 @@ let print_signature (buf: Buffer.t) (env: TypeCore.env): unit =
       List.iter (fun t ->
         let open MzPprint in
         (* First try to fold the type (e.g. turn "(=x, =y)" into "(int, int)"). *)
-        let t = Option.map_none t (TypeErrors.fold_type env t) in
+        let t = ResugarFold.fold_type env t in
         (* And then try to convert it to the surface syntax. *)
         let t = SurfaceSyntaxPrinter.print (Resugar.resugar env t) in
         (* Print it! *)

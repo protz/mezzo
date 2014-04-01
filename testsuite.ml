@@ -1064,7 +1064,7 @@ let mz_files_in_directory (dir : string) : string list =
 let tests_in_directory dir =
   List.map (fun filename ->
     filename, pass
-  ) (mz_files_in_directory (Configure.root_dir ^ "/" ^ dir))
+  ) (mz_files_in_directory (Configure.src_dir ^ "/" ^ dir))
 
 let corelib_tests: (string * ((unit -> env) -> unit)) list =
   tests_in_directory "corelib"
@@ -1175,8 +1175,8 @@ let run_unit_tests () : unit =
 
 let () =
   let open Bash in
-  Driver.add_include_dir (Filename.concat Configure.root_dir "corelib");
-  Driver.add_include_dir (Filename.concat Configure.root_dir "stdlib");
+  Driver.add_include_dir (Filename.concat Configure.src_dir "corelib");
+  Driver.add_include_dir (Filename.concat Configure.src_dir "stdlib");
   let center s =
     let l = String.length s in
     let padding = String.make ((Bash.twidth - l) / 2) ' ' in
