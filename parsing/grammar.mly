@@ -334,7 +334,7 @@ raw_atomic_type:
 (* A structural type without an [adopts] clause (which is the usual case)
    is an atomic type. *)
 | b = data_type_branch
-    { mk_concrete b None }
+    { mk_concrete ($startpos(b), $endpos) b None }
 
 %inline tight_type:
 | ty = tlocated(raw_tight_type)
@@ -380,7 +380,7 @@ raw_normal_type:
 (* A structural type with an [adopts] clause is a considered a normal type.
    This allows the type in the [adopts] clause to be itself a normal type. *)
 | b = data_type_branch ADOPTS t = raw_normal_type
-    { mk_concrete b (Some t) }
+    { mk_concrete ($startpos(b), $endpos) b (Some t) }
 
 %inline loose_type:
 | ty = tlocated(raw_loose_type)
@@ -527,6 +527,10 @@ data_field_def:
    share a common type. *)
 | fs = separated_nonempty_list(COMMA, variable) COLON ty = normal_type
     { List.map (fun f -> `FieldValue (f, ty)) fs }
+(* The double-colon stands for a binding field name whose scope is the entire
+ * concrete type. *)
+| fs = separated_nonempty_list(COMMA, variable) COLONCOLON ty = normal_type
+    { List.map (fun f -> `FieldBindingValue (f, ty)) fs }
 (* We also allow a field definition to take the form of an equality between
    a field name [f] and a term variable [y]. This is understood as sugar for
    a definition of the field [f] at the singleton type [=y]. In this case,

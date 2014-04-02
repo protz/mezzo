@@ -1037,6 +1037,7 @@ let tests: (string * ((unit -> env) -> unit)) list = [
   ("datacon2.mz", pass);
   ("datacon3.mz", pass);
   ("datacon4.mz", kfail);
+  ("datacon5.mz", pass);
   ("shortest.mz", pass);
   ("snapshot.mz", pass);
   ("adoptslib.mz", pass);

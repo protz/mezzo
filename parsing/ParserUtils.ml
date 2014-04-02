@@ -91,12 +91,35 @@ let rec mktyapp ty1 ty2 =
   | _ ->
       TyApp (ty1, [ ty2 ])
 
-let mk_concrete (dc, fields) adopts =
-  let fs = MzList.map_some (function `FieldValue x -> Some x | _ -> None) fields in
-  let ps = MzList.map_some (function `FieldPermission x -> Some x | _ -> None) fields in
-  let t = TyConcrete (dc, fs, adopts) in
-  match ps with
-  | [] ->
-      t
-  | _ :: _ ->
-      TyBar (t, MzList.reduce (fun acc x -> TyStar (acc, x)) ps)
+let mk_concrete pos (dc, all_fields) adopts =
+  let fields = MzList.map_some (function
+    | `FieldValue x -> Some x
+    | `FieldBindingValue (name, t) ->
+        (* Desugar "x:: a" into "x: (=x | x @ a)" *)
+        let x = TyVar (Unqualified name) in
+        let t = TyBar (
+          TySingleton x,
+          TyAnchoredPermission (x, t)
+        ) in
+        Some (name, t)
+    | _ -> None
+  ) all_fields in
+  let binders = MzList.map_some
+    (function `FieldBindingValue (name, _) -> Some name | _ -> None)
+    all_fields
+  in
+  let permissions = MzList.map_some
+    (function `FieldPermission x -> Some x | _ -> None) all_fields
+  in
+  let t = TyConcrete (dc, fields, adopts) in
+  let t = match permissions with
+    | [] ->
+        t
+    | _ :: _ ->
+        TyBar (t, MzList.reduce (fun acc x -> TyStar (acc, x)) permissions)
+  in
+  let t = List.fold_right (fun name t ->
+    TyExists ((name, Kind.KTerm, pos), t)
+    ) binders t
+  in
+  t
