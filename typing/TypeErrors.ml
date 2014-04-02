@@ -269,9 +269,11 @@ let print_error buf (env, raw_error) =
         ptype (left_env, left_t)
         ptype (right_env, right_t)
   | DataTypeMismatchInSignature (x, reason) ->
-      bprintf "Cannot match the definition of %a against the \
-          signature because of: %s"
+      bprintf "Cannot match the definition of %a (from %a.mz) against the \
+          signature (from %a.mzi) because of: %s"
         Variable.p x
+        Module.p (module_name env)
+        Module.p (module_name env)
         reason
   | VarianceAnnotationMismatch ->
       bprintf "The variance annotations do not match the inferred ones"
