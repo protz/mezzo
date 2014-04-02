@@ -163,6 +163,7 @@ type error =
   | ImplicationOnlyOnArrow
   | MissingExport of Variable.name
   | TwiceMutable of (* data constructor: *) Datacon.name
+  | MalformedBranch of typ
 
 (* The [KindError] exception. *)
 
@@ -272,6 +273,10 @@ let print_error env error buf () =
         "This type is declared mutable, so there is no need to declare\n\
          the data constructor %s mutable."
         (Datacon.print dc)
+  | MalformedBranch t ->
+      bprintf
+        "The following is not a valid branch definition: %a"
+        SurfaceSyntaxPrinter.p t
   end;
   if Log.debug_level () > 4 then begin
     Printf.bprintf buf "\n";
@@ -557,7 +562,11 @@ let bind_data_group_datacons env (group : data_type_def list) : 'v env =
         let (x, _, _), _ = def.lhs in
         let v = find_var env (Unqualified x) in
         MzList.fold_lefti (fun i env (branch_flavor, t) ->
-          let dc, fields, _ = find_branch t in
+          let dc, fields, _ =
+            try find_branch t
+            with Not_found ->
+              raise_error env (MalformedBranch t)
+          in
           let fields = List.map fst fields in
           let dc = datacon_name_assert_unqualified dc in
 	  (* If the whole data type is declared [mutable], then the branch

@@ -244,7 +244,7 @@ let rec find_branch (t: typ): data_type_branch =
   | TyLocated (t, _) ->
       find_branch t
   | _ ->
-      assert false
+      raise Not_found
 
 (* ---------------------------------------------------------------------------- *)
 

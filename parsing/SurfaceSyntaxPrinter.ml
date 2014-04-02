@@ -197,3 +197,5 @@ and datacon_reference dref =
 let print =
   arbitrary_type
 
+let p buf t =
+  pdoc buf (arbitrary_type, t)
