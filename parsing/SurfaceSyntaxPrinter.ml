@@ -11,6 +11,8 @@ open MzPprint
 
 let rec parenthetic_type ty =
   match ty with
+  | TyLocated (ty, _) ->
+      parenthetic_type ty
   | TyTuple [] ->
       string "()"
   | _ ->
