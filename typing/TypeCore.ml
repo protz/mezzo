@@ -149,21 +149,8 @@ type data_type_group = {
 
 (* Data type branches. *)
 
-(* Low-level wrapper that assumes [perms] is non-nil. *)
-let fold_star perms =
-  MzList.reduce (fun acc x -> TyStar (acc, x)) perms
-
-let construct_branch (names: type_binding list) (branch: branch) (ps: typ list): typ =
-  let t = 
-    if List.length ps > 0 then
-      TyBar (TyConcrete branch, fold_star ps)
-    else
-      TyConcrete branch
-  in
-  List.fold_right (fun binding t ->
-    TyQ (Exists, binding, UserIntroduced, t)
-  ) names t
-
+(* These two functions should be kept in sync with [touch_branch] in
+  * [SurfaceSyntax]. *)
 let rec find_branch (t: typ): branch =
   match t with
   | TyBar (t, _) ->
@@ -184,7 +171,7 @@ let rec touch_branch (t: typ) (f: branch -> branch): typ =
   | TyQ (Exists, binding, UserIntroduced, t) ->
       TyQ (Exists, binding, UserIntroduced, touch_branch t f)
   | _ ->
-      assert false
+      Log.error "Not a branch: %a" Utils.ptag t
 
 (* ---------------------------------------------------------------------------- *)
 

@@ -334,7 +334,7 @@ raw_atomic_type:
 (* A structural type without an [adopts] clause (which is the usual case)
    is an atomic type. *)
 | b = data_type_branch
-    { TyConcrete (b, None) }
+    { mk_concrete b None }
 
 %inline tight_type:
 | ty = tlocated(raw_tight_type)
@@ -354,25 +354,33 @@ raw_tight_type:
 | ty = tlocated(raw_normal_type)
     { ty }
 
-raw_normal_type:
+raw_normal_type_no_adopts_rec(X):
 | ty = raw_tight_type
     { ty }
 (* The syntax of function types is [t -> t], as usual. *)
-| ty1 = tight_type ARROW ty2 = normal_type
+| ty1 = tight_type ARROW ty2 = X
     { TyArrow (ty1, ty2) }
 (* A polymorphic type. *)
-| bs = type_parameters ty = normal_type
+| bs = type_parameters ty = X
     { List.fold_right (fun b ty -> TyForall (b, ty)) bs ty }
 (* An existential type. *)
-| bs = existential_quantifiers ty = normal_type
+| bs = existential_quantifiers ty = X
     { List.fold_right (fun b ty -> TyExists (b, ty)) bs ty }
 (* A type that carries a mode constraint (implication). *)
-| c = mode_constraint DBLARROW ty = normal_type
+| c = mode_constraint DBLARROW ty = X
     { TyImply (c, ty) }
+
+raw_normal_type_no_adopts:
+| x = raw_normal_type_no_adopts_rec(raw_normal_type_no_adopts)
+    { x }
+
+raw_normal_type:
+| t = raw_normal_type_no_adopts
+    { t }
 (* A structural type with an [adopts] clause is a considered a normal type.
    This allows the type in the [adopts] clause to be itself a normal type. *)
-| b = data_type_branch ADOPTS t = normal_type
-    { TyConcrete (b, Some t) }
+| b = data_type_branch ADOPTS t = raw_normal_type
+    { mk_concrete b (Some t) }
 
 %inline loose_type:
 | ty = tlocated(raw_loose_type)
@@ -506,24 +514,31 @@ generic_bare_datacon_application(Y):
 
 (* Data type definitions. *)
 
+(* Please note that the distinction between value fields and permission fields
+ * only exists temporarily (hence, the anonymous variant type); these variants
+ * disappear as soon as the user of [data_type_branch] calls
+ * [ParserUtils.mk_concrete]. The reason why we group [`FieldValue]'s and
+ * [`FieldPermission]'s in a common list is that [curly_brace] hardcodes the
+ * empty list as a default value. *)
+
 data_field_def:
 (* A field definition normally mentions a field name and a field type. Multiple
    field names, separated with commas, can be specified: this means that they
    share a common type. *)
 | fs = separated_nonempty_list(COMMA, variable) COLON ty = normal_type
-    { List.map (fun f -> FieldValue (f, ty)) fs }
+    { List.map (fun f -> `FieldValue (f, ty)) fs }
 (* We also allow a field definition to take the form of an equality between
    a field name [f] and a term variable [y]. This is understood as sugar for
    a definition of the field [f] at the singleton type [=y]. In this case,
    only one field name is allowed. This short-hand is useful in the syntax
    of structural permissions. *)
 | f = variable EQUAL y = maybe_qualified_type_variable
-    { [ FieldValue (f, TySingleton y) ] }
+    { [ `FieldValue (f, TySingleton y) ] }
 (* Going one step further, we allow a field definition to consist of just
    a field name [f]. This is a pun: it means [f = f], or in other words,
    [f: =f]. *)
 | f = variable
-    { [ FieldValue (f, TySingleton (TyVar (Unqualified f))) ] }
+    { [ `FieldValue (f, TySingleton (TyVar (Unqualified f))) ] }
 
 (* Field definitions are semicolon-separated or -terminated. *)
 
@@ -538,7 +553,7 @@ data_type_def_branch_content:
   fs = data_fields_def
     { fs }
 | fs = data_fields_def BAR perm = very_loose_type
-    { fs @ [ FieldPermission perm ] }
+    { fs @ [ `FieldPermission perm ] }
 
 (* A branch in a data type definition is a constructor application,
    where, within the braces, we have the above content. This is also
@@ -560,12 +575,9 @@ data_type_def_branch_content:
 
 %inline data_type_def_branch:
   flavor = data_type_flavor
-  bs = existential_quantifiers? (* TEMPORARY allow more *)
-  dfs = generic_bare_datacon_application(data_type_def_branch_content)
+  t = tlocated(raw_normal_type_no_adopts)
     { 
-      let dc, fields = dfs in
-      let bs = Option.map_none [] bs in
-      flavor, dc, bs, fields
+      flavor, t
     }
 
 %inline data_type_def_lhs:

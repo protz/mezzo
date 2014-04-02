@@ -166,10 +166,10 @@ and resugar_resolved_branch env points soup branch =
   (* Resugar the adopts clause. If it is [bottom], it becomes [None]. *)
   let clause = Option.map (reset env) (is_non_bottom branch.branch_adopts) in
   (* Done. *)
-  S.TyConcrete ((dref, fields), clause)
+  S.TyConcrete (dref, fields, clause)
 
 and resugar_field env points soup (f, ty) =
-  S.FieldValue (f, resugar env points soup ty)
+  f, resugar env points soup ty
 
 and reset_mode_constraint env (mode, ty) =
   mode, reset env ty

@@ -116,7 +116,7 @@ tags: all
 #%.mz: mezzo.byte FORCE
 #	OCAMLRUNPARAM=b ./mezzo.byte -I tests -nofancypants $@ -debug 5 2>&1 | tail -n 80
 %.mz: all
-	OCAMLRUNPARAM=b ./mezzo.native -I tests $@ 2>&1 | tail -n 200
+	OCAMLRUNPARAM=b ./mezzo.native -I tests -nofancypants $@ 2>&1 | tail -n 200
 
 FORCE:
 

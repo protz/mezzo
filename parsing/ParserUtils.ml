@@ -91,3 +91,12 @@ let rec mktyapp ty1 ty2 =
   | _ ->
       TyApp (ty1, [ ty2 ])
 
+let mk_concrete (dc, fields) adopts =
+  let fs = MzList.map_some (function `FieldValue x -> Some x | _ -> None) fields in
+  let ps = MzList.map_some (function `FieldPermission x -> Some x | _ -> None) fields in
+  let t = TyConcrete (dc, fs, adopts) in
+  match ps with
+  | [] ->
+      t
+  | _ :: _ ->
+      TyBar (t, MzList.reduce (fun acc x -> TyStar (acc, x)) ps)

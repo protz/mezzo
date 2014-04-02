@@ -18,9 +18,6 @@ not (<corelib/*> or <stdlib/*>): debug, \
 # generated parser and lexer files, as well as the imported [patricia.ml].
 not (<parsing/Lexer.*> or <lib/patricia.*> or <parsing/grammar.*> or <corelib/*> or <stdlib/*>): my_warnings
 
-not (<corelib/*> or <stdlib/*> or <parsing/grammar.*>): syntax(camlp4o)
-
-
 # Our lexer generator is ulex.
 "parsing/Lexer.ml": syntax(camlp4o), syntax(pa_ulex)
 

@@ -351,10 +351,6 @@ val resolved_datacons_equal: env -> resolved_datacon -> resolved_datacon -> bool
  * constructors above the [TyConcrete]. Thus, we provide a set of wrappers to
  * peek at / modify the [branch] found below other type constructors. *)
 
-(** Need to translate a branch definition [b] with nested permissions [ps] into
- * a type? Use [construct_branch b ps]. *)
-val construct_branch: type_binding list -> branch -> typ list -> typ
-
 (** Need to see the branch hidden beneath a type? Use this helper. This will
  * _not_ open quantifiers. *)
 val find_branch: typ -> branch

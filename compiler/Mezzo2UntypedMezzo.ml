@@ -275,12 +275,12 @@ let transl_data_type_def_lhs ((t, _, _), _parameters) =
   t
 
 let transl_data_field_def = function
-  | FieldValue (f, _type) ->
+  | f, _type ->
       [ f ]
-  | FieldPermission _ ->
-      []
 
-let transl_data_type_def_branch (_, d, _, fields) =
+let transl_data_type_def_branch (_, ty) =
+  let d, fields, _adopts = find_branch ty in
+  let d = datacon_name_assert_unqualified d in
   d, adopter_field :: List.flatten (List.map transl_data_field_def fields)
 
 let transl_data_type_branches branches =
@@ -289,7 +289,9 @@ let transl_data_type_branches branches =
 let transl_data_type_def def =
   match def.rhs with
   | Concrete (_flag, branches, _adopts_clause) ->
-      [ U.DataType (transl_data_type_def_lhs def.lhs, transl_data_type_branches branches) ]
+      [ U.DataType (
+          transl_data_type_def_lhs def.lhs,
+          transl_data_type_branches branches) ]
   | Abstract _
   | Abbrev _ ->
       []

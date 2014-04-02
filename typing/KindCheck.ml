@@ -355,11 +355,14 @@ let level2index env = function
   | NonLocal _ as v ->
       v
 
+let find_datacon_raw env (datacon : Datacon.name maybe_qualified) : 'v var * datacon_info =
+  let v, info = D.lookup_maybe_qualified datacon env.datacons in
+  level2index env v, info
+
 (* This function is for public use; it returns a de-Bruijn-index [var]. *)
 let find_datacon env (datacon : Datacon.name maybe_qualified) : 'v var * datacon_info =
   try
-    let v, info = D.lookup_maybe_qualified datacon env.datacons in
-    level2index env v, info
+    find_datacon_raw env datacon
   with Not_found ->
     unbound "data constructor" Datacon.print env datacon
 
@@ -376,7 +379,6 @@ let resolve_datacon env (dref : datacon_reference) : 'v var * Datacon.name * Dat
   v, unqualify datacon, info.datacon_flavor
 
 
-
 (* ---------------------------------------------------------------------------- *)
 
 (* Checking for duplicate definitions. *)
@@ -386,20 +388,18 @@ let check_for_duplicate_bindings env (xs : type_binding list) : type_binding lis
     (fun (x, _, loc) -> bound_twice "variable" Variable.print { env with loc } x)
 
 (* TEMPORARY this function also does not produce a good error location *)
-let check_for_duplicate_datacons env (branches: (_ * Datacon.name * _ * _) list) : unit =
+let check_for_duplicate_datacons env (branches: (_ * typ) list) : unit =
+  let branches = List.map (fun (_, ty) ->
+    let dc, _, _ = find_branch ty in
+    datacon_name_assert_unqualified dc
+  ) branches in
   ignore (
-    MzList.exit_if_duplicates Datacon.compare (fun (_, x, _, _) -> x) branches
-      (fun (_, x, _, _) -> bound_twice "data constructor" Datacon.print env x)
+    MzList.exit_if_duplicates Datacon.compare (fun x -> x) branches
+      (fun x -> bound_twice "data constructor" Datacon.print env x)
   )
 
 let check_for_duplicate_fields env fields : unit =
-  (* Extract the named fields. *)
-  let fields = MzList.map_some (function
-    | FieldValue (f, _) ->
-        Some f
-    | FieldPermission _ ->
-        None
-  ) fields in
+  let fields = List.map fst fields in
   (* Check that no field name appears twice. *)
   ignore (
     MzList.exit_if_duplicates Field.compare (fun f -> f) fields
@@ -556,11 +556,10 @@ let bind_data_group_datacons env (group : data_type_def list) : 'v env =
     | Concrete (global_flavor, branches, _) ->
         let (x, _, _), _ = def.lhs in
         let v = find_var env (Unqualified x) in
-        MzList.fold_lefti (fun i env (branch_flavor, dc, _bindings, fields) ->
-          let fields = MzList.map_some (function
-            | FieldValue (f, _) -> Some f
-            | FieldPermission _ -> None
-          ) fields in
+        MzList.fold_lefti (fun i env (branch_flavor, t) ->
+          let dc, fields, _ = find_branch t in
+          let fields = List.map fst fields in
+          let dc = datacon_name_assert_unqualified dc in
 	  (* If the whole data type is declared [mutable], then the branch
 	     should not be declared [mutable]. That would be redundant, and
 	     a hint of a possible confusion. *)
@@ -705,7 +704,7 @@ and infer env s (ty : typ) : kind =
   | TyVar x ->
       find_kind env x
 
-  | TyConcrete ((dref, fields), clause) ->
+  | TyConcrete (dref, fields, clause) ->
       (* TEMPORARY find the flavor of this data constructor (either
         by looking up the definition of its type, or by extending
         the [datacon_info] record with this information?) and check
@@ -796,12 +795,9 @@ and check_branch env s fields =
   List.iter (check_field env s) fields
 
 and check_field env s (field : data_field_def) =
-  match field with
-  | FieldValue (_, ty) ->
-      (* No [reset] here. *)
-      check env s ty KType
-  | FieldPermission t ->
-      check env s t KPerm
+  let _, ty = field in
+  (* No [reset] here. *)
+  check env s ty KType
 
 (* Check that exactly the correct fields are provided (no more, no less). *)
 and check_exact_fields env (dref : datacon_reference) (fields : data_field_def list) =
@@ -809,10 +805,7 @@ and check_exact_fields env (dref : datacon_reference) (fields : data_field_def l
   let module FieldSet = Field.Map.Domain in
   let required_fields = Field.Map.domain info.datacon_fields in
   let provided_fields =
-    List.fold_left (fun accu -> function
-      | FieldValue (field, _) -> FieldSet.add field accu
-      | FieldPermission _ -> accu
-    ) FieldSet.empty fields
+    List.fold_left (fun accu (field, _) -> FieldSet.add field accu) FieldSet.empty fields
   in
   let ok = FieldSet.equal required_fields provided_fields in
   if not ok then
@@ -859,20 +852,12 @@ let check_unresolved_branch env (datacon, fields) =
 
 *)
 
-let check_field_reset env (field : data_field_def) =
-  match field with
-  | FieldValue (_, ty) ->
-      check_reset env ty KType
-  | FieldPermission ty ->
-      check_reset env ty KPerm
-
-let check_unresolved_branch env (_branch_flavor, _dc, bindings, fields) =
-  (* Introduce the names bound above the pattern. *)
-  let env = extend_check Fictional env bindings in
+let check_unresolved_branch env (_branch_flavor, typ) =
+  let _dc, fields, _adopts = find_branch typ in
   (* Check that no field name appears twice. *)
   check_for_duplicate_fields env fields;
-  (* Check that every field is well-kinded. *)
-  List.iter (check_field_reset env) fields
+  (* Check the entire type, thus automatically opening any binders. *)
+  check_reset env typ KType
 
 (* Checking a type definition. For abstract types, we just check that the
    fact is well-formed. For concrete types, we check that the branches are

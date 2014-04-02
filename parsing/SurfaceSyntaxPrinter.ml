@@ -26,7 +26,7 @@ and atomic_type ty =
       string "empty"
   | TyVar x ->
       variable x
-  | TyConcrete (_, None) ->
+  | TyConcrete (_, _, None) ->
       concrete ty
   | _ ->
       parenthetic_type ty
@@ -157,7 +157,7 @@ and binding (x, kind, _) =
 
 and concrete ty =
   match ty with
-  | TyConcrete ((dref, fs), clause) ->
+  | TyConcrete (dref, fs, clause) ->
       datacon_reference dref ^^
       (
        if List.length fs > 0 then
@@ -176,15 +176,13 @@ and concrete ty =
     assert false (* cannot happen *)
 
 and field = function
-  | FieldValue (f, TySingleton (TyVar y)) ->
+  | f, TySingleton (TyVar y) ->
       (* A special case: syntactic sugar for equations. *)
       utf8string (Field.print f) ^^ string " = " ^^ variable y
-  | FieldValue (f, ty) ->
+  | f, ty ->
       prefix 2 1
        (utf8string (Field.print f) ^^ colon)
        (normal_type ty)
-  | FieldPermission ty ->
-      string "| " ^^ very_loose_type ty
 
 and mode_constraint (mode, ty) =
   string (Mode.print mode) ^^ space ^^ atomic_type ty
