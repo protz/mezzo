@@ -580,7 +580,7 @@ data_type_def_branch_content:
 %inline data_type_def_branch:
   flavor = data_type_flavor
   t = tlocated(raw_normal_type_no_adopts)
-    { 
+    {
       flavor, t
     }
 

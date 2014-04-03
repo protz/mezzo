@@ -234,7 +234,7 @@ and translate_arrow_type env domain codomain =
   let domain1, domain2, _ = translate_type env domain in
   (* Translate the right-hand side. *)
   let codomain, _ = translate_type_reset env codomain in
-  let domain = 
+  let domain =
     (* The domain is (=root | root @ domain1). *)
     T.TyBar (T.TySingleton root, T.TyAnchoredPermission (root, domain1))
   in
@@ -316,13 +316,6 @@ let translate_data_type_def_branch
   let rec translate_type_of_branch env ty =
     match ty with
     | TyBar (ty, p) ->
-        (* Right now, we're only looking for a [TyConcrete] in the "t" part of
-         * "(t | P)". In the future, when we have branches of the form:
-         * "{ self: term } (=self | self @ A { ... })", we will want to look in
-         * the "t" part, then, if nothing was found there, look in the "P" part.
-         * (We may have definition of the form: "| A { ... | x @ B { ... }}":
-         * only the "A" branch needs to be translated with the semantics of a
-         * data type definition.) *)
         let ty1, ty2, _ = translate_type_of_branch env ty in
         let p1, p2, _ = translate_type env p in
         T.TyBar (ty1, p1), T.TyBar (ty2, p2), KType
@@ -334,10 +327,10 @@ let translate_data_type_def_branch
           ) fields
         in
         let branch_datacon =
-          T.TyUnknown, 
+          T.TyUnknown,
           datacon_name_assert_unqualified dref
         in
-        let branch_flavor = 
+        let branch_flavor =
           DataTypeFlavor.join global_flavor branch_flavor
             (fun () -> assert false) (* cannot happen *);
         in
@@ -361,15 +354,8 @@ let translate_data_type_def_branch
          * then call back into us for the next case". *)
         translate_type_raw env ty translate_type_of_branch
   in
-  let ty, _, _ = translate_type_of_branch env ty in
+  let ty, _ = translate_type_reset_raw env ty translate_type_of_branch in
   ty
-;;
-
-let rec tunloc = function
-  | TyLocated (t, _) ->
-      tunloc t
-  | _ as t ->
-      t
 ;;
 
 let translate_single_fact (params: type_binding list) (accu: Fact.fact) (fact: single_fact) : Fact.fact =

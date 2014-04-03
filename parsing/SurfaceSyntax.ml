@@ -168,6 +168,12 @@ and data_type_branch = datacon_reference * data_field_def list * adopts_clause
 and adopts_clause =
     typ option
 
+let rec tunloc = function
+  | TyLocated (t, _) ->
+      tunloc t
+  | _ as t ->
+      t
+
 (* ---------------------------------------------------------------------------- *)
 
 (* Algebraic data type definitions. *)
@@ -181,17 +187,18 @@ and adopts_clause =
 type data_type_def_lhs =
     type_binding * type_binding_with_variance list
 
-type single_fact = 
+type single_fact =
   | Fact of mode_constraint list * mode_constraint
 
 (* Now, both the surface syntax _and_ the internal syntax allow any type to
  * stand for a data type branch, as long as a [TyConcrete] is found "somewhere".
- * What is legal in a data type definition is (20140402) existentials and bars
- * that ultimately wrap around a [TyConcrete]. This invariant is assumed in
- * _several_ places that need to be kept in sync together:
+ * What is legal in a data type definition is: existentials, bars and name
+ * introductions that ultimately wrap around a [TyConcrete]. This invariant is
+ * assumed in _several_ places that need to be kept in sync together:
  * - the [find_branch] implementation for the surface syntax (this file),
  * - the [find_branch] and [touch_branch] functions in [TypeCore.ml],
- * - the [translate_data_type_def_branch] function in [TransSurface.ml].
+ * - the [translate_data_type_def_branch] function in [TransSurface.ml] (also
+ *   make sure that translate_type_raw is compatible with the new construct).
  * If any more constructs are to be allowed in a data type branch, after
  * modifying the parser, one should absolutely make sure that all of these
  * functions agree on what is legal or not. *)
@@ -242,6 +249,8 @@ let rec find_branch (t: typ): data_type_branch =
   | TyExists (_, t) ->
       find_branch t
   | TyLocated (t, _) ->
+      find_branch t
+  | TyNameIntro (_, t) ->
       find_branch t
   | _ ->
       raise Not_found
@@ -308,7 +317,7 @@ and expression =
   | EConstruct of (datacon_reference * (Field.name * expression) list)
   (* if e₁ then e₂ else e₃ *)
   | EIfThenElse of bool * expression * expression * expression
-  (* preserving p while e₁ do e₂ *) 
+  (* preserving p while e₁ do e₂ *)
   | EWhile of typ * expression * expression
   (* preserving p for v = e₁ to/downto/below/above e₂ do e *)
   | EFor of typ * type_binding * expression * for_flag * expression * expression
@@ -426,7 +435,7 @@ let rec type_to_pattern (ty : typ) : pattern =
   | TyExists _
   | TyImply _
   | TyUnknown
-  | TyArrow _ 
+  | TyArrow _
   | TySingleton _
   | TyDynamic
   | TyApp _

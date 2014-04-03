@@ -147,34 +147,6 @@ type data_type_group = {
 
 (* ---------------------------------------------------------------------------- *)
 
-(* Data type branches. *)
-
-(* These two functions should be kept in sync with [touch_branch] in
-  * [SurfaceSyntax]. *)
-let rec find_branch (t: typ): branch =
-  match t with
-  | TyBar (t, _) ->
-      find_branch t
-  | TyConcrete b ->
-      b
-  | TyQ (Exists, _, UserIntroduced, t) ->
-      find_branch t
-  | _ ->
-      assert false
-
-let rec touch_branch (t: typ) (f: branch -> branch): typ =
-  match t with
-  | TyBar (t, ps) ->
-      TyBar (touch_branch t f, ps)
-  | TyConcrete b ->
-      TyConcrete (f b)
-  | TyQ (Exists, binding, UserIntroduced, t) ->
-      TyQ (Exists, binding, UserIntroduced, touch_branch t f)
-  | _ ->
-      Log.error "Not a branch: %a" Utils.ptag t
-
-(* ---------------------------------------------------------------------------- *)
-
 (* Program-wide environment. *)
 
 type binding_type = Rigid | Flexible
@@ -242,7 +214,6 @@ and flex_descr = {
    * the variable (fact, level, kind) are "better" after it lost its descriptor
    * (more precise fact, lower level, equal kind). *)
   structure: structure;
-  
   original_level: level;
 }
 
@@ -336,6 +307,60 @@ let enter_module env module_name = {
 let find env p =
   PersistentUnionFind.find p env.state
 ;;
+
+(* ---------------------------------------------------------------------------- *)
+
+(* Data type branches. *)
+
+(* These two functions should be kept in sync with [touch_branch] in
+  * [SurfaceSyntax]. *)
+
+let rec touch_branch (t: typ) (f: branch -> branch): typ =
+  Log.debug "%a" !internal_ptype (empty_env, t);
+  match t with
+  | TyBar (t, p) ->
+      (* This is tricky, and only makes sense if one compares this function to
+       * its counterpart [find_branch] from [SurfaceSyntax]. The function allows
+       * [TyNameIntro]'s which contain [TyConcrete]'s; these are desugared as:
+       *
+       *     TyBar (TySingleton _, TyAnchoredPermission (_, TyConcrete _))    (1)
+       *
+       * The function also allows a [TyBar] which wraps around a [TyConcrete]:
+       *
+       *     TyBar (TyConcrete _, _)                                          (2)
+       *
+       * To make sure that we don't go off the rails in the evil case where the
+       * user wrote:
+       *
+       *    TyBar (TyConcrete _, TyAnchoredPermission (_, TyConcrete _))      (3)
+       *
+       * We first check for case (2) which, if it fails, means we were in case
+       * (1). That way, we pick the right [TyConcrete] in case (3).
+       *)
+      try TyBar (touch_branch t f, p)
+      with Not_found -> TyBar (t, touch_branch p f); ;
+  | TyAnchoredPermission (x, t) ->
+      TyAnchoredPermission (x, touch_branch t f)
+  | TyConcrete b ->
+      TyConcrete (f b)
+  | TyQ (Exists, binding, flavor, t) ->
+      (* An existential binding may be user-introduced above a branch, since the
+       * surface syntax allows it. The surface syntax also allows name
+       * introductions to stand for data type branches; this results in an
+       * existential quantifier which is auto-introduced. *)
+      TyQ (Exists, binding, flavor, touch_branch t f)
+  | _ ->
+      Log.debug "Not a branch: %a" Utils.ptag t;
+      raise Not_found
+
+(* An ugly exception to make sure we don't implement the logic twice. *)
+let find_branch (t: typ): branch =
+  let module M = struct exception Found of branch end in
+  try
+    ignore (touch_branch t (fun branch -> raise (M.Found branch)));
+    raise Not_found
+  with M.Found branch ->
+    branch
 
 (* ---------------------------------------------------------------------------- *)
 
