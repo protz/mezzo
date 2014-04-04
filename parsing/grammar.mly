@@ -375,7 +375,7 @@ raw_normal_type_no_adopts:
     { x }
 
 raw_normal_type:
-| t = raw_normal_type_no_adopts
+| t = raw_normal_type_no_adopts_rec(raw_normal_type)
     { t }
 (* A structural type with an [adopts] clause is a considered a normal type.
    This allows the type in the [adopts] clause to be itself a normal type. *)
