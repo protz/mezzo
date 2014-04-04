@@ -124,6 +124,7 @@ variable:
     (* A identifier that begins with a lowercase letter is a variable. *)
   | x = LIDENT
     (* As per the OCaml convention, a parenthesized operator is a variable. *)
+    (* TEMPORARY maybe this could be recognized by the lexer, saving about 30 states in the LR automaton? *)
   | LPAREN x = OPPREFIX RPAREN
   | LPAREN x = infix_operator RPAREN
       { Variable.register x }
