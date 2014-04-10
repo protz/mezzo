@@ -1,4 +1,4 @@
-abstract t (x: term): perm
+abstract t (x: value): perm
 
 val f (x: int | t x): int =
   1

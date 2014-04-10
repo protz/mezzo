@@ -491,7 +491,7 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
   let return env t =
     (* Not the most clever function, but will do for now on *)
     let hint = Option.map_none (fresh_auto_name "/x_") hint in
-    let env, x = bind_rigid env (hint, KTerm, location env0) in
+    let env, x = bind_rigid env (hint, KValue, location env0) in
     let env = Permissions.add env x t in
     match annot with
     | None ->
@@ -627,7 +627,7 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
 
       (* Introduce a variable [x] that stands for the function argument. *)
       let sub_env, { subst_expr; vars; _ } =
-        bind_evars sub_env [ fresh_auto_name "arg", KTerm, location sub_env ]
+        bind_evars sub_env [ fresh_auto_name "arg", KValue, location sub_env ]
       in
       (* Its scope is just the function body. *)
       let x = match vars with [ x ] -> x | _ -> assert false in
@@ -818,7 +818,7 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
         | _ as x ->
             x
       in
-      let env, x = bind_rigid env (name, KTerm, get_location env x) in
+      let env, x = bind_rigid env (name, KValue, get_location env x) in
       Permissions.add env x t, x
 
   | ETuple exprs ->
@@ -1129,7 +1129,7 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
 
   | EFail ->
       let name = Auto (Variable.register "/inconsistent") in
-      let env, x = bind_rigid env (name, KTerm, location env) in
+      let env, x = bind_rigid env (name, KValue, location env) in
       let env = mark_inconsistent env in
       env, x
 

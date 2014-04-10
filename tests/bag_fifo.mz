@@ -2,7 +2,7 @@
 (* Data type definitions. *)
 
 data mutable cell a =
-  Cell { value: a; next: dynamic }
+  Cell { value_: a; next: dynamic }
 
 data mutable bag a =
   Empty { head: (); tail: () }
@@ -16,7 +16,7 @@ val create [a] (): bag a =
 
 val insert [a] (consumes x: a, b: bag a): () =
   let c = Cell {
-    value = x; next = ()
+    value_ = x; next = ()
   } in
   c.next <- c;
   give c to b;
@@ -45,6 +45,6 @@ val retrieve [a] (b: bag a): option a =
       end else begin
         b.head <- head.next
       end;
-      let x = head.value in
+      let x = head.value_ in
       some x
   end

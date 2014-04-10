@@ -61,10 +61,10 @@ val unify [a] duplicable a => (s: state a, x: dynamic, y: dynamic): () =
 val find [a] duplicable a => (s: state a, x: dynamic): a =
   (* Find the root *)
   let r = repr (s, x) in
-  let value = r.descr in
+  let value_ = r.descr in
   give r to s;
-  (* [value] has type [a] which is duplicable, so we still have "value @ a" at
+  (* [value_] has type [a] which is duplicable, so we still have "value_ @ a" at
    * that stage. As far as I know, this is the only place where we use the
    * "duplicable a"  hypothesis; I left it as a precondition on all other
    * functions to catch client code errors as early as possible. *)
-  value
+  value_

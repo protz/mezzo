@@ -147,13 +147,13 @@ val append [a] (consumes (xs: list a, ys: list a)) : list a =
 (* data mutable node a = *)
 (*   Node { *)
 (*     neighbors: list (node a); *)
-(*     value: a; *)
+(*     value_: a; *)
 (*   } *)
 
 (* val _: node int = *)
 (*   let x = Node { *)
 (*     neighbors = (); *)
-(*     value = 10; *)
+(*     value_ = 10; *)
 (*   } in *)
 (*   x.neighbors <- cons (x, nil); *)
 (*   x *)
@@ -161,7 +161,7 @@ val append [a] (consumes (xs: list a, ys: list a)) : list a =
 data mutable node a =
   Node {
     neighbors: list dynamic;
-    value: a;
+    value_: a;
     seen: bool;
   }
 
@@ -174,7 +174,7 @@ val _ =
   let g: graph int =
     let x = Node {
       neighbors = ();
-      value = 10;
+      value_ = 10;
       seen = false;
     } in
     (* In the presence of a "more useful" type, [cons] attempts to construct a
@@ -202,7 +202,7 @@ val _ =
        * ownership of the node; etc. etc. *)
       take n from g;
       if not n.seen then begin
-        f n.value;
+        f n.value_;
         work_list := append (n.neighbors, !work_list);
         n.seen <- true;
       end;

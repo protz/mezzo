@@ -187,7 +187,7 @@ let tests: (string * ((unit -> env) -> unit)) list = [
   ("unbound27.mz", kfail);
   ("unbound28.mz", kfail);
   ("unbound29.mz", kfail);
-  ("unbound30.mz", pass_known_failure);
+  ("unbound30.mz", pass);
   ("unbound31.mz", pass_known_failure);
   ("unbound32.mz", kfail);
   ("unbound33.mz", kfail);
@@ -391,7 +391,7 @@ let tests: (string * ((unit -> env) -> unit)) list = [
   ("merge2.mz", fun do_it ->
     let env = do_it () in
     let v2 = find_unqualified_var env "v2" in
-    let t = TyQ (Exists, dummy_binding KTerm, UserIntroduced,
+    let t = TyQ (Exists, dummy_binding KValue, UserIntroduced,
       TyBar (
         ty_equals v2,
         TyStar (
@@ -412,8 +412,8 @@ let tests: (string * ((unit -> env) -> unit)) list = [
   ("merge3.mz", fun do_it ->
     let env = do_it () in
     let v3 = find_unqualified_var env "v3" in
-    let t = TyQ (Exists, dummy_binding KTerm, UserIntroduced,
-      TyQ (Exists, dummy_binding KTerm, UserIntroduced,
+    let t = TyQ (Exists, dummy_binding KValue, UserIntroduced,
+      TyQ (Exists, dummy_binding KValue, UserIntroduced,
         TyBar (
           ty_equals v3,
           fold_star [
@@ -496,7 +496,7 @@ let tests: (string * ((unit -> env) -> unit)) list = [
     (* Urgh, have to input internal syntax to check function types... maybe we
      * should write surface syntax here and have it simplified by the desugar
      * procedure? ... *)
-    let t = TyQ (Forall, dummy_binding KTerm, UserIntroduced, TyArrow (
+    let t = TyQ (Forall, dummy_binding KValue, UserIntroduced, TyArrow (
       TyBar (
         TySingleton (TyBound 0),
         TyAnchoredPermission (TyBound 0, int)
@@ -520,7 +520,7 @@ let tests: (string * ((unit -> env) -> unit)) list = [
     let int = find_qualified_type env "int" "int" in
     let t = find_unqualified_type env "t" in
     (* Look at how fancy we used to be when we had singleton-subtyping! *)
-    (* let t = TyQ (Exists, dummy_binding KTerm, UserIntroduced, TyBar (
+    (* let t = TyQ (Exists, dummy_binding KValue, UserIntroduced, TyBar (
       TyApp (t, [TySingleton (TyBound 0)]),
       TyAnchoredPermission (TyBound 0, int)
     )) in *)
@@ -953,7 +953,7 @@ let tests: (string * ((unit -> env) -> unit)) list = [
   ("twice-mutable.mz", kfail);
   ("name-intro.mz", pass);
   ("name-intro2.mz", pass);
-  ("name-intro3.mz", pass_known_failure);
+  ("name-intro3.mz", pass);
   ("name-intro4.mz", pass);
   ("name-intro5.mz", pass);
   ("desugaring00.mz", pass);

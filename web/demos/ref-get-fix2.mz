@@ -2,7 +2,7 @@
 
 data ref a = Ref { contents: a }
 
-val get [x: term] (r: Ref { contents = x }): (=x) =
+val get [x: value] (r: Ref { contents = x }): (=x) =
   r.contents
 
 (* Sample usage. *)

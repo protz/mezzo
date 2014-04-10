@@ -1,2 +1,2 @@
-abstract held (x: term): perm
+abstract held (x: value): perm
 fact duplicable (held x)

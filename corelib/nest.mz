@@ -1,6 +1,6 @@
 (* Nesting requires no runtime support; its implementation is trivial. *)
 
-abstract nests (x : term) (p : perm) : perm
+abstract nests (x : value) (p : perm) : perm
 fact duplicable (nests x p)
 
 val nest [p : perm, a] exclusive a => (x: a | consumes p) : (| nests x p) =

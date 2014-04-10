@@ -123,7 +123,7 @@ let rec resugar env (points : unit VarMap.t ref) (soup : typ VarMap.t ref) ty =
 and resugar_arrow env points ty =
   match modulo_flex env ty with
   | TyQ (Forall, ((_, kind, _) as binding), AutoIntroduced, ty) ->
-      assert (kind = KTerm);
+      assert (kind = KValue);
       (* This universal quantifier was introduced as part of the
         desugaring process. Let's try and make it implicit. We
         expect to find an arrow under it. For the moment, just

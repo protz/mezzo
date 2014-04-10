@@ -5,7 +5,7 @@
    that an exclusive permission for [x] implies the permission [p]. Because
    nesting is monotonic (it cannot be undone), a nesting witness is duplicable. *)
 
-abstract nests (x : term) (p : perm) : perm
+abstract nests (x : value) (p : perm) : perm
 fact duplicable (nests x p)
 
 (* Nesting consumes the permission [p] and produces a nesting witness [nests x p].

@@ -47,7 +47,7 @@ let import_interface (env: T.env) (mname: Module.name) (iface: S.interface): T.e
   let rec import_items env = function
     | ValueDeclaration (name, typ) :: items ->
         (* Bind the variable. *)
-        let binding = User (mname, name), KTerm, location env in
+        let binding = User (mname, name), KValue, location env in
         let env, { Expressions.subst_toplevel; vars; _ } = Expressions.bind_evars env [ binding ] in
         let p = match vars with [ p ] -> p | _ -> assert false in
 
@@ -138,7 +138,7 @@ let check
 
         (* Alright, [x] is now bound, and when it appears afterwards, it will
          * refer to the original [x] from [env]. *)
-        let tsenv = KindCheck.bind_nonlocal tsenv (x, KTerm, point) in
+        let tsenv = KindCheck.bind_nonlocal tsenv (x, KValue, point) in
 
         (* Check the remainder of the toplevel_items. *)
         check env tsenv toplevel_items

@@ -440,7 +440,7 @@ let print_signature (buf: Buffer.t) (env: TypeCore.env): unit =
   let open Kind in
   let exports = KindCheck.get_exports (TypeCore.kenv env) in
   List.iter (fun (name, var) ->
-    if get_kind env var = KTerm then
+    if get_kind env var = KValue then
       let perms = get_permissions env var in
       let perms =
         List.filter (function TyUnknown | TySingleton _ -> false | _ -> true) perms

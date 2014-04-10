@@ -72,7 +72,7 @@ val reset [k, a] (t: linkedTable k a, capacity: int) : () =
  * to the table.
  * We need to expand the type [linkedTable k a] to be more precise and specify
  * that we don't even read the field [table]. *)
-val add_cell [k, a, c: term] (
+val add_cell [k, a, c: value] (
   d: entry k a, 
   t: LinkedTable {
       table = c;
@@ -101,7 +101,7 @@ val add [k, a] (consumes x: k, consumes v: a, t: linkedTable k a) : () =
  * from the table.
  * We need to expand the type [linkedTable k a] to be more precise and specify
  * that we don't even read the field [table]. *)
-val remove_cell [k, a, c: term] (
+val remove_cell [k, a, c: value] (
   d: entry k a,
   t: LinkedTable {
       table = c;

@@ -9,7 +9,7 @@
 
 data tree k a =
   | Empty
-  | mutable Node { left: tree k a; key: k; value: a; right: tree k a; height: int }
+  | mutable Node { left: tree k a; key: k; value_: a; right: tree k a; height: int }
 
 (* -------------------------------------------------------------------------- *)
 
@@ -38,8 +38,8 @@ val height [k, a] (t: tree k a) : int =
    stored in a node, based on the height of its children. *)
 
 val update_height [k, a] (
-  consumes t : Node { left: tree k a; key: k; value: a; right: tree k a; height: unknown }
-) : ( |    t @ Node { left: tree k a; key: k; value: a; right: tree k a; height: int     }) =
+  consumes t : Node { left: tree k a; key: k; value_: a; right: tree k a; height: unknown }
+) : ( |    t @ Node { left: tree k a; key: k; value_: a; right: tree k a; height: int     }) =
   t.height <- max (height t.left, height t.right) + 1
 
 (* The following (private) function re-organizes a tree, if required, by
@@ -48,7 +48,7 @@ val update_height [k, a] (
    is returned. *)
 
 val bal [k, a] (
-  consumes t: Node { left: tree k a; key: k; value: a; right: tree k a; height: unknown }
+  consumes t: Node { left: tree k a; key: k; value_: a; right: tree k a; height: unknown }
 ) : tree k a =
 
   (* Extract the two sub-trees and their heights. *)
@@ -135,7 +135,7 @@ val create [k, a] () : tree k a =
 (* Creating a singleton tree. *)
 
 val singleton [k, a] (consumes (x: k, d: a)) : tree k a =
-  Node { left = Empty; key = x; value = d; right = Empty; height = 1 }
+  Node { left = Empty; key = x; value_ = d; right = Empty; height = 1 }
 
 (* Testing whether a tree is empty. *)
 
@@ -158,12 +158,12 @@ val rec add [k, a] (
   match t with
   | Empty ->
       (* Create a singleton tree. *)
-      Node { left = t; key = x; value = d; right = Empty; height = 1 }
+      Node { left = t; key = x; value_ = d; right = Empty; height = 1 }
   | Node ->
       let c = cmp (x, t.key) in
       if c = 0 then begin
        (* The key already exists; overwrite the previous data *)
-       t.value <- d;
+       t.value_ <- d;
        t
       end
       else if c < 0 then begin
@@ -194,7 +194,7 @@ val rec find [k, a] duplicable a => (
       none
   | Node ->
       let c = cmp (x, t.key) in
-      if c = 0 then some t.value
+      if c = 0 then some t.value_
       (* It is interesting to note that we cannot write the more compact code:
         find (cmp, x, (if c < 0 then t.left else t.right))
         Indeed, the type-checker is unable to figure out the desired type of
@@ -232,7 +232,7 @@ val rec update
   | Node ->
       let c = cmp (x, t.key) in
       if c = 0 then
-       t.value <- f t.value
+       t.value_ <- f t.value_
       else if c < 0 then
        update [k, a, preserved, consumed] (cmp, x, t.left, f)
       else
@@ -289,11 +289,11 @@ val rec mem [k, a] (cmp: (k, k) -> int, x: k, t: tree k a) : bool =
 
 val rec min_binding
   [k, a] duplicable k => duplicable a =>
-  (t : Node { left: tree k a; key: k; value: a; right: tree k a; height: int })
+  (t : Node { left: tree k a; key: k; value_: a; right: tree k a; height: int })
   : (k, a) =
   match t.left with
   | Empty ->
-      t.key, t.value
+      t.key, t.value_
   | Node ->
       min_binding t.left
   end
@@ -311,11 +311,11 @@ val min_binding
 
 val rec max_binding
   [k, a] duplicable k => duplicable a =>
-  (t : Node { left: tree k a; key: k; value: a; right: tree k a; height: int })
+  (t : Node { left: tree k a; key: k; value_: a; right: tree k a; height: int })
   : (k, a) =
   match t.right with
   | Empty ->
-      t.key, t.value
+      t.key, t.value_
   | Node ->
       max_binding t.right
   end
@@ -339,8 +339,8 @@ val max_binding
 
 val rec extract_min_binding
   [k, a]
-  (consumes t : Node { left: tree k a; key: k; value: a; right: tree k a; height: int })
-  :             Node { left:    Empty; key: k; value: a; right: tree k a; height: int }
+  (consumes t : Node { left: tree k a; key: k; value_: a; right: tree k a; height: int })
+  :             Node { left:    Empty; key: k; value_: a; right: tree k a; height: int }
   =
   match t.left with
   | Empty ->
@@ -358,8 +358,8 @@ val rec extract_min_binding
 
 val rec extract_max_binding
   [k, a]
-  (consumes t : Node { left: tree k a; key: k; value: a; right: tree k a; height: int })
-  :             Node { left: tree k a; key: k; value: a; right:    Empty; height: int }
+  (consumes t : Node { left: tree k a; key: k; value_: a; right: tree k a; height: int })
+  :             Node { left: tree k a; key: k; value_: a; right:    Empty; height: int }
   =
   match t.right with
   | Empty ->
@@ -378,7 +378,7 @@ val rec extract_max_binding
    become the new minimum node. *)
 
 val rec add_min_binding [k, a]
-  (consumes node: Node { left: Empty; key: k; value: a; right: unknown; height: unknown },
+  (consumes node: Node { left: Empty; key: k; value_: a; right: unknown; height: unknown },
    consumes t: tree k a) : tree k a =
   match t with
   | Empty ->
@@ -392,7 +392,7 @@ val rec add_min_binding [k, a]
   end
 
 val rec add_max_binding [k, a]
-  (consumes node: Node { left: unknown; key: k; value: a; right: Empty; height: unknown },
+  (consumes node: Node { left: unknown; key: k; value_: a; right: Empty; height: unknown },
    consumes t: tree k a) : tree k a =
   match t with
   | Empty ->
@@ -448,7 +448,7 @@ val rec remove [k, a] (
   | Node ->
       let c = cmp (x, t.key) in
       if c = 0 then begin
-       dst := some (t.key, t.value);
+       dst := some (t.key, t.value_);
        merge (t.left, t.right)
       end
       else if c < 0 then begin
@@ -490,7 +490,7 @@ val rec iter [k, a, p : perm] (
   | Empty ->
       True
   | Node ->
-      iter (f, t.left) && f (t.key, t.value) && iter (f, t.right)
+      iter (f, t.left) && f (t.key, t.value_) && iter (f, t.right)
   end
 
 (* -------------------------------------------------------------------------- *)
@@ -511,7 +511,7 @@ val rec map [k, a1, a2, b, p : perm] duplicable k => (
       Node {
        left = map (f, t.left);
        key = t.key;
-       value = f (t.key, t.value);
+       value_ = f (t.key, t.value_);
        right = map (f, t.right);
        height = t.height
       }
@@ -532,7 +532,7 @@ val rec fold_ascending [k, a1, a2, b, p : perm] (
       accu
   | Node ->
       let accu = fold_ascending (f, t.left, accu) in
-      let accu = f (t.key, t.value, accu) in
+      let accu = f (t.key, t.value_, accu) in
       let accu = fold_ascending (f, t.right, accu) in
       accu
   end
@@ -545,7 +545,7 @@ val rec fold_descending [k, a1, a2, b, p : perm] (
       accu
   | Node ->
       let accu = fold_descending (f, t.right, accu) in
-      let accu = f (t.key, t.value, accu) in
+      let accu = f (t.key, t.value_, accu) in
       let accu = fold_descending (f, t.left, accu) in
       accu
   end
@@ -556,7 +556,7 @@ val rec fold_descending [k, a1, a2, b, p : perm] (
    the left and right sub-trees may have arbitrary heights. *)
 
 val rec join [k, a] (
-  consumes t: Node { left: tree k a; key: k; value: a; right: tree k a; height: unknown }
+  consumes t: Node { left: tree k a; key: k; value_: a; right: tree k a; height: unknown }
 ) : tree k a =
   let left, right = t.left, t.right in
   match t.left, t.right with
@@ -606,16 +606,16 @@ val concat [k, a] (consumes t1: tree k a, consumes t2: tree k a) : tree k a =
    completely avoid memory allocation (and it is a natural thing to do anyway). *)
 
 val rec split [k, a] (cmp: (k, k) -> int, x: k, consumes t: tree k a)
-  : Node { left: tree k a; key: unknown; value: option a; right: tree k a; height: unknown } =
+  : Node { left: tree k a; key: unknown; value_: option a; right: tree k a; height: unknown } =
   match t with
   | Empty ->
-      (* Allocate a new node, containing no value, and whose sub-trees are empty. *)
-      Node { left = Empty; key = (); value = none; right = t; height = () }
+      (* Allocate a new node, containing no value_, and whose sub-trees are empty. *)
+      Node { left = Empty; key = (); value_ = none; right = t; height = () }
   | Node ->
       let c = cmp (x, t.key) in
       if c = 0 then begin
        (* We found the desired key. *)
-       t.value <- some t.value; (* ah ha! look at this, feeble ML programmers *)
+       t.value_ <- some t.value_; (* ah ha! look at this, feeble ML programmers *)
        t
       end
       else if c < 0 then begin
@@ -639,10 +639,10 @@ val rec split [k, a] (cmp: (k, k) -> int, x: k, consumes t: tree k a)
    [concat]. Thus, the left and right sub-trees are allowed to have arbitrary
    heights. *)
 
-val concat_or_join [k, a] (consumes t: Node { left: tree k a; key: k; value: option a; right: tree k a; height: unknown }) : tree k a =
-  match t.value with
+val concat_or_join [k, a] (consumes t: Node { left: tree k a; key: k; value_: option a; right: tree k a; height: unknown }) : tree k a =
+  match t.value_ with
   | Some { contents = d } ->
-      t.value <- d;
+      t.value_ <- d;
       join t
   | None ->
       concat (t.left, t.right)
@@ -670,7 +670,7 @@ val rec merge [k, a, b, c] (
            let root2 = split (cmp, s1.key, s2) in
            root2.left <- merge (cmp, f, s1.left, root2.left);
            root2.key <- s1.key;
-           root2.value <- f (s1.key, some s1.value, root2.value);
+           root2.value_ <- f (s1.key, some s1.value_, root2.value_);
            root2.right <- merge (cmp, f, s1.right, root2.right);
            concat_or_join root2
         | Empty ->
@@ -682,7 +682,7 @@ val rec merge [k, a, b, c] (
            let root1 = split (cmp, s2.key, s1) in
            root1.left <- merge (cmp, f, root1.left, s2.left);
            root1.key <- s2.key;
-           root1.value <- f (s2.key, root1.value, some s2.value);
+           root1.value_ <- f (s2.key, root1.value_, some s2.value_);
            root1.right <- merge (cmp, f, root1.right, s2.right);
            concat_or_join root1
         | Empty ->
@@ -706,7 +706,7 @@ val rec filter [k, a, b] (
       t
   | Node ->
       t.left <- filter (p, t.left);
-      t.value <- p (t.key, t.value);
+      t.value_ <- p (t.key, t.value_);
       t.right <- filter (p, t.right);
       concat_or_join t
   end
@@ -724,15 +724,15 @@ val rec partition [k, a, b, c] (
   | Node ->
       let ll, lr = partition (p, t.left) in
       let rl, rr = partition (p, t.right) in
-      match p (t.key, t.value) with
+      match p (t.key, t.value_) with
       | either::Left { contents = d } ->
          t.left <- ll;
-         t.value <- d;
+         t.value_ <- d;
          t.right <- rl;
          join t, concat (lr, rr)
       | either::Right { contents = d } ->
          t.left <- lr;
-         t.value <- d;
+         t.value_ <- d;
          t.right <- rr;
          concat (ll, rl), join t
       end
@@ -786,7 +786,7 @@ val rec next [k, a, post: perm]
           (* Continue. *)
           next it
 
-      | Node { left; key; value; right; height } ->
+      | Node { left; key; value_; right; height } ->
           (* The head tree has a root node. Split this node and push its
              sub-trees onto the stack. *)
           let stack = list::Cons {
@@ -803,9 +803,9 @@ val rec next [k, a, post: perm]
             consumes (
               left @ tree k a *
               key @ k *
-              value @ a *
+              value_ @ a *
               right @ tree k a *
-              t @ Node { left; key; value; right; height } *
+              t @ Node { left; key; value_; right; height } *
               ts @ list::list (tree k a) *
               it @ Ref { contents: (=stack, =release) } *
               p
@@ -830,8 +830,8 @@ val rec next [k, a, post: perm]
             pack release @ wand (stack @ list::list (tree k a)) post
             witness
               key @ k *
-              value @ a *
-              t @ Node { left; key; value; right; height } *
+              value_ @ a *
+              t @ Node { left; key; value_; right; height } *
               p;
 
             (* stash::unstash(); *)
@@ -846,9 +846,9 @@ val rec next [k, a, post: perm]
           in
 
           (* This assertion is superfluous. *)
-          assert surrender @ wand (key @ k * value @ a) (it @ iterator k a post);
+          assert surrender @ wand (key @ k * value_ @ a) (it @ iterator k a post);
 
-          either::left ((key, value, height), surrender)
+          either::left ((key, value_, height), surrender)
      end
   end
 
@@ -907,10 +907,10 @@ val bindings [k, a] duplicable k => duplicable a => (t: tree k a) : list::list (
    data structure. The other is that this allows us to store the comparison
    function. *)
 
-data mutable treeMap k (c : term) a =
+data mutable treeMap k (c : value) a =
   TreeMap { tree: tree k a; cmp: =c | c @ (k, k) -> int }
 
-val cardinal [k, c : term, a] (m: treeMap k c a) : int =
+val cardinal [k, c : value, a] (m: treeMap k c a) : int =
   cardinal m.tree
 
 (* -------------------------------------------------------------------------- *)
@@ -924,23 +924,23 @@ val create [k, a] (cmp: (k, k) -> int) : treeMap k cmp a =
 val singleton [k, a] (cmp: (k, k) -> int, consumes x: k, consumes d: a): treeMap k cmp a =
   TreeMap { tree = singleton (x, d); cmp }
 
-val is_empty [k, c: term, a] (m : treeMap k c a) : bool =
+val is_empty [k, c: value, a] (m : treeMap k c a) : bool =
   is_empty m.tree
 
-val add [k, c: term, a] (
+val add [k, c: value, a] (
   consumes x: k,
   consumes d: a,
   m: treeMap k c a
 ) : () =
   m.tree <- add (m.cmp, x, d, m.tree)
 
-val find [k, c: term, a] duplicable a => (
+val find [k, c: value, a] duplicable a => (
   x: k,
   m: treeMap k c a
 ) : option a =
   find (m.cmp, x, m.tree)
 
-val update [k, c: term, a, preserved : perm, consumed : perm] (
+val update [k, c: value, a, preserved : perm, consumed : perm] (
   x: k,
   m: treeMap k c a,
   f: (consumes a | preserved * consumes consumed) -> a
@@ -948,41 +948,41 @@ val update [k, c: term, a, preserved : perm, consumed : perm] (
 ) : () =
   update [k, a, preserved, consumed] (m.cmp, x, m.tree, f)
 
-val mem [k, c: term, a] (x: k, m: treeMap k c a) : bool =
+val mem [k, c: value, a] (x: k, m: treeMap k c a) : bool =
   mem (m.cmp, x, m.tree)
 
-val min_binding [k, c: term, a] duplicable k => duplicable a => (m : treeMap k c a) : option (k, a) =
+val min_binding [k, c: value, a] duplicable k => duplicable a => (m : treeMap k c a) : option (k, a) =
   min_binding m.tree
 
-val max_binding [k, c: term, a] duplicable k => duplicable a => (m : treeMap k c a) : option (k, a) =
+val max_binding [k, c: value, a] duplicable k => duplicable a => (m : treeMap k c a) : option (k, a) =
   max_binding m.tree
 
-val extract_min_binding [k, c: term, a] (m: treeMap k c a) : option (k, a) =
+val extract_min_binding [k, c: value, a] (m: treeMap k c a) : option (k, a) =
   match m.tree with
   | Empty ->
       none
   | Node ->
       let node = extract_min_binding m.tree in
       m.tree <- node.right;
-      some (node.key, node.value)
+      some (node.key, node.value_)
   end
 
-val extract_max_binding [k, c: term, a] (m: treeMap k c a) : option (k, a) =
+val extract_max_binding [k, c: value, a] (m: treeMap k c a) : option (k, a) =
   match m.tree with
   | Empty ->
       none
   | Node ->
       let node = extract_max_binding m.tree in
       m.tree <- node.left;
-      some (node.key, node.value)
+      some (node.key, node.value_)
   end
 
-val remove [k, c: term, a] (x: k, m: treeMap k c a) : option (k, a) =
+val remove [k, c: value, a] (x: k, m: treeMap k c a) : option (k, a) =
   let dst = newref () in
   m.tree <- remove (m.cmp, x, m.tree, dst);
   !dst
 
-val iter [k, c: term, a, p : perm] (
+val iter [k, c: value, a, p : perm] (
   m: treeMap k c a,
   f: (k, a | p) -> bool
   | p
@@ -993,18 +993,18 @@ val for_all =
   iter
 
 (* [exists] could be implemented directly, but an implementation in
-   terms of [for_all] is preferred, as a test of the type-checker. *)
+   values of [for_all] is preferred, as a test of the type-checker. *)
 
-val exists [k, c: term, a, p : perm] (
+val exists [k, c: value, a, p : perm] (
   m: treeMap k c a,
   f: (k, a | p) -> bool
  | p
 ) : bool =
-  not (for_all (m, fun (key: k, value: a | p) : bool =
-    not (f (key, value))
+  not (for_all (m, fun (key: k, value_: a | p) : bool =
+    not (f (key, value_))
   ))
 
-val map [k, c: term, a1, a2, b, p : perm] duplicable k => (
+val map [k, c: value, a1, a2, b, p : perm] duplicable k => (
   consumes m: treeMap k c a1,
   f: (k, consumes d: a1 | p) -> (b | d @ a2)
   | p
@@ -1013,10 +1013,10 @@ val map [k, c: term, a1, a2, b, p : perm] duplicable k => (
 
 (* [copy] could be defined directly, but is here defined as a special case of [map]. *)
 
-val copy [k, c: term, a, b] duplicable k => (m: treeMap k c a, f: a -> b) : treeMap k c b =
+val copy [k, c: value, a, b] duplicable k => (m: treeMap k c a, f: a -> b) : treeMap k c b =
   map (m, fun (x: k, d: a) : b = f d)
 
-val fold_ascending [k, c: term, a1, a2, b, p : perm] (
+val fold_ascending [k, c: value, a1, a2, b, p : perm] (
   consumes m: treeMap k c a1,
   consumes accu: b,
   f: (k, consumes d: a1, consumes accu: b | p) -> (b | d @ a2)
@@ -1024,7 +1024,7 @@ val fold_ascending [k, c: term, a1, a2, b, p : perm] (
 ) : (b | m @ treeMap k c a2) =
   fold_ascending (f, m.tree, accu)
 
-val fold_descending [k, c: term, a1, a2, b, p : perm] (
+val fold_descending [k, c: value, a1, a2, b, p : perm] (
   consumes m: treeMap k c a1,
   consumes accu: b,
   f: (k, consumes d: a1, consumes accu: b | p) -> (b | d @ a2)
@@ -1035,7 +1035,7 @@ val fold_descending [k, c: term, a1, a2, b, p : perm] (
 val fold =
   fold_ascending
 
-val merge [k, cmp: term, a, b, c] (
+val merge [k, cmp: value, a, b, c] (
   consumes m1: treeMap k cmp a,
   consumes m2: treeMap k cmp b,
   f: (k, consumes option a, consumes option b) -> option c
@@ -1043,22 +1043,22 @@ val merge [k, cmp: term, a, b, c] (
   m1.tree <- merge (m1.cmp, f, m1.tree, m2.tree);
   m1
 
-val split [k, c: term, a] (
+val split [k, c: value, a] (
   x: k,
   consumes m: treeMap k c a
 ) : (treeMap k c a, option a, treeMap k c a) =
   let root = split (m.cmp, x, m.tree) in
   m.tree <- root.left;
-  m, root.value, TreeMap { tree = root.right; cmp = m.cmp }
+  m, root.value_, TreeMap { tree = root.right; cmp = m.cmp }
 
-val filter [k, c: term, a, b] (
+val filter [k, c: value, a, b] (
   consumes m: treeMap k c a,
   p: (k, consumes a) -> option b
 ) : treeMap k c b =
   m.tree <- filter (p, m.tree);
   m
 
-val partition [k, cmp: term, a, b, c] (
+val partition [k, cmp: value, a, b, c] (
   consumes m: treeMap k cmp a,
   p: (k, consumes a) -> either::either b c
 ) : (treeMap k cmp b, treeMap k cmp c) =
@@ -1069,21 +1069,21 @@ val partition [k, cmp: term, a, b, c] (
 (* We might wish to make [compare] a unary function
    of [cmp] to a binary function of [(m1, m2)]. *)
 
-val compare [k, c: term, a] (
+val compare [k, c: value, a] (
   cmp: (a, a) -> int,
   m1: treeMap k c a,
   m2: treeMap k c a
 ) : int =
   compare (m1.cmp, cmp, m1.tree, m2.tree)
 
-val equal [k, c: term, a] (
+val equal [k, c: value, a] (
   cmp: (a, a) -> int,
   m1: treeMap k c a,
   m2: treeMap k c a
 ) : bool =
   compare (cmp, m1, m2) = 0
 
-val bindings [k, c: term, a] duplicable k => duplicable a => (
+val bindings [k, c: value, a] duplicable k => duplicable a => (
   m: treeMap k c a
 ) : list::list (k, a) =
   bindings m.tree

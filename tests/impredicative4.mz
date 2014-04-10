@@ -19,10 +19,10 @@ val test3 = test1 test2
 
 Internal representation for "id":
 
-[α, x : term]
+[α, x : value]
   (=x | x @ α) -> (
-    [f : term] (=f | f @
-      [β, /d1 : term, /d2 : term, /r2 : term]
+    [f : value] (=f | f @
+      [β, /d1 : value, /d2 : value, /r2 : value]
         (=/r2 | /r2 @ (=/d1, =/d2) ∗ /d1 @ α ∗ /d2 @ β) ->
         (α | /d1 @ α ∗ /d2 @ β)
       ∗ x @ α) -> (α | x @ α)
@@ -31,8 +31,8 @@ Internal representation for "id":
 
 Internal representation for "test1":
 
-[f : term] (=f | x @ foo ∗ f @
-  [β, /d1 : term, /d2 : term, /r2 : term]
+[f : value] (=f | x @ foo ∗ f @
+  [β, /d1 : value, /d2 : value, /r2 : value]
     (=/r2 | /r2 @ (=/d1, =/d2) ∗ /d1 @ foo ∗ /d2 @ β) ->
     (foo | /d1 @ foo ∗ /d2 @ β))
   -> (foo | x @ foo)
@@ -40,7 +40,7 @@ Internal representation for "test1":
 
 Internal representation for "test2":
 
-[b, /d1 : term, /d2 : term, /r2 : term]
+[b, /d1 : value, /d2 : value, /r2 : value]
   (=/r2 | /r2 @ (=/d1, =/d2) ∗ /d2 @ b ∗ /d1 @ foo)
 -> (foo | /d2 @ b)
 

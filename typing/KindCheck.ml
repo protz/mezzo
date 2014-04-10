@@ -58,12 +58,12 @@ module D =
 
 (* A variable bound by little-lambda is viewed both as a term variable (i.e. it
    can occur within an expression) and as a type variable (i.e. it can occur
-   within a type, and has kind [KTerm]). On the other hand, a variable bound by
+   within a type, and has kind [KValue]). On the other hand, a variable bound by
    capital-Lambda is only a type variable -- it cannot be used at an [EVar] node.
    This ensures that types can be erased. In order to impose this restriction,
    we map each variable to a ``variety''. Note that we could perhaps instead
    encode this distinction into the kinds, by distinguishing [KRealTerm] and
-   [KTerm]. The former would be a sub-kind of the latter. *)
+   [KValue]. The former would be a sub-kind of the latter. *)
 
 type variety =
   | Real      (* can be used at an [EVar] node *)
@@ -488,13 +488,13 @@ let dissolve env m =
 (* ---------------------------------------------------------------------------- *)
 
 (* [bv loc accu p] adds to [accu] the names bound by the pattern [p]. For each
-   name, we add a triple of the name, its kind (which is always [KTerm]), and
+   name, we add a triple of the name, its kind (which is always [KValue]), and
    a location. *)
 
 let rec bv loc (accu : type_binding list) (p : pattern) : type_binding list =
   match p with
   | PVar x ->
-      (x, KTerm, loc) :: accu
+      (x, KValue, loc) :: accu
   | PTuple ps ->
       List.fold_left (bv loc) accu ps
   | PConstruct (_, fps) ->
@@ -506,7 +506,7 @@ let rec bv loc (accu : type_binding list) (p : pattern) : type_binding list =
   | PConstraint (p, _) ->
       bv loc accu p
   | PAs (p, x) ->
-      (x, KTerm, loc) :: bv loc accu p
+      (x, KValue, loc) :: bv loc accu p
   | PAny ->
       accu
 
@@ -647,7 +647,7 @@ let check_facts env name bindings facts =
    this assumption; they extend the environment before invoking [check] or
    [infer]. In principle, the [_reset] variant is used whenever we switch from
    some kind other than [KType] to kind [KType]. As a result, when checking a
-   type of kind [KTerm] or [KPerm], it is irrelevant which variant one uses. *)
+   type of kind [KValue] or [KPerm], it is irrelevant which variant one uses. *)
 
 (* In this code, the varieties are not relevant, as we will never encounter
    an [EVar] node anyway. We use [Fictional] everywhere. *)
@@ -732,7 +732,7 @@ and infer env s (ty : typ) : kind =
       KType
 
   | TySingleton ty ->
-      check_reset env ty KTerm;
+      check_reset env ty KValue;
       KType
 
   | TyApp (ty1, ty2s) ->
@@ -759,7 +759,7 @@ and infer env s (ty : typ) : kind =
       infer_reset env ty
 
   | TyAnchoredPermission (ty1, ty2) ->
-      check_reset env ty1 KTerm;
+      check_reset env ty1 KValue;
       check_reset env ty2 KType;
       KPerm
 
@@ -771,7 +771,7 @@ and infer env s (ty : typ) : kind =
   | TyNameIntro (x, ty) ->
       (* In principle, this name has already been bound in the
          environment, via a previous call to [reset]. *)
-      assert (find_kind env (Unqualified x) = KTerm);
+      assert (find_kind env (Unqualified x) = KValue);
       check env s ty KType;
       KType
 
@@ -931,7 +931,7 @@ let rec check_pattern env (p : pattern) : unit =
       check_pattern env p;
       check_reset env ty KType
   | PVar x ->
-      assert (find_kind env (Unqualified x) = KTerm)
+      assert (find_kind env (Unqualified x) = KValue)
   | PTuple ps ->
       List.iter (check_pattern env) ps
   | PConstruct (_, fps) ->
@@ -995,10 +995,10 @@ and check_expression env (expr : expression) : unit =
       ignore (infer_reset env t')
 
   | EVar x ->
-      (* [x] must have kind [KTerm]. *)
+      (* [x] must have kind [KValue]. *)
       let k = find_kind env x in
-      if k <> KTerm then
-        mismatch env KTerm k;
+      if k <> KValue then
+        mismatch env KValue k;
       (* [x] must have variety [Real]. This is the only place where
          varieties matter. *)
       if find_variety env x <> Real then

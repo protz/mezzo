@@ -119,7 +119,7 @@ let mk_concrete pos (dc, all_fields) adopts =
         TyBar (t, MzList.reduce (fun acc x -> TyStar (acc, x)) permissions)
   in
   let t = List.fold_right (fun name t ->
-    TyExists ((name, Kind.KTerm, pos), t)
+    TyExists ((name, Kind.KValue, pos), t)
     ) binders t
   in
   t

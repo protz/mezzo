@@ -15,7 +15,7 @@ data mutable ref a =
    function [f] that requires a copy of itself to be stored in [r]. Note
    that this is a duplicable permission. *)
 
-data narcissic (r : term) a b =
+data narcissic (r : value) a b =
   (* TEMPORARY the name introduction « x: ... » is a hack so that the
    * type-checker doesn't jump into an infinite loop *)
   Narcissic { content : (x: a | r @ narcissic r a b) -> b }

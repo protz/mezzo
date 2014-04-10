@@ -44,7 +44,7 @@
 (* Other tokens. *)
 
 %token          OPEN BUILTIN
-%token          TERM TYPE PERM
+%token          VALUE TYPE PERM
 %token          UNKNOWN DYNAMIC EXCLUSIVE MUTABLE
 %token          DATA ALIAS BAR UNDERSCORE
 %token          LBRACKET RBRACKET LBRACE RBRACE LPAREN RPAREN
@@ -253,8 +253,8 @@ type_binding:
 atomic_kind:
 | LPAREN kind = kind RPAREN
     { kind }
-| TERM
-    { KTerm }
+| VALUE
+    { KValue }
 | TYPE
     { KType }
 | PERM
@@ -727,7 +727,7 @@ raw_loose_pattern:
 
 variable_as_term_binding:
   x = variable
-    { x, KTerm, ($startpos(x), $endpos) }
+    { x, KValue, ($startpos(x), $endpos) }
 
 (* ---------------------------------------------------------------------------- *)
 

@@ -1,13 +1,13 @@
 val assign0 [a, b] (consumes x: ref a, consumes y: b): (| x @ ref b) =
   (:=) (x, y)
 
-val assign1 [c: term] (consumes x: ref (=c), y: unknown) : (| x @ ref (=y)) =
+val assign1 [c: value] (consumes x: ref (=c), y: unknown) : (| x @ ref (=y)) =
   (:=) (x, y)
 
 val assign2: (consumes x: ref unknown, y: unknown) -> (| x @ ref (=y)) =
   (:=)
 
-val assign1a [c: term] (consumes x: ref (=c), y: unknown) : (| x @ ref (=y)) =
+val assign1a [c: value] (consumes x: ref (=c), y: unknown) : (| x @ ref (=y)) =
   assign0 (x, y)
 
 val assign2a: (consumes x: ref unknown, y: unknown) -> (| x @ ref (=y)) =

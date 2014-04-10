@@ -1,5 +1,5 @@
 type kind =
-  | KTerm
+  | KValue
   | KType
   | KPerm
   | KArrow of kind * kind
@@ -29,7 +29,7 @@ let arity k =
 
 let rec print =
   function
-  | KTerm ->
+  | KValue ->
       "term"
   | KPerm ->
       "perm"

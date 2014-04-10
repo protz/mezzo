@@ -4,7 +4,7 @@ data mlist a =
 
 val finish (): () = ()
 
-data result a (l: term) =
+data result a (l: value) =
   | None {| l @ mlist a}
   | Some { contents: {p: perm} (
       elt: a | p * finish @ (| consumes (p * elt @ a)) -> (| l @ mlist a)

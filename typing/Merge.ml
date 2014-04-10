@@ -288,7 +288,7 @@ let actually_merge_envs (top: env) ?(annot: typ option) (left: env * var) (right
     let left_env, left_root = left in
     let right_env, right_root = right in
     let root_name = fresh_auto_name "merge_root" in
-    let dest_env, dest_root = bind_rigid dest_env (root_name, KTerm, location dest_env) in
+    let dest_env, dest_root = bind_rigid dest_env (root_name, KValue, location dest_env) in
     push_job (left_root, right_root, dest_root);
 
     (* All bound types are kept, so remember that we know how these are mapped. *)
@@ -506,7 +506,7 @@ let actually_merge_envs (top: env) ?(annot: typ option) (left: env * var) (right
           dest_env, dest_p
       | None ->
           let name = fresh_auto_name "merge_var" in
-          let dest_env, dest_p = bind_rigid dest_env (name, KTerm, location left_env) in
+          let dest_env, dest_p = bind_rigid dest_env (name, KValue, location left_env) in
           let dest_env = add_location dest_env dest_p (location right_env) in
           push_job (left_p, right_p, dest_p);
           Log.debug ~level:4
@@ -686,7 +686,7 @@ let actually_merge_envs (top: env) ?(annot: typ option) (left: env * var) (right
                 | Some dest_p ->
                     Some (left_env, right_env, dest_env, TyOpen dest_p)
                 | None ->
-                    Log.check (k <> KTerm) "Remove this when we have a testcase, \
+                    Log.check (k <> KValue) "Remove this when we have a testcase, \
                       and try to understand what's happening, and whether it's \
                       correct!";
 
@@ -1045,7 +1045,7 @@ let actually_merge_envs (top: env) ?(annot: typ option) (left: env * var) (right
         if simple t then
           env, t
         else
-          let env, point = bind_rigid env (fresh_auto_name "mtwu", KTerm, location env) in
+          let env, point = bind_rigid env (fresh_auto_name "mtwu", KValue, location env) in
           let env = Permissions.add env point t in
           let t = List.find (fun x -> not (simple x)) (get_permissions env point) in
           env, t

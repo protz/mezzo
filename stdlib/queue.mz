@@ -1,7 +1,7 @@
 (* A FIFO queue implementation, adapted from OCaml's queue.ml. *)
 
 data mutable cell a =
-  Cell { value: a; next: dynamic }
+  Cell { value_: a; next: dynamic }
 
 (* The FIFO structure is implemented as a cyclic list. The
    [fifo] object contains a pointer to the last element of
@@ -21,7 +21,7 @@ val create [a] () : fifo a =
 
 val internal_insert [a] (consumes x: a, q: fifo a, insertAtEnd: bool): () =
   let c = Cell {
-    value = x; next = ()
+    value_ = x; next = ()
   } in
   match q with
   | Empty ->
@@ -73,7 +73,7 @@ val retrieve [a] (q: fifo a) : option a =
       assert head @ cell a;
       (* The head cell must not be given back to the queue. We need to assert
         the ownership of [head.value], whose type is not duplicable. *)
-      some head.value
+      some head.value_
  end
 
 val peek [a] duplicable a => (q: fifo a) : option a =
@@ -87,7 +87,7 @@ val peek [a] duplicable a => (q: fifo a) : option a =
        end
       in
       taking head from q begin
-       some head.value
+       some head.value_
       end
   end
 
@@ -137,8 +137,8 @@ val fold [a, b] (
   | NonEmpty { tail } ->
       let rec fold (consumes accu: b, c: dynamic | q @ fifo a) : b =
        take c from q;
-        let Cell { next; value } = c in
-        let accu = f (value, accu) in
+        let Cell { next; value_ } = c in
+        let accu = f (value_, accu) in
        give c to q;
         if tail == c then
           accu

@@ -6,21 +6,21 @@ val receive: unknown
 val send_ack: unknown
 
 (* Sender's endpoint states *)
-data send_ready (ep: term) a =
+data send_ready (ep: value) a =
   S0 { contents: {p: perm} (|
       p * send @ (=ep, consumes x: a | consumes p) -> (| ep @ send_standby ep a x)
   )}
-and send_standby (ep: term) a (x: term) =
+and send_standby (ep: value) a (x: value) =
   S1 { contents: {q: perm} (|
       q * receive_ack @ (=ep | consumes q) -> (| x @ a * ep @ send_ready ep a)
   )}
 
 (* Receiver's endpoint states *)
-data receive_ready (ep: term) a =
+data receive_ready (ep: value) a =
   R0 { contents: {p: perm} (|
       p * receive @ (=ep | consumes p) -> (x: a | ep @ receive_standby ep a x)
   )}
-and receive_standby (ep: term) a (x: term) =
+and receive_standby (ep: value) a (x: value) =
   R1 { contents: {q: perm} (|
       q * send_ack @ (=ep | consumes (x @ a * q)) -> (| ep @ receive_ready ep a)
   )}

@@ -2,13 +2,13 @@ open either
 
 (* Idioms. *)
 
-alias convertible (c : term) (pre : perm) (post : perm) : perm =
+alias convertible (c : value) (pre : perm) (post : perm) : perm =
   c @ (| consumes pre) -> (| post)
 
-alias osconvertible (c : term) (pre : perm) (post : perm) : perm =
+alias osconvertible (c : value) (pre : perm) (post : perm) : perm =
   {p : perm} (p * convertible c (p * pre) post)
 
-alias borrowed (c : term) a (post : perm) =
+alias borrowed (c : value) a (post : perm) =
   (x: a | osconvertible c (x @ a) post)
 
 (* Definition of generic (OO-style) iterators. *)

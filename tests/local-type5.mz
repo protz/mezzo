@@ -1,6 +1,6 @@
 abstract t +a
 
-val f [x: term] (): (t (=x)) = fail
+val f [x: value] (): (t (=x)) = fail
 
 val z = 
   if true then begin

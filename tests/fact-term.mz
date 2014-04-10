@@ -1,5 +1,5 @@
-abstract foo (x : type) : term
+abstract foo (x : type) : value
 fact duplicable (foo x)
 (* this should be rejected, as it does not make sense to
-   assert a fact about a type of kind term; actually, this
+   assert a fact about a type of kind value; actually, this
    example should be rejected by the kind-checking algorithm *)

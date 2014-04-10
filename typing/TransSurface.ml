@@ -222,7 +222,7 @@ and translate_arrow_type env domain codomain =
   (* Bind a fresh variable to stand for the root of the function
      argument. Bind the names introduced in the left-hand side. *)
   let root = fresh_var "/root" in
-  let bindings = (root, KTerm, location env) :: names domain in
+  let bindings = (root, KValue, location env) :: names domain in
   (* Extend the environment with these bindings, so that we can
      translate [domain] and [codomain] and construct the body of
      the desired universal type. *)
@@ -705,7 +705,7 @@ let rec translate_expr (env: env) (expr: expression): E.expression =
 
       (* Introduce a fresh name for the argument. *)
       let x = fresh_var "/arg" in
-      let env = extend env [ x, KTerm, location env ] in
+      let env = extend env [ x, KValue, location env ] in
       (* Introduce "let p = x in ..." in front of the body. This is subtle: by
          doing so, we capture the references to [bv p] within [body], so that
          these names now refer to this [let] definition, instead of referring

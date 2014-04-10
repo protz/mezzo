@@ -36,15 +36,15 @@ val () =
   d [{a} list (int, wref a)] ();
   x [marray int] ();
   x [{a} ref a] ();
-  d [{x:term} (=x)] ();
+  d [{x:value} (=x)] ();
   x [ref int] ();
   d [( | empty)] ();
   x [(ref int | empty)] ();
-  x [{y:term} (ref int | y @ (int, int))] ();
-  d [{x:term} lock (x @ ref int)] ();
+  x [{y:value} (ref int | y @ (int, int))] ();
+  d [{x:value} lock (x @ ref int)] ();
   (* d [(x: unknown, y: unknown | x @ int * y @ (int, int))] (); BUG *)
-  d [{x:term,y:term} (=x, =y | x @ int * y @ (int, int))] ();
-  d [{y:term} (int | y @ (int, int))] ();
+  d [{x:value,y:value} (=x, =y | x @ int * y @ (int, int))] ();
+  d [{y:value} (int | y @ (int, int))] ();
   d [copycat int] ();
   x [copycat (ref int)] ();
   d [copycat (copycat int, copycat int)] ();

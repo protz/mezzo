@@ -76,7 +76,7 @@ val to_array [a] (consumes t: sparray a): marray a =
    together. It will be used to define the one-shot function returned
    by [set]. *)
 
-val retrieve [a, spa: term, spa': term]
+val retrieve [a, spa: value, spa': value]
   ( consumes ( | (spa' @ sparray a)) | consumes (spa @ ref (
       RUndo {
        descendant: =spa'; offset: int; element: a

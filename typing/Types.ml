@@ -369,7 +369,7 @@ let assert_concrete t =
 let is_concrete t =
   match t with TyConcrete _ -> true | _ -> false;;
 
-let is_term env v = (get_kind env v = KTerm);;
+let is_term env v = (get_kind env v = KValue);;
 let is_perm env v = (get_kind env v = KPerm);;
 let is_type env v = (snd (Kind.as_arrow (get_kind env v)) = KType);;
 

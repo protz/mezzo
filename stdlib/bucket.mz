@@ -7,7 +7,7 @@
 
 data bucket k a =
   | BNil
-  | mutable BCons { key: k; value: a; tail: bucket k a }
+  | mutable BCons { key: k; value_: a; tail: bucket k a }
 
 (* -------------------------------------------------------------------------- *)
 
@@ -34,8 +34,8 @@ val rec assoc [k, a, p : perm] duplicable a => (
   match b with
   | BNil ->
       none
-  | BCons { key; value; tail } ->
-      if equal (x, key) then some value else assoc (equal, x, tail)
+  | BCons { key; value_; tail } ->
+      if equal (x, key) then some value_ else assoc (equal, x, tail)
   end
 
 val rec assoc_all [k, a, p : perm] duplicable a => (
@@ -47,8 +47,8 @@ val rec assoc_all [k, a, p : perm] duplicable a => (
   match b with
   | BNil ->
       list::nil
-  | BCons { key; value; tail } ->
-      if equal (x, key) then list::cons (value, assoc_all (equal, x, tail)) else assoc_all (equal, x, tail)
+  | BCons { key; value_; tail } ->
+      if equal (x, key) then list::cons (value_, assoc_all (equal, x, tail)) else assoc_all (equal, x, tail)
   end
 
 (* -------------------------------------------------------------------------- *)
@@ -70,16 +70,16 @@ val remove [k, a, p : perm] (
      head after the removal. The loop returns the value that was found, if
      one was found. *)
   let rec loop (
-    consumes prev: BCons { key: k; value: a; tail = this },
+    consumes prev: BCons { key: k; value_: a; tail = this },
     consumes this: bucket k a
   | p) : (option a | prev @ bucket k a) =
     match this with
     | BNil ->
         none
-    | BCons { key; value } ->
+    | BCons { key; value_ } ->
         if ok key then begin
          prev.tail <- this.tail;
-         some value
+         some value_
        end
        else
          loop (this, this.tail)
@@ -90,10 +90,10 @@ val remove [k, a, p : perm] (
   | BNil ->
       (* If the list is empty, return it. *)
       b, none
-  | BCons { key; value } ->
+  | BCons { key; value_ } ->
       if ok key then
        (* If the first cell matches, return the list tail. *)
-       b.tail, some value
+       b.tail, some value_
       else
        (* Otherwise, enter the above loop, and return the list head. *)
        b, loop (b, b.tail)
@@ -119,20 +119,20 @@ val insert [k, a] (
   | None ->
       b
   | Some { contents = v } ->
-      BCons { key = x; value = v; tail = b }
+      BCons { key = x; value_ = v; tail = b }
   end
 
 (* Update or removal of the list head. *)
 
 val update_or_remove [k, a] (
-  consumes b: BCons { key: k; value: unknown; tail: bucket k a },
+  consumes b: BCons { key: k; value_: unknown; tail: bucket k a },
   consumes ov: option a
 ) : bucket k a =
   match ov with
   | None ->
       b.tail
   | Some { contents = v } ->
-      b.value <- v;
+      b.value_ <- v;
       b
   end
 
@@ -160,7 +160,7 @@ val update [k, a, pre : perm, post : perm] (
      assumption that [prev] does not satisfy [ok], so it remains the list
      head after the loop. *)
   let rec loop (
-    consumes prev: BCons { key: k; value: a; tail = this },
+    consumes prev: BCons { key: k; value_: a; tail = this },
     consumes this: bucket k a
   | consumes x @ k * consumes pre
   ) : (| prev @ bucket k a | post) =
@@ -168,10 +168,10 @@ val update [k, a, pre : perm, post : perm] (
     | BNil ->
         (* The desired key was not found. Invoke [f] with argument [none]. *)
         prev.tail <- insert (x, f none, this)
-    | BCons { key; value } ->
+    | BCons { key; value_ } ->
         if equal (x, key) then
          (* The desired key was found. Invoke [f] with argument [some value]. *)
-         prev.tail <- update_or_remove (this, f (some value))
+         prev.tail <- update_or_remove (this, f (some value_))
        else
          loop (this, this.tail)
     end
@@ -181,10 +181,10 @@ val update [k, a, pre : perm, post : perm] (
   | BNil ->
       (* The desired key was not found. Invoke [f] with argument [none]. *)
       insert (x, f none, b)
-  | BCons { key; value } ->
+  | BCons { key; value_ } ->
       if equal (x, key) then
        (* The desired key was found. Invoke [f] with argument [some value]. *)
-       update_or_remove (b, f (some value))
+       update_or_remove (b, f (some value_))
       else begin
        (* Otherwise, enter the above loop. The list head does not change. *)
        loop (b, b.tail);
@@ -209,8 +209,8 @@ val rec fold [k, a, b] (
   match this with
   | BNil ->
       accu
-  | BCons { key; value; tail } ->
-      fold (tail, f (key, value, accu), f)
+  | BCons { key; value_; tail } ->
+      fold (tail, f (key, value_, accu), f)
   end
 
 (* -------------------------------------------------------------------------- *)
@@ -221,7 +221,7 @@ val rec fold [k, a, b] (
 
 val rec iter_bucket_down [k, a, p : perm] (
   consumes b: bucket k a,
-  f: (consumes b: BCons { key: k; value: a; tail: unknown } | p) -> ()
+  f: (consumes b: BCons { key: k; value_: a; tail: unknown } | p) -> ()
   | p
 ) : () =
   match b with

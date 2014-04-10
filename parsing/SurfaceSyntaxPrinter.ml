@@ -151,7 +151,7 @@ and binding (x, kind, _) =
   match kind with
   | KType ->
       unqualified_variable x
-  | KTerm
+  | KValue
   | KPerm ->
       unqualified_variable x ^^ ccolon ^^ print_kind kind
   | KArrow _ ->

@@ -1,2 +1,2 @@
 (* See the .mzi file *)
-val f [n: term] (i: int | n @ int) : () = ()
+val f [n: value] (i: int | n @ int) : () = ()

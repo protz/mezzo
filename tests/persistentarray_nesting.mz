@@ -35,7 +35,7 @@ and mutable region =
 
 (* The representation of points is unchanged. *)
 
-and mutable point (r : term) a =
+and mutable point (r : value) a =
 | PFlat { contents: marray a;                                unused1: (); unused2: () }
 | PUndo { previous: (p: unknown | nests r (p @ point r a)); offset: int; element:  a }
 

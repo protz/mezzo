@@ -55,7 +55,7 @@ let map_tapp f = function
  * bound term. *)
 let rec collect_pattern acc = function
   | PVar (name, p) ->
-      (name, KTerm, p) :: acc
+      (name, KValue, p) :: acc
   | PTuple patterns ->
       List.fold_left collect_pattern acc patterns
   | PConstruct (_, fields) ->
@@ -854,7 +854,7 @@ module ExprPrinter = struct
     | ELambda (arg, return_type, body) ->
         (* Bind the function argument. Its scope is [body] only, not the
            argument and return types. *)
-        let env, { subst_expr; _ } = bind_evars env [ fresh_auto_name "arg", KTerm, location env ] in
+        let env, { subst_expr; _ } = bind_evars env [ fresh_auto_name "arg", KValue, location env ] in
         let x = subst_expr (EVar 0) in
         let body = subst_expr body in
         (* Print. *)

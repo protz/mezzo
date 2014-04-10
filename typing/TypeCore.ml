@@ -227,7 +227,7 @@ and var_descr = {
   names: name list;
   locations: location list;
 
-  (* The kind of this variable. If kind is KTerm, then the [raw_binding] is a
+  (* The kind of this variable. If kind is KValue, then the [raw_binding] is a
    * [term_binder]. *)
   kind: kind;
 
@@ -1250,7 +1250,7 @@ let top_fact =
 
 let mkfact k =
   match k with
-  | KTerm ->
+  | KValue ->
       None
   | _ ->
       top_fact
@@ -1275,7 +1275,7 @@ let bind_rigid env (name, kind, location) =
   let point, state = PersistentUnionFind.create descr env.state in
   let extra_descr =
     match kind with
-    | KTerm ->
+    | KValue ->
         DTerm { permissions = initial_permissions_for_point point }
     | _ ->
         DNone

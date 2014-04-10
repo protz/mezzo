@@ -1,5 +1,5 @@
 data t a =
-  | {u, x: term, y: term } A { x: =x; y: =y | x @ a * y @ u }
+  | {u, x: value, y: value } A { x: =x; y: =y | x @ a * y @ u }
 
 val v: t int =
   A { x = 1; y = () }

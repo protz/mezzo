@@ -1,11 +1,11 @@
 data mutable tree k a =
   | Empty
-  | Node { left: tree k a; key: k; value: a; right: tree k a; height: int }
+  | Node { left: tree k a; key: k; value_: a; right: tree k a; height: int }
 
 val make [k, a] () : tree k a =
   Empty
 
-data mutable treeMap k (c : term) a =
+data mutable treeMap k (c : value) a =
   TreeMap { tree: tree k a; cmp: =c | c @ (k, k) -> int }
 
 val make [k, a] (cmp: (k, k) -> int) : treeMap k cmp a =

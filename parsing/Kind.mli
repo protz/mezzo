@@ -6,7 +6,7 @@
    left-hand argument of an arrow kind is never itself an arrow kind). *)
 
 type kind =
-  | KTerm
+  | KValue
   | KType
   | KPerm
   | KArrow of kind * kind

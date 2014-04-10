@@ -4,7 +4,7 @@ open list
 data mutable node a =
   Node {
     neighbors: list dynamic;
-    value: a;
+    value_: a;
     seen: bool;
   }
 
@@ -17,7 +17,7 @@ val _ =
   let g: graph int =
     let x = Node {
       neighbors = ();
-      value = 10;
+      value_ = 10;
       seen = false;
     } in
     x.neighbors <- cons [dynamic] (x, nil);
@@ -30,7 +30,7 @@ val _ =
     let rec dfs (n: dynamic | g @ graph a * work_list @ ref (list dynamic)): () =
       take n from g;
       if not n.seen then begin
-        f n.value;
+        f n.value_;
         work_list := append (n.neighbors, !work_list);
         n.seen <- true;
       end;

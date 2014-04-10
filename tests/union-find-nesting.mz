@@ -8,13 +8,13 @@ data mutable state =
   UnionFind
 
 (** An element in the union-find is either a [link] or a [root]. *)
-data mutable content (s: term) a =
+data mutable content (s: value) a =
   | Link { link: element s a }
   | Root { descr: a }
 
 (** And this is the interface that we expose to the client. I wish I had type
  * abbreviations... *)
-and element (s: term) a =
+and element (s: value) a =
   | Element { element: (element: unknown | nests s (element @ content s a)) }
 
 
@@ -106,7 +106,7 @@ val find [a] duplicable a => (s: state, x: element s a): a =
   let elt = r.element in
   (* Now we need to access the contents of [elt]. Focus it. *)
   focus [(elt @ content s a)] s;
-  let value =
+  let value_ =
     (* Again, we assert dynamically that [repr] returns a [Root], not a [Link]. *)
     match elt with
     | Root ->
@@ -117,8 +117,8 @@ val find [a] duplicable a => (s: state, x: element s a): a =
   in
   (* And once we're done looking up [elt], we give it back to [s]. *)
   defocus (* [(elt @ content s a)] *) s;
-  (* [value] has type [a] which is duplicable, so we still have "value @ a" at
+  (* [value_] has type [a] which is duplicable, so we still have "value_ @ a" at
    * that stage. As far as I know, this is the only place where we use the
    * "duplicable a"  hypothesis; I left it as a precondition on all other
    * functions to catch client code errors as early as possible. *)
-  value
+  value_

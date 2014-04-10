@@ -5,24 +5,24 @@
 
 data mutable tree a =
   | Null
-  | Node { left: tree a; value: a; right: tree a }
+  | Node { left: tree a; value_: a; right: tree a }
 
 val rec removeAux [a] (
-  consumes pp: Node { left = p; value: a; right: tree a },
-  consumes p: Node { left: tree a; value: a; right: tree a }
+  consumes pp: Node { left = p; value_: a; right: tree a },
+  consumes p: Node { left: tree a; value_: a; right: tree a }
 ) : (a | pp @ tree a) =
   if p.left then
     removeAux (p, p.left)
   else begin
     pp.left <- p.right;
-    p.value
+    p.value_
   end
 
 val remove [a] (
-  consumes t: Node { left: tree a; value: a; right: tree a }
+  consumes t: Node { left: tree a; value_: a; right: tree a }
 ) : (a, tree a) =
   if t.left then
     removeAux(t, t.left), t
   else
-    t.value, t.right
+    t.value_, t.right
 

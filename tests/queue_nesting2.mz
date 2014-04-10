@@ -8,9 +8,9 @@ open nest
    been extracted, has type [Garbage]. This is used to compensate
    for the fact that [f] cannot abandon a cell. *)
 
-data mutable cell (f : term) a =
-| Cell    { value: a; next: (n: unknown | nests f (n @ cell f a)) }
-| Garbage { value: unknown; next: unknown }
+data mutable cell (f : value) a =
+| Cell    { value_: a; next: (n: unknown | nests f (n @ cell f a)) }
+| Garbage { value_: unknown; next: unknown }
 
 (* TEMPORARY I would like the fifo object itself to adopt the cells,
    but this doesn't work, because an algebraic data type definition
@@ -30,7 +30,7 @@ val create [a] () : fifo a =
 
 val internal_insert [a] (consumes x: a, q: fifo a, insertAtEnd: bool): () =
   let c = Cell {
-    value = x; next = ()
+    value_ = x; next = ()
   } in
   match q with
   | Empty { contents = (r, length, ()) } ->
@@ -82,8 +82,8 @@ val retrieve [a] (q: fifo a) : option a =
         is not required. *)
       assert head @ cell a;
       (* The head cell must not be given back to the queue. We need to assert
-        the ownership of [head.value], whose type is not duplicable. *)
-      some head.value
+        the ownership of [head.value_], whose type is not duplicable. *)
+      some head.value_
  end
 
 val peek [a] duplicable a => (q: fifo a) : option a =
@@ -97,7 +97,7 @@ val peek [a] duplicable a => (q: fifo a) : option a =
        end
       in
       taking head from q begin
-       some head.value
+       some head.value_
       end
   end
 
@@ -147,8 +147,8 @@ val fold [a, b] (
   | NonEmpty { tail } ->
       let rec fold (consumes accu: b, c: dynamic | q @ fifo a) : b =
        take c from q;
-        let Cell { next; value } = c in
-        let accu = f (value, accu) in
+        let Cell { next; value_ } = c in
+        let accu = f (value_, accu) in
        give c to q;
         if tail == c then
           accu

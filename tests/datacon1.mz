@@ -1,5 +1,5 @@
 data t =
-  | {x: term} A { x: =x; y: =x }
+  | {x: value} A { x: =x; y: =x }
 
 val v: t =
   let x = () in

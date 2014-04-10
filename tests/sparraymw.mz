@@ -11,7 +11,7 @@ mutable data repr a b =
   | RFlat { contents: array a }
   | RUndo { descendant: b; offset: int; element: a }
 
-mutable data sparraymw a (s: term) =
+mutable data sparraymw a (s: value) =
   | SPArrayMW { repr: repr a (=s) }
 
 
@@ -63,14 +63,14 @@ mutable data sprepr a =
   | SPRFlat { contents: array a }
   | SPRUndo { descendant: sparray a; i: int; x: a }
 
-mutable data mw a (s: term) =
+mutable data mw a (s: value) =
   | MW { repr: mwrepr a s }
 
-mutable data mwrepr a (s: term) =
+mutable data mwrepr a (s: value) =
   | MWRLast { descendant: =s    ; i: int; x: a }
   | MWRUndo { descendant: mw a s; i: int; x: a }
 
-val rec combine [a, s: term]
+val rec combine [a, s: value]
   (consumes s1: mw a s2, consumes s2: mw a s):
   ( | s1 @ mw a s) =
   let r = s1.repr in
@@ -81,7 +81,7 @@ val rec combine [a, s: term]
     combine (descendant, s2)
   end
 
-val rec retrieve [a, s2: term]
+val rec retrieve [a, s2: value]
   (consumes s1: mw a s2 | consumes (s2 @ sparray a)):
   ( | s1 @ sparray a) =
   let r = s1.repr in
@@ -145,7 +145,7 @@ val set [a] duplicable a =>
 mutable data sparray a =
   | SPArray { repr: repr a (array a) }
 
-mutable data sparraymw a (s: term) =
+mutable data sparraymw a (s: value) =
   | SPArrayMW { repr: repr a (=s) }
 
 mutable data repr a b =
@@ -159,7 +159,7 @@ val create [a] duplicable a => (s: int, x: a): sparray a =
     }
   }
 
-val rec combine [a, s: term]
+val rec combine [a, s: value]
   (consumes s1: sparraymw a s, consumes s2: sparraymw a s1):
   ( | s2: sparraymw a s) =
   match s1 with
@@ -167,7 +167,7 @@ val rec combine [a, s: term]
 *)
 
 (*
-val combine [a, s: term] (s1: sparraymw a s, s2: sparraymw a s1):()=
+val combine [a, s: value] (s1: sparraymw a s, s2: sparraymw a s1):()=
  (* assert(s2 @ sparraymw a s)*)()
 
 val spa = create(2, 0)
@@ -202,7 +202,7 @@ val test3 = assert (spa2 @ sparraymw int spa1)
 *)
 
 (*
-val set2 [a, s: term] duplicable a =>
+val set2 [a, s: value] duplicable a =>
   (consumes spa: sparray a, offset: int, element: a | s @ sparraymw a spa):
   (spa': sparray a | spa @ sparraymw a spa') =
   reroot spa;

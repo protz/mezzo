@@ -188,7 +188,7 @@ let wrap_bar env ?name t1 =
         | Some s -> Variable.register s
         | None -> Utils.fresh_var "sp"
       in
-      let binding = Auto v, KTerm, location env in
+      let binding = Auto v, KValue, location env in
       TyQ (Exists, binding, AutoIntroduced,
         TyBar (
           TySingleton (TyBound 0),
@@ -797,14 +797,14 @@ and sub_type_with_unfolding (env: env) (t1: typ) (t2: typ): result =
     | KPerm ->
         add_sub env (flatten_star env t1) (flatten_star env t2) >>=
         qed
-    | KTerm ->
+    | KValue ->
         sub_type env t1 t2 >>=
         qed
     | KType ->
         (* Re-route this operation onto the add-sub dance. *)
         let t1, ps1 = collect t1 in
         let t2, ps2 = collect t2 in
-        let env, v = bind_rigid env (fresh_auto_name "stwu-ng", KTerm, location env) in
+        let env, v = bind_rigid env (fresh_auto_name "stwu-ng", KValue, location env) in
         add_sub env
           (TyAnchoredPermission (TyOpen v, t1) :: ps1)
           (TyAnchoredPermission (TyOpen v, t2) :: ps2) >>=

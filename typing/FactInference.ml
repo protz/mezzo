@@ -259,7 +259,7 @@ and infer_with_kinds w kinds args =
 
 and infer_with_kind w kind arg =
   match kind with
-  | KTerm ->
+  | KValue ->
       (* Do not call [infer] at kind [term]. Instead, provide a dummy fact. *)
       Fact.bottom
   | KType
@@ -281,7 +281,7 @@ and bind_assume_infer w binding ty (m : mode) : fact =
     | KType
     | KPerm ->
         assume env (m, TyOpen v)
-    | KTerm ->
+    | KValue ->
         env
     | KArrow _ ->
         assert false
@@ -307,7 +307,7 @@ let prepare_branches env v branches : world * typ list =
      mode [m], then this type has mode [m].'' *)
   let env = MzList.fold_lefti (fun i env v ->
     let f = Fact.parameter i in
-    if get_kind env v <> KTerm then
+    if get_kind env v <> KValue then
       set_fact env v f
     else
       env
@@ -331,7 +331,7 @@ let prepare_type env v t : world * typ =
   (* Do the same as above. *)
   let env = MzList.fold_lefti (fun i env v ->
     let f = Fact.parameter i in
-    if get_kind env v <> KTerm then
+    if get_kind env v <> KValue then
       set_fact env v f
     else
       env

@@ -4,7 +4,7 @@ open lock
    duplicable: multiple threads may simultaneously attempt to
    send or receive a signal via this condition variable. *)
 
-abstract condition (l: term)
+abstract condition (l: value)
 fact duplicable (condition l)
 
 (* Creation. *)
@@ -23,7 +23,7 @@ val new: [p : perm] (l: lock p) -> condition l =
    and returns, so that, from the point of view of the current
    thread, the lock is still held when [wait] returns. *)
 
-val wait: [l: term] (condition l | l @ locked) -> () =
+val wait: [l: value] (condition l | l @ locked) -> () =
   builtin _mz_condition_wait
 
 (* Sending a signal via a condition variable. *)
@@ -34,6 +34,6 @@ data signal_whom =
   | SignalOne  (* try to awaken just one waiting thread *)
   | SignalMany (* try to awaken all waiting threads *)
 
-val signal: [l: term] (condition l, signal_whom) -> () =
+val signal: [l: value] (condition l, signal_whom) -> () =
   builtin _mz_condition_signal
 
