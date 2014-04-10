@@ -30,7 +30,7 @@ let arity k =
 let rec print =
   function
   | KValue ->
-      "term"
+      "value"
   | KPerm ->
       "perm"
   | KType ->
