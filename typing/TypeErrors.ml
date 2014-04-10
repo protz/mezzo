@@ -30,6 +30,7 @@ open ResugarFold
 type error = env * raw_error
 
 and raw_error =
+  | OverrideAutoload of string
   | CyclicDependency of Module.name
   | NotAFunction of var
   | ExpectedType of typ * var * Derivations.derivation
@@ -89,7 +90,8 @@ let print_error buf (env, raw_error) =
   end;
   (* A few error messages are printed *without* an error location. *)
   begin match raw_error with
-    | CyclicDependency _ ->
+    | CyclicDependency _
+    | OverrideAutoload _ ->
         ()
     | _ ->
         if !Options.js then begin
@@ -100,6 +102,8 @@ let print_error buf (env, raw_error) =
   end;
   (* Now, print an error-specific message. *)
   match raw_error with
+  | OverrideAutoload m ->
+      bprintf "There is already a core module named %s which you can't override" m
   | CyclicDependency m ->
       (* TEMPORARY cyclic dependencies are hard to understand, so
         showing the cycle in a more explicit manner would be useful *)

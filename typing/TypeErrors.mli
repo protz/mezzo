@@ -24,6 +24,7 @@ open TypeCore
 
 (** Clients of this module will want to use the various errors offered. *)
 type raw_error =
+  | OverrideAutoload of string
   | CyclicDependency of Module.name
   | NotAFunction of var
   | ExpectedType of typ * var * Derivations.derivation

@@ -18,8 +18,18 @@
 (*****************************************************************************)
 
 open Lexer
+open Types
 
 (* -------------------------------------------------------------------------- *)
+
+let chop_mz_or_mzi f =
+  if Filename.check_suffix f ".mz" then
+    Filename.chop_suffix f ".mz"
+  else if Filename.check_suffix f ".mzi" then
+    Filename.chop_suffix f ".mzi"
+  else
+    invalid_arg "chop_mz_or_mzi"
+;;
 
 (* Lexing and parsing, built on top of [grammar]. *)
 
@@ -70,27 +80,38 @@ let lex_and_parse file_path entry_var =
     lex_and_parse_js file_path entry_var
   else
     lex_and_parse_normal file_path entry_var
+;;
+
+(* The [mkprefix] function is called for every interface we depend on + one more
+ * time for the actual implementation we're type-checking, so we're trying to
+ * avoid doing the same computations every time. *)
+let corelib_dirs = lazy begin
+  (* So it's the [lib_dir] that we want here, unless we're in the process of
+   * pre-compiling the Mezzo core library, meaning that [lib_dir] isn't ready. *)
+  if !Options.js then
+    "corelib", ""
+  else if !Options.boot || Configure.local then
+    Filename.concat Configure.src_dir "corelib",
+    Filename.concat (Filename.concat Configure.src_dir "_build") "corelib"
+  else
+    (* ocamlfind requires us to have a flat directory structure, d'oh... *)
+    Configure.lib_dir,
+    ""
+end;;
+
+let autoload_modules = lazy begin
+  let corelib_dir, _ = !*corelib_dirs in
+  let autoload_path = Filename.concat corelib_dir "autoload" in
+  let autoload_modules = MzString.split (Utils.file_get_contents autoload_path) '\n' in
+  let autoload_modules = List.filter (fun s -> String.length s > 0 && s.[0] <> '#') autoload_modules in
+  autoload_modules
+end;;
 
 let mkprefix path =
   if !Options.no_auto_include && path = !Options.filename then
     []
   else
-    (* So it's the [lib_dir] that we want here, unless we're in the process of
-     * pre-compiling the Mezzo core library, meaning that [lib_dir] isn't ready. *)
-    let corelib_dir, corelib_build_dir =
-      if !Options.js then
-        "corelib", ""
-      else if !Options.boot || Configure.local then
-        Filename.concat Configure.src_dir "corelib",
-        Filename.concat (Filename.concat Configure.src_dir "_build") "corelib"
-      else
-        (* ocamlfind requires us to have a flat directory structure, d'oh... *)
-        Configure.lib_dir,
-        ""
-    in
-    let autoload_path = Filename.concat corelib_dir "autoload" in
-    let autoload_modules = MzString.split (Utils.file_get_contents autoload_path) '\n' in
-    let autoload_modules = List.filter (fun s -> String.length s > 0 && s.[0] <> '#') autoload_modules in
+    let corelib_dir, corelib_build_dir = !*corelib_dirs in
     let me = Filename.basename path in
     let my_dir = Filename.dirname path in
     let chop l =
@@ -114,11 +135,22 @@ let mkprefix path =
       Utils.same_absolute_path corelib_build_dir my_dir
     in
     Log.debug "In core directory? %b" me_in_core_directory;
+    (* If we're processing an .mz file (meaning, the actual .mz file we want to
+     * operate on, not an .mzi that we depend on), and we're _not_ in the
+     * core directory, and we have the same name as a legit module that's
+     * auto-loaded, bail now rather than complain about a cryptic dependency
+     * error. *)
+    let me_noext = chop_mz_or_mzi me in
+    if Filename.check_suffix me ".mz" &&
+       not me_in_core_directory &&
+       List.exists ((=) me_noext) !*autoload_modules
+    then
+      TypeErrors.(raise_error TypeCore.empty_env (OverrideAutoload me_noext));
     let modules =
       if me_in_core_directory then
-        chop autoload_modules
+        chop !*autoload_modules
       else
-        autoload_modules
+        !*autoload_modules
     in
     List.map (fun x ->
       SurfaceSyntax.OpenDirective (Module.register x)
@@ -152,14 +184,7 @@ let add_include_dir dir =
 
 let module_name_for_file_path (f: string): Module.name =
   let f = Filename.basename f in
-  let f =
-    if Filename.check_suffix f ".mz" then
-      Filename.chop_suffix f ".mz"
-    else if Filename.check_suffix f ".mzi" then
-      Filename.chop_suffix f ".mzi"
-    else
-      Log.error "This is unexpected"
-  in
+  let f = chop_mz_or_mzi f in
   Module.register f
 ;;
 
