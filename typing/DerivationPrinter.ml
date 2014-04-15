@@ -237,9 +237,12 @@ let rec gather_explanation derivation =
         make_up_explanation env j
       end else begin
         let explanations = List.map (fun (_rule_name, premises) ->
-          let d = MzList.last premises in
-          Log.check (is_bad_derivation d) "Inconsistency in the premises of a failed rule.";
-          gather_explanation d
+          if List.length premises > 0 then
+            let d = MzList.last premises in
+            Log.check (is_bad_derivation d) "Inconsistency in the premises of a failed rule.";
+            gather_explanation d
+          else
+            NoGoodExplanation
         ) rs in
         match explanations with
         | [] ->
