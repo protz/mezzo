@@ -1,0 +1,20 @@
+open nest
+
+data mutable region = Region
+
+alias inhabitant (rho : value) a =
+  (x: unknown | nests rho (x @ a))
+
+val consult [x : value, a, rho : value] (
+  f: () -> ()
+| x @ inhabitant rho a (* * rho @ region *)
+) : () =
+  nest::consult f
+  (* BUG this application causes Invalid_argument("List.nth")
+     uncommenting rho @ region above causes the problem to disappear *)
+
+(*
+Local Variables:
+compile-command: "../mezzo nesting03.mz"
+End:
+*)
