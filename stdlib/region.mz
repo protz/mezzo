@@ -1,0 +1,53 @@
+open nest
+
+(* In principle, a region does not need to exist at runtime. However, our
+   axiomatization of nesting requires the adopter to have an exclusive type.
+   For this reason, we represent a region as an exclusive object with no
+   fields. *)
+
+data mutable region =
+  Region
+
+val newregion () : region =
+  Region
+
+(* An inhabitant of a region [rho] at type [a] is a value [x] together with
+   a proof that [x @ a] is nested in [rho]. This means that whoever owns the
+   region [rho] has access to [x] at type [a]. *)
+
+alias inhabitant (rho : value) a =
+  (x: unknown | nests rho (x @ a))
+
+val adopt [x : value, a, rho : value] (| rho @ region * consumes x @ a) : (| x @ inhabitant rho a) =
+  nest [rho, (x @ a)] ()
+
+val consult [x : value, a, rho : value, pre : perm, b] (
+  f: (| x @ a * consumes pre) -> b
+| x @ inhabitant rho a * rho @ region *
+  consumes pre
+) : b =
+  nest::consult f
+
+alias rref (rho : value) a =
+  inhabitant rho (ref a)
+
+val newrref [rho : value, a] (consumes x: a | rho @ region) : rref rho a =
+  let r = newref x in
+  adopt [r, ref a, rho] ();
+  r
+
+val get [rho : value, a] duplicable a => (r: rref rho a | rho @ region) : a =
+  consult [r] (fun (| r @ ref a) : a =
+    !r
+  )
+
+val set [rho : value, a] (r: rref rho a, consumes x: a | rho @ region) : () =
+  consult [r] (fun (| r @ ref a * consumes x @ a) : () =
+    r := x
+  )
+
+(*
+Local Variables:
+compile-command: "../mezzo region.mz"
+End:
+*)
