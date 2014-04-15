@@ -1046,6 +1046,7 @@ let tests: (string * ((unit -> env) -> unit)) list = [
   ("flexbug.mz", fail);
   ("flexbug2.mz", fail);
   ("cons.mz", pass);
+  ("nesting00.mz", pass);
 
   (* The tests below are intentionally not run as they cause the type-checker to
    * loop. We still want to list them as, eventually, we will want to fix them. *)

@@ -1,0 +1,19 @@
+open nest
+
+data mutable region =
+  Region
+
+val create () : () =
+  (* Create the region [r] and make [p] an element of it. *)
+  let p = () in
+  let r = Region in
+  nest ()
+  (* BUG omitting the type application [r, (p @ ())] causes an 
+     internal failure: Bad internal usage of [flatten_star].
+     With the type application, the code is accepted. *)
+
+(*
+Local Variables:
+compile-command: "../mezzo nesting00.mz"
+End:
+*)
