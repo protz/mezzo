@@ -63,7 +63,7 @@ val rec revert [a] duplicable a =>
            * r @ punched region (p @ point r a))
 =
   (* Take [p] out of the region [r]. *)
-  focus [r] ();
+  focus ();
   match p with
   | PFlat ->
       let t = p.contents in
@@ -113,7 +113,7 @@ val reroot [a] duplicable a => (
               * r @ punched region (p @ point r a))
 =
 
-  focus [r] ();
+  focus ();
   match p with
   | PFlat ->
       p.contents
