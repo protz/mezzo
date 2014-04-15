@@ -73,12 +73,12 @@ val rec repr [a] duplicable a => (s: state, e: element s a): element s a =
   end
 
 val unify [a] duplicable a => (s: state, x: element s a, y: element s a): () =
+  (* First of all, find the roots. *)
+  let x = repr (s, x) in
+  let y = repr (s, y) in
   if x == y then
     ()
   else begin
-    (* First of all, find the roots. *)
-    let x = repr (s, x) in
-    let y = repr (s, y) in
     (* Then, give names to the elements. *)
     let elt_x = x.element in
     (* And get their representants. Here, we wish we could defocus both [elt_x]
