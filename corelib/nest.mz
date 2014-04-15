@@ -17,13 +17,18 @@ val defocus [x : value, p : perm, a] (| consumes (x @ punched a p * p)) : (| x @
 val nest_punched [x : value, p : perm, a, q : perm] (| x @ punched a q * consumes p) : (| nests x p) =
   magic::magic ()
 
-(* TEMPORARY we really need a type abbreviation for the type:
-   y: unknown | nests x (y @ a)
-   which represents a region inhabitant *)
-
 (* TEMPORARY it is not very elegant to have both [nest] and [nest_punched].
    A more general approach, allowing multi-focusing, would be more elegant,
    but would need to be built into the system at a more primitive level. *)
+
+val consult [x : value, p : perm, a, pre : perm, post : perm] exclusive a => (
+  f: (| p * consumes pre) -> (| post)
+| x @ a * nests x p * 
+  consumes pre
+) : (| post) =
+  focus ();
+  f();
+  defocus [x, p, a] ()
 
 (*
 Local Variables:
