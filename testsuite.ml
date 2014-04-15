@@ -909,7 +909,6 @@ let tests: (string * ((unit -> env) -> unit)) list = [
   ("array-covariance.mz", pass);
   ("array-contravariance.mz", fail);
   ("array-focus.mz", fail);
-  ("queue_nesting2.mz", fail);
   ("take-abstract.mz", fail);
   ("overflow.mz", fail);
   ("facts.mz", pass);
