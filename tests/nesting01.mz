@@ -1,0 +1,112 @@
+open nest
+
+(* A variant of the FIFO queue implementation, using nesting instead
+   of adoption & abandon. *)
+
+(* A cell contains an element of type [option a], as opposed to [a].
+   Indeed, extracting an element of type [a] out of a cell, when the
+   type [a] is not duplicable, requires writing something in its place.
+   An alternative approach would be to tag the cell itself as active
+   or garbage (effectively fusing the cell with the option); this
+   would save memory but would make access to the [next] field less
+   convenient. *)
+
+data mutable cell (f : value) a =
+| Cell { value_: option a; next: (n: unknown | nests f (n @ cell f a)) }
+
+(* TEMPORARY I would like the fifo object itself to adopt the cells,
+   but this doesn't work, because an algebraic data type definition
+   cannot refer to [this]. Instead I am forced to use a separate
+   object, of type [region]. Furthermore, I am forced to use one
+   field, which is a triple, whereas I would prefer to use three fields. *)
+
+data mutable region =
+  Region
+
+data mutable fifo a =
+  Empty    { contents: (f: region, length: int, ()) }
+| NonEmpty { contents: (f: region, length: int, tail: unknown | nests f (tail @ cell f a)) }
+
+val create [a] () : fifo a =
+  Empty { contents = (Region, 0, ()) }
+
+val internal_insert [a] (consumes x: a, q: fifo a, insertAtEnd: bool): () =
+  let c = Cell {
+    value_ = some x; next = ()
+  } in
+  match q with
+  | Empty { contents = (r, length, ()) } ->
+      c.next <- c;
+      let () : (| c @ cell r a) =
+        fail
+          (* TEMPORARY I don't understand how this worked in the previous
+             version of this code. We don't have c @ cell r a because c is
+             not nested in r yet, and we need this permission in order to
+             nest c in r. The comment next to the [nest] instruction was:
+             crazy inference! Maybe something fishy was going on? Ah, but
+             this test was marked as [fail] anyway. *)
+          (* Anyway, I think we should fix this code by introducing an
+             option in the field [next]. *)
+      in
+      nest [r, (c @ cell r a)] ();
+      tag of q <- NonEmpty;
+      q.contents <- (r, 1, c)
+  | NonEmpty { contents = (r, length, tail) } ->
+      focus ();
+      c.next <- tail.next;
+      (* [c] is now a cell, so it can be nested in [r]. *)
+      assert c @ cell r a;
+      nest_punched [r, (c @ cell r a)] ();
+      tail.next <- c;
+      (* Because [tail.next] is [c], which is now a valid
+        inhabitant of [r], we can argue that [tail] has
+        type [cell r a], and give it back to [r]. *)
+      defocus [r, (tail @ cell r a)] ();
+      let length = length + 1 in
+      let t : (t: unknown | nests r (t @ cell r a)) =
+        if insertAtEnd then c else tail
+      in
+      q.contents <- (r, length, t)
+  end
+
+val insert [a] (consumes x: a, q: fifo a) : () =
+  internal_insert (x, q, true)
+  
+val insert_at_head [a] (consumes x: a, q: fifo a) : () =
+  internal_insert (x, q, false)
+
+val retrieve [a] (q: fifo a) : option a =
+  match q with
+  | Empty ->
+      None
+  | NonEmpty { contents = (r, length, tail) } ->
+      focus ();
+      let head = tail.next in
+      defocus [r] ();
+      focus [r, (head @ cell r a)] ();
+      let x = option::force head.value_ in
+      (* Write [None] in [head.value_], so we can give [head] back to [r]. *)
+      head.value_ <- None;
+      if head == tail then begin
+        defocus [r] ();
+       tag of q <- Empty;
+        q.contents <- (r, 0, ())
+      end
+      else begin
+        let length = length - 1 in
+        let new_head = head.next in
+        defocus [r] ();
+        (* This fine-grained focusing and defocusing is really painful. *)
+        focus [r, (tail @ cell r a)] ();
+        tail.next <- new_head;
+        defocus [r] ();
+        q.contents <- (r, length, tail)
+      end; (* BUG at the merge? mezzo allocates memory and does not terminate *)
+      some x
+ end
+
+(*
+Local Variables:
+compile-command: "../mezzo queue_nesting.mz"
+End:
+*)

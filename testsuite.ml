@@ -909,7 +909,6 @@ let tests: (string * ((unit -> env) -> unit)) list = [
   ("array-covariance.mz", pass);
   ("array-contravariance.mz", fail);
   ("array-focus.mz", fail);
-  ("queue_nesting.mz", fail);
   ("queue_nesting2.mz", fail);
   ("take-abstract.mz", fail);
   ("overflow.mz", fail);
@@ -1055,6 +1054,7 @@ let tests: (string * ((unit -> env) -> unit)) list = [
   ("cyclic-list.mz", fun _ -> raise KnownFailure);
   ("cyclic-list2.mz", fun _ -> raise KnownFailure);
   ("diverge.mz", fail);
+  ("nesting01.mz", fun _ -> raise KnownFailure);
 ];;
 
 let mz_files_in_directory (dir : string) : string list =
