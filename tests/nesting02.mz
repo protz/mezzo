@@ -10,7 +10,7 @@ val consult [x : value, a, rho : value] (
 | x @ inhabitant rho a * rho @ region
 ) : () =
   nest::consult f
-  (* inferred type application: [rho, (x @ a), region, empty, empty] *)
+  (* inferred type application: [rho, (x @ a), region, empty, ()] *)
 
 (*
 Local Variables:

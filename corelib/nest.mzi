@@ -39,11 +39,11 @@ val nest_punched: [x : value, p : perm, a, q : perm] (| x @ punched a q * consum
 (* [consult] is a short-hand for a well-parenthesized use of [focus] and [defocus].
    Its type is quite heavy, due to the higher-order pattern used here. *)
 
-val consult: [x : value, p : perm, a, pre : perm, post : perm] exclusive a => (
-  f: (| p * consumes pre) -> (| post)
+val consult: [x : value, p : perm, a, pre : perm, b] exclusive a => (
+  f: (| p * consumes pre) -> b
 | x @ a * nests x p * 
   consumes pre
-) -> (| post)
+) -> b
 
 (*
 Local Variables:
