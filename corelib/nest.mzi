@@ -9,11 +9,11 @@ abstract nests (x : value) (p : perm) : perm
 fact duplicable (nests x p)
 
 (* Nesting consumes the permission [p] and produces a nesting witness [nests x p].
-   The instruction [nest [p] x] is somewhat analogous to an adoption instruction,
-   [give p to x]. The permission [p] becomes implicitly associated with the address
-   [x]. *)
+   The instruction [nest [x, p] ()] is somewhat analogous to an adoption
+   instruction, [give p to x]. The permission [p] becomes implicitly associated
+   with the address [x]. *)
 
-val nest: [p : perm, a] exclusive a => (x: a | consumes p) -> (| nests x p)
+val nest: [x : value, p : perm, a] exclusive a => (| x @ a * consumes p) -> (| nests x p)
 
 (* A punched type [punched a p] is used to keep track of the fact that a nested
    permission [p] has been temporarily recovered by focusing on [x]. This type
@@ -24,16 +24,20 @@ abstract punched (a : type) (p : perm) : type
 
 (* Focusing allows temporarily recovering a permission [p] that was nested in [x].
    It requires an exclusive permission for [x], as well a nesting witness. It
-   produces a punched permission for [x]. The syntax is [focus [p] x], or
-   perhaps just [focus x]. *)
+   produces a punched permission for [x]. The syntax is [focus [x, p] ()]. *)
 
-val focus: [p : perm, a] exclusive a => (consumes x: a | nests x p) -> (| x @ punched a p * p)
+val focus: [x : value, p : perm, a] exclusive a => (| consumes x @ a * nests x p) -> (| x @ punched a p * p)
 
-(* Defocusing is the reverse operation. The syntax is [defocus x]. *)
+(* Defocusing is the reverse operation. The syntax is [defocus [x] ()]. *)
 
-val defocus: [p : perm, a] (consumes (x: punched a p | p)) -> (| x @ a)
+val defocus: [x : value, p : perm, a] (| consumes (x @ punched a p * p)) -> (| x @ a)
 
 (* Nesting is permitted also while a region is punched. *)
 
-val nest_punched: [p : perm, a, q : perm] (x: punched a q | consumes p) -> (| nests x p)
+val nest_punched: [x : value, p : perm, a, q : perm] (| x @ punched a q * consumes p) -> (| nests x p)
 
+(*
+Local Variables:
+compile-command: "../mezzo nest.mz"
+End:
+*)
