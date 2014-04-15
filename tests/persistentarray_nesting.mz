@@ -49,7 +49,7 @@ val create [a] duplicable a => (n: int, x: a) : parray a =
   let p = PFlat { contents = t; unused1 = (); unused2 = () } in
   (* Create the region [r] and make [p] an element of it. *)
   let r = Region in
-  nest [(p @ point r a)] r; (* the system no longer infers (p @ point r a)! *)
+  nest [r, (p @ point r a)] (); (* the system no longer infers (p @ point r a)! *)
   (* Create a lock that protects [r]. *)
   let l : lock (r @ region) = lock::new () in
   (* Done. *)
@@ -63,7 +63,7 @@ val rec revert [a] duplicable a =>
            * r @ punched region (p @ point r a))
 =
   (* Take [p] out of the region [r]. *)
-  focus r;
+  focus [r] ();
   match p with
   | PFlat ->
       let t = p.contents in
@@ -86,7 +86,7 @@ and revert_link [a] duplicable a =>
      we have focused on [previous]. *)
   let i = p.offset in
   let v = p.element in
-  defocus r;
+  defocus [r] ();
   (* Now that we could in principle loop if there is a cycle in
      the graph, while the version based on [dynamic] cannot loop;
      it will fail at runtime instead. *)
@@ -96,12 +96,12 @@ and revert_link [a] duplicable a =>
   previous.offset <- i;
   previous.element <- array::get (t, i);
   assert previous @ point r a; (* sanity check *)
-  defocus r;
+  defocus [r] ();
   array::set (t, i, v);
   (* The point [p] is in the desired state: its tag is [PUndo]. Unfortunately,
      we have forgotten this information by giving [p] back to [r] above, so we
      have to explicitly recover it. *)
-  focus [(p @ point r a)] r;
+  focus [r, (p @ point r a)] ();
   match p with PFlat -> fail | PUndo -> () end;
   t
 
@@ -113,7 +113,7 @@ val reroot [a] duplicable a => (
               * r @ punched region (p @ point r a))
 =
 
-  focus r;
+  focus [r] ();
   match p with
   | PFlat ->
       p.contents
@@ -137,7 +137,7 @@ val borrow [a, b, q : perm] duplicable a => (
   lock::borrow (l, fun (| r @ region * consumes q) : b =
     let t = reroot (r, p) in
     let result = f t in
-    defocus r;
+    defocus [r] ();
     result
   )
 
@@ -164,9 +164,9 @@ val set [a] duplicable a => (pa: parray a, i: int, v: a) : parray a =
     (* We need to nest [q] in [r] before we can defocus [p], because defocusing
        [p] requires [p.previous] to be a valid inhabitant of [r]. Thus, we must
        be able to nest a permission into a punched region. *)
-    nest_punched [(q @ point r a)] r; (* the system no longer infers the type application (q @ point r a)! *)
+    nest_punched [r, (q @ point r a)] (); (* the system no longer infers the type application (q @ point r a)! *)
     p.previous <- q;
-    defocus r;
+    defocus [r] ();
     PArray { contents = (r, l, q) }
   )
 
