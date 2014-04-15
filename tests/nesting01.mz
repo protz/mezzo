@@ -12,7 +12,7 @@ open nest
    convenient. *)
 
 data mutable cell (f : value) a =
-| Cell { value_: option a; next: (n: unknown | nests f (n @ cell f a)) }
+| Cell { value_: option a; next:: unknown | nests f (next @ cell f a) }
 
 (* TEMPORARY I would like the fifo object itself to adopt the cells,
    but this doesn't work, because an algebraic data type definition
