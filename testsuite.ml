@@ -757,6 +757,7 @@ let tests: (string * ((unit -> env) -> unit)) list = [
   ("bag_fifo.mz", pass);
 
   ("union-find-nesting.mz", pass);
+  ("union-find-region.mz", pass);
   ("union-find-dynamic.mz", pass);
 
   (* Modules *)
@@ -1046,7 +1047,7 @@ let tests: (string * ((unit -> env) -> unit)) list = [
   ("cons.mz", pass);
   ("nesting00.mz", pass);
   ("nesting02.mz", pass);
-  ("nesting03.mz", pass);
+  ("nesting03.mz", fail);
   ("nesting04.mz", pass);
 
   (* The tests below are intentionally not run as they cause the type-checker to

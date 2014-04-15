@@ -1,0 +1,18 @@
+abstract state
+
+abstract element (rho : value) a
+fact duplicable (element rho a)
+
+val new: () -> state
+
+val create: [rho : value, a] (consumes x: a | rho @ state) -> element rho a
+
+val unify:  [rho : value, a] duplicable a => (x: element rho a, y: element rho a | rho @ state) -> ()
+
+val find:   [rho : value, a] duplicable a => (x: element rho a | rho @ state) -> a
+
+(*
+Local Variables:
+compile-command: "../mezzo union-find-region.mz"
+End:
+*)

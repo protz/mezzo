@@ -1,0 +1,109 @@
+open region
+open either
+
+(** A version of a mutable union-find based on regions, which are a more
+    user-friendly (and less flexible) version of nesting. *)
+
+(** We need a top-level region that will hold all of the elements of the
+    union-find data structure. *)
+alias state =
+    region
+
+(** An element in the union-find is either a [link] or a [root]. *)
+
+data mutable content (rho : value) a =
+  | Link { link:  inhabitant rho (content rho a) }
+  | Root { descr: a }
+
+(** An abbreviation for an element, viewed as an inhabitant of the
+    region [rho]. *)
+alias element (rho : value) a =
+  inhabitant rho (content rho a)
+
+(* Create a new union-find. *)
+val new: () -> state =
+  newregion
+
+(* Create a new element that is meant to go in the union-find. *)
+val create [rho : value, a] (consumes x: a | rho @ state) : element rho a =
+  let e = Root { descr = x } in
+  adopt [e, content rho a, rho] ();
+  e
+
+(* This somewhat ridiculous function allows us to read an element.
+   Its result type is duplicable, which explains why this works.
+   If the module [region] offered separate [focus] and [defocus]
+   functions, instead of just [consult], then we could avoid
+   allocating this sum; we would [focus], match, then [defocus]
+   within each branch. This is how it was done in [union-find-nesting]. *)
+val examine [rho : value, a] duplicable a => (e: element rho a | rho @ state)
+  : either (element rho a) a
+=
+  consult [e] (fun (| e @ content rho a) : either (element rho a) a =
+    match e with
+    | Link { link } ->
+        left link
+    | Root { descr } ->
+        right descr
+    end
+  )
+
+(* Find the root of an equivalence class. *)
+val rec repr [rho : value, a] duplicable a => (e: element rho a | rho @ state): element rho a =
+  match examine e with
+  | Left { contents = link } ->
+      (* It's a link! We want to perform path compression, so we need to call
+       * [repr] recursively. *)
+      let r = repr link in
+      (* Let's focus again, because we need to perform a write in order to
+       * perform path-compression. *)
+      consult [e] (fun (| e @ content rho a) : () =
+        (* But look! We no longer know that [e] was in the [Link] state, so we
+         * need to match again... *)
+        match e with
+        | Link ->
+            (* Perform the write. *)
+            e.link <- r
+        | Root ->
+            (* Our protocols guarantee that a re-entrant call to [repr] won't
+             * modify [e], so we can't possibly be in this case. *)
+            fail
+        end
+      );
+      (* And return [r] which is the actual root. *)
+      r
+  | Right ->
+      (* It's a root! Nothing to do here, just return. *)
+      e
+  end
+
+val unify [rho : value, a] duplicable a => (x: element rho a, y: element rho a | rho @ state): () =
+  (* First of all, find the roots. *)
+  let x = repr x in
+  let y = repr y in
+  if x == y then
+    ()
+  else
+    consult [x] (fun (| x @ content rho a) : () =
+      match x with
+      | Link ->
+          fail (* cannot happen *)
+      | Root ->
+          tag of x <- Link;
+          x.link <- y
+      end
+    )
+
+val find [rho : value, a] duplicable a => (x: element rho a | rho @ state): a =
+  match examine (repr x) with
+  | Right { contents = descr } ->
+      descr
+  | Left ->
+      fail (* cannot happen *)
+  end
+
+(*
+Local Variables:
+compile-command: "../mezzo union-find-region.mz"
+End:
+*)

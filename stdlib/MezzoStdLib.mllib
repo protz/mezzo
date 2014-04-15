@@ -23,6 +23,7 @@ mz_persistentarray
 mz_protected
 mz_queue
 mz_reflection
+mz_region
 mz_stash
 mz_stream
 mz_string

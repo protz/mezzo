@@ -7,11 +7,9 @@ alias inhabitant (rho : value) a =
 
 val consult [x : value, a, rho : value] (
   f: () -> ()
-| x @ inhabitant rho a (* * rho @ region *)
+| x @ inhabitant rho a (* rho @ region *)
 ) : () =
-  nest::consult f
-  (* BUG this application causes Invalid_argument("List.nth")
-     uncommenting rho @ region above causes the problem to disappear *)
+  nest::consult f (* should be ill-typed because of missing permission above *)
 
 (*
 Local Variables:
