@@ -22,7 +22,7 @@ end
 
 module type PATTERN = sig
 
-  (* A patterns has holes of type ['x] that stand for variable occurrences,
+  (* A pattern has holes of type ['x] that stand for variable occurrences,
      holes of type ['i] that stand for an expression in the scope of the
      current binding construct, and holes of type ['o] that stand for an
      expression outside of the scope of the current binding construct. *)

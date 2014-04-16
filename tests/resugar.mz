@@ -1,4 +1,56 @@
-val succ (x: int) : int =
-  x + 1
-val add (x: int, y: int) : int =
-  x + y
+open list
+
+(* This type definition is accepted, but is interpreted as a description
+   of a tree! ... *)
+
+data mutable node a =
+  Node {
+    content  : a;
+    visited  : bool;
+    neighbors: list (node a)
+  }
+
+data mutable graph a =
+  Graph {
+    roots    : list (node a)
+  }
+
+(* An attempt to construct a cyclic graph. *)
+
+val g =
+  let n = Node {
+    content   = 0;
+    visited   = false;
+    neighbors = ();
+  } in
+  let ns = Cons { head = n; tail = Nil } in
+  n.neighbors <- ns;
+  (* So far, so good! We have a cycle in the heap. *)
+  Graph { roots = ns }
+  (* ... but the type system does not allow us to claim that
+     this thing has type [graph int]. *)
+
+val dfs [a, p : perm] (
+  g: graph a,
+  f: (a | p) -> ()
+| p)
+: () =
+  let rec visit (n: dynamic | g @ graph a * p) : () =
+    take n from g;
+    if n.visited then
+      give n to g
+    else begin
+      n.visited <- true;
+      f n.content;
+      let neighbors = n.neighbors in
+      give n to g;
+      iter (neighbors, visit)
+    end
+  in
+  iter (g.roots, visit)
+
+(*
+Local Variables:
+compile-command: "mezzo graph-naive.mz"
+End:
+*)
