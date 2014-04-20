@@ -58,6 +58,10 @@ let lex_and_parse_raw lexbuf file_path entry_var =
         MzString.beprintf "%a\n"
           Lexer.print_error (lexbuf, e);
         exit 252
+    | e ->
+      Format.eprintf "Exception during lexing/parsing: %s@." (Printexc.to_string e);
+      exit 251
+
 ;;
 
 let lex_and_parse file_path entry_var =
