@@ -165,7 +165,7 @@ let build_explorer editor files =
             Dom.appendChild li a;
             a##href <- Js.string "#";
             a##onclick <- Dom_html.handler (fun _ ->
-                let content = Sys_js.file_content (dir ^ "/" ^ file) in
+                let content = (Js.Unsafe.variable "caml_fs_file_content") (dir ^ "/" ^ file) in
                 editor##setValue(Js.string content);
                 editor##clearSelection();
                 editor##gotoLine(0);
@@ -186,7 +186,7 @@ let _ = Dom_html.window##onload <- Dom_html.handler (fun _ ->
     (by_id_coerce "option-warnerror" Dom_html.CoerceTo.input)##value <- Js.string "-1+2..4-5+6";
     (by_id "show-more-options")##onclick <- Dom_html.handler (fun _ ->
         (by_id "more-options")##style##display <- Js.string "";
-        let _ = (by_id "buttons-wrapper")##removeChild(by_id "show-more-options") in
+        let _ = (by_id "buttons-wrapper")##removeChild(((by_id "show-more-options") :> (Dom.node Js.t))) in
         Js._true
       );
     timestamp ();
