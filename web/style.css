@@ -97,7 +97,7 @@ a:hover {
   border-left: 2px solid #CB3587;
 }
 #console > div.message.error-message {
-  color: red;
+  color: #CB3587;
 }
 
 #console > div.timestamp {
