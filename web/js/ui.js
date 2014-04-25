@@ -35,6 +35,7 @@ function mz_setup_editor () {
   });
   editor.focus();
 };
+
 // (called by ocaml)
 function mz_highlight_range(r1, c1, r2, c2) {
   editor.getSelection().addRange(new Range(r1, c1, r2, c2));
@@ -103,8 +104,10 @@ function mz_build_explorer(dirs){
         editor.setValue("");
       })));
 };
+
 $(document).ready(function () {
-  if(mezzo.beforeInit) mezzo.beforeInit();
+  if(mezzo.beforeInit)
+    mezzo.beforeInit();
 
   // Register all event listeners + default values
   $("#command-clear").click(mz_clear);
@@ -115,8 +118,10 @@ $(document).ready(function () {
     $(this).next().show("slow");
     $(this).remove();
   });
-  if(mezzo.files) mz_build_explorer(mezzo.files);
+  if(mezzo.files)
+    mz_build_explorer(mezzo.files);
   mz_setup_editor();
 
-  if(mezzo.afterInit) mezzo.afterInit();
+  if(mezzo.afterInit)
+    mezzo.afterInit();
 });

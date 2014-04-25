@@ -1,3 +1,5 @@
+(* TEMPORARY this file will go away as soon as we switch
+   to the next version of js_of_ocaml *)
 let all = [
   "corelib", [
     "array.mz";

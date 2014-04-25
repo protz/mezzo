@@ -28,11 +28,37 @@ end
 class type mezzo = object
   method beforeInit : (unit -> unit) Js.callback Js.writeonly_prop
   method afterInit : (unit -> unit) Js.callback Js.writeonly_prop
-  method process : (Js.js_string Js.t -> bool Js.t -> bool Js.t -> int -> Js.js_string Js.t -> unit) Js.callback Js.writeonly_prop
+  method process : (Js.js_string Js.t ->
+                    bool Js.t ->
+                    bool Js.t ->
+                    int ->
+                    Js.js_string Js.t ->
+                    unit) Js.callback Js.writeonly_prop
   method files: (dir Js.t Js.js_array Js.t) Js.prop
+  method returnCode : int Js.prop
 end
 
-let mezzo : mezzo Js.t = Js.Unsafe.global##mezzo <- Js.Unsafe.obj [||]; Js.Unsafe.global##mezzo
+(* ======Unsafe mode ON====== *)
+let mezzo : mezzo Js.t =
+  let open Js.Unsafe in
+  global##mezzo <- obj [||];
+  global##mezzo
+let mz_highlight_range : int -> int -> int -> int -> unit =
+  fun row1 col1 row2 col2 ->
+  Js.Unsafe.(fun_call
+               (variable "mz_highlight_range")
+               (Array.map inject [| row1; col1; row2; col2 |]))
+let mz_log s cl : unit =
+  Js.Unsafe.(fun_call
+               (variable "mz_log")
+               (Array.map (fun s -> inject (Js.string s)) [|s; cl|]))
+let file_content name : string =
+  Js.Unsafe.(fun_call
+               (variable "caml_fs_file_content")
+               [| inject (Js.string name) |])
+let empty_obj () : 'a Js.t = Js.Unsafe.obj [||]
+(* ======Unsafe mode OFF====== *)
+
 let toplevel_filename = "::toplevel.mz"
 let toplevel_filename_i = "::toplevel.mzi"
 
@@ -57,9 +83,12 @@ let process
     let interpret = Js.to_bool interpret in
     timestamp ();
     let f = toplevel_filename in
+
+    (* the architecture of js_of_ocaml's virtual filesystem requires us to do this *)
     if Sys.file_exists f then Sys.remove toplevel_filename;
     Sys_js.register_file f s;
-    Js.Unsafe.global##mezzoReturnCode <- 0;
+
+    mezzo##returnCode <- 0;
     let t0 = Sys.time () in
     (* Reset to the default value and then parse the user-provided one. *)
     TypeErrors.parse_warn_error !Options.warn_error;
@@ -82,7 +111,7 @@ let process
       | true, _ ->    "Type-checked"
       | _ , true ->   "Interpreted"
       | false,false -> "Did nothing" in
-    if Js.Unsafe.global##mezzoReturnCode = 0 then
+    if mezzo##returnCode = 0 then
       MzString.bprintf "%s successfully (in about %.2fs)\n" action delta
     else
       MzString.beprintf "Mezzo terminated abruptly\n"
@@ -91,10 +120,11 @@ let process
     MzString.bprintf "Mezzo threw an Exception : %s, %s\n%s\n."
       (Js.to_string e##name)
       (Js.to_string e##message)
-      (Js.Optdef.case (e##stack) (fun () -> "Not backtrace") (fun x ->  Js.to_string x) )
+      (Js.Optdef.case (e##stack)
+         (fun () -> "Not backtrace")
+         (fun x ->  Js.to_string x) )
   | e ->
-    MzString.beprintf "Mezzo threw an Exception : %s\n" (Printexc.to_string e);;
-
+    MzString.beprintf "Mezzo threw an Exception : %s\n" (Printexc.to_string e)
 
 let _ =
   mezzo##beforeInit <- Js.wrap_callback (fun _ ->
@@ -104,9 +134,8 @@ let _ =
         let col1 = l1.pos_cnum - l1.pos_bol in
         let row2 = l2.pos_lnum - 1 in
         let col2 = l2.pos_cnum - l2.pos_bol in
-        let hl = Js.Unsafe.variable "mz_highlight_range" in
-        Js.Unsafe.fun_call hl (Array.map Js.Unsafe.inject [| row1; col1; row2; col2 |]) in
-
+        mz_highlight_range row1 col1 row2 col2
+      in
       JsGlue.highlight_range_ := highlight_range;
       Driver.add_include_dir "corelib";
       Driver.add_include_dir "stdlib";
@@ -115,32 +144,30 @@ let _ =
 
       let files =
         let dir name =
+          let d : dir Js.t= empty_obj () in
           let files = Sys.readdir name in
           let files = Array.map (fun file ->
-              let content = Js.Unsafe.(fun_call (variable "caml_fs_file_content") [| inject (Js.string (name ^ "/" ^ file)) |]) in
-              Js.Unsafe.obj [| "name", Js.Unsafe.inject (Js.string file);
-                               "content", Js.Unsafe.inject (Js.string content);|]) files in
-
-          Js.Unsafe.obj [| "name", Js.Unsafe.inject (Js.string name);
-                           "files", Js.Unsafe.inject files |] in
+              let f : file Js.t = empty_obj () in
+              let content = file_content (name ^ "/" ^ file) in
+              f##name <- (Js.string file);
+              f##content <- (Js.string content);
+              f
+            ) files in
+          d##name <- (Js.string name);
+          d##files <- Js.array files;
+          d in
         let all = Array.map dir [|"corelib";"stdlib";"demos"|] in
-        Js.array all in
-      let flusher cl = (fun s ->
-          Js.Unsafe.fun_call
-            (Js.Unsafe.variable "mz_log")
-            (Array.map (fun s -> Js.Unsafe.inject (Js.string s)) [|  s; cl|])) in
+        Js.array all
+      in
+      let flusher cl = (fun s -> mz_log s cl) in
       Sys_js.set_channel_flusher stdout (flusher "message");
       Sys_js.set_channel_flusher stderr (flusher "message error-message");
       Sys_js.set_channel_flusher timestamp_chan (flusher "timestamp");
       mezzo##files <- files;
       timestamp ()
-
-
-
-
-
     );
   mezzo##afterInit <- Js.wrap_callback (fun _ ->
-      MzString.bprintf "Editor successfully loaded, hit Ctrl-M or Command-M.\n";
+      MzString.bprintf
+        "Editor successfully loaded, hit Ctrl-M or Command-M.\n";
     );
   mezzo##process <- Js.wrap_callback process
