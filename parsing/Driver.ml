@@ -50,36 +50,25 @@ let lex_and_parse_raw lexbuf file_path entry_var =
     | Grammar.Error ->
         MzString.beprintf "%a\nError: Syntax error\n"
           print_position lexbuf;
-        if !Options.js then begin
-          let start_pos = Lexer.start_pos lexbuf in
-          let end_pos = Lexer.end_pos lexbuf in
-          JsGlue.highlight_range start_pos end_pos;
-        end;
+        let start_pos = Lexer.start_pos lexbuf in
+        let end_pos = Lexer.end_pos lexbuf in
+        JsGlue.highlight_range start_pos end_pos;
         exit 253
     | Lexer.LexingError e ->
         MzString.beprintf "%a\n"
           Lexer.print_error (lexbuf, e);
         exit 252
+    | e ->
+      Format.eprintf "Exception during lexing/parsing: %s@." (Printexc.to_string e);
+      exit 251
+
 ;;
 
-let lex_and_parse_normal file_path entry_var =
+let lex_and_parse file_path entry_var =
   Utils.with_open_in file_path (fun file_desc ->
   let lexbuf = Ulexing.from_utf8_channel file_desc in
   lex_and_parse_raw lexbuf file_path entry_var
   )
-;;
-
-let lex_and_parse_js file_path entry_var =
-  let s = JsGlue.get_file file_path in
-  let lexbuf = Ulexing.from_utf8_string s in
-  lex_and_parse_raw lexbuf file_path entry_var
-;;
-
-let lex_and_parse file_path entry_var =
-  if !Options.js then
-    lex_and_parse_js file_path entry_var
-  else
-    lex_and_parse_normal file_path entry_var
 ;;
 
 (* The [mkprefix] function is called for every interface we depend on + one more
@@ -503,7 +492,7 @@ let interpret (file_path : string) : unit =
   (* Determine the module name [m]. *)
 
   let m = module_name_for_file_path file_path in
-  
+
   (* Find the modules that [m] depends upon. *)
 
   (* There is a fine var here. We are interested in the dependencies
@@ -521,7 +510,7 @@ let interpret (file_path : string) : unit =
 
   let env : Interpreter.env =
     List.fold_left (fun env m ->
-    
+
       (* We assume that each module consists of an interface file
         and an implementation file. The interface file serves a
          role as a filter (not all definitions are exported), so
@@ -542,4 +531,3 @@ let interpret (file_path : string) : unit =
   Interpreter.eval_lone_implementation
     env
     (find_and_lex_implementation m)
-

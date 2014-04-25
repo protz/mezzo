@@ -19,20 +19,8 @@
 
 (* These functions are only filled in by [MezzoWeb], if compiled. *)
 
-let output_string_: (string -> unit) ref =
-  ref (fun _ -> assert false)
-
-let output_string s =
-  !output_string_ s
-
-let get_file_: (string -> string) ref =
-  ref (fun _ -> assert false)
-
-let get_file f =
-  !get_file_ f
-
 let highlight_range_: (Lexing.position -> Lexing.position -> unit) ref =
-  ref (fun _ _ -> assert false)
+  ref (fun _ _ -> ())
 
 let highlight_range l1 l2 =
   !highlight_range_ l1 l2

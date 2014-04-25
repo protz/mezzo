@@ -5,11 +5,10 @@
 <title>MezzoWeb!</title>
 <link rel="stylesheet" type="text/css" media="screen" href="style.css" />
 
-<script type="text/javascript" charset="utf-8" src="js/missing.js"></script>
 <script type="text/javascript" charset="utf-8" src="js/ace-builds/src-noconflict/ace.js"></script>
 <script type="text/javascript" charset="utf-8" src="js/jquery-2.1.0.min.js"></script>
-<script type="text/javascript" charset="utf-8" src="js/mezzo.js"></script>
 <script type="text/javascript" charset="utf-8" src="js/ui.js"></script>
+<script type="text/javascript" charset="utf-8" src="js/mezzo.js"></script>
 
 </head>
 <body>
@@ -17,7 +16,7 @@
 <div id="hbox">
   <div id="explorer">
     Files available:
-    <ul>
+    <ul id="explorer-list">
     </ul>
   </div>
   <div id="vbox">
@@ -32,7 +31,7 @@
           <input type="checkbox" id="option-interpret" /> interpret
         </label>
         <a href="#" id="show-more-options">(more options)</a>
-        <span class="more-options" style="display: none;">
+        <span id="more-options" class="more-options" style="display: none;">
           <label>
             <input type="number" min="0" max="10" value="0" id="option-debug" /> debug level
           </label>
