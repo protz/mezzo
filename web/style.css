@@ -96,6 +96,9 @@ a:hover {
   padding-left: 3px;
   border-left: 2px solid #CB3587;
 }
+#console > div.message.error-message {
+  color: red;
+}
 
 #console > div.timestamp {
   font-size: 70%;
@@ -109,4 +112,3 @@ a:hover {
 #editor {
   flex: 6 1 auto;
 }
-

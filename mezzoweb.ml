@@ -17,210 +17,130 @@
 (*                                                                           *)
 (*****************************************************************************)
 
+class type file = object
+  method name : Js.js_string Js.t Js.prop
+  method content : Js.js_string Js.t Js.prop
+end
+class type dir = object
+  method name : Js.js_string Js.t Js.prop
+  method files : file Js.t Js.js_array Js.t Js.prop
+end
+class type mezzo = object
+  method beforeInit : (unit -> unit) Js.callback Js.writeonly_prop
+  method afterInit : (unit -> unit) Js.callback Js.writeonly_prop
+  method process : (Js.js_string Js.t -> bool Js.t -> bool Js.t -> int -> Js.js_string Js.t -> unit) Js.callback Js.writeonly_prop
+  method files: (dir Js.t Js.js_array Js.t) Js.prop
+end
 
-
-let process
-    (f: string)
-    (type_check: bool)
-    (interpret: bool)
-    (debug_level: int)
-    (warn_error: string) =
-  (* Reset to the default value and then parse the user-provided one. *)
-  TypeErrors.parse_warn_error !Options.warn_error;
-  TypeErrors.parse_warn_error warn_error;
-
-  (* Debug level. *)
-  Log.enable_debug debug_level;
-
-  let opts =
-    { Driver.html_errors = false; backtraces = false }
-  in
-  if type_check then
-    ignore (Driver.run opts (fun () -> Driver.process f));
-  if interpret then
-    Driver.run opts (fun () -> Driver.interpret f)
-;;
-
+let mezzo : mezzo Js.t = Js.Unsafe.global##mezzo <- Js.Unsafe.obj [||]; Js.Unsafe.global##mezzo
 let toplevel_filename = "::toplevel.mz"
 let toplevel_filename_i = "::toplevel.mzi"
 
-
-let by_id s=
-  Js.Opt.get
-    (Dom_html.document##getElementById(Js.string s))
-    (fun () -> failwith (Printf.sprintf "cannot find dom id %S\n%!" s))
-
-let by_id_coerce s f  =
-  Js.Opt.get (Js.Opt.bind (Dom_html.document##getElementById(Js.string s)) f)
-    (fun () -> failwith (Printf.sprintf "cannot find dom id %S\n%!" s))
-
+let timestamp_chan = open_out "/dev/null"
 
 let timestamp () =
-  let c = by_id "console" in
-  let d = Dom_html.createDiv Dom_html.document in
-  d##className <- Js.string "timestamp";
   let date = jsnew Js.date_now () in
-  let t = Dom_html.document##createTextNode(
-      date##toLocaleTimeString()) in
-  Dom.appendChild d t;
-  Dom.appendChild c d
+  let ts = Js.to_string (date##toLocaleTimeString()) in
+  MzString.bfprintf ~new_line:() timestamp_chan "%s" ts
 
 
-let make = ref (fun () -> ())
-
-let setup editor =
-  editor##setTheme(Js.string "ace/theme/chrome");
-  editor##getSession()##setMode(Js.string "ace/mode/ocaml");
-  editor##commands##addCommand(
-    Js.Unsafe.(obj [|
-        "name", inject (Js.string "make");
-        "bindKey", inject (obj [| "win", inject (Js.string "Ctrl-M");
-                                  "mac", inject (Js.string "Command-M") |]);
-        "exec", inject (fun () -> !make ());
-        "readOnly", inject Js._true;
-      |]));
-  editor##focus()
-
-let make_with_editor editor =
-  begin try
-      timestamp ();
-      editor##clearSelection();
-      let t0 = Sys.time () in
-      let typecheck = Js.to_bool (by_id_coerce "option-typecheck" Dom_html.CoerceTo.input)##checked in
-      let interpret = Js.to_bool (by_id_coerce "option-interpret" Dom_html.CoerceTo.input)##checked in
-      Js.Unsafe.global##mezzoReturnCode <- 0;
-      if Sys.file_exists toplevel_filename then Sys.remove toplevel_filename;
-      Sys_js.register_file toplevel_filename (Js.to_string (editor##getValue()));
-      process toplevel_filename
-        typecheck
-        interpret
-        (Js.parseInt ((by_id_coerce "option-debug" Dom_html.CoerceTo.input)##value)) (* debug *)
-        (Js.to_string ((by_id_coerce "option-warnerror" Dom_html.CoerceTo.input)##value)); (* warnerr *)
-      let delta = Sys.time () -. t0 in
-      let action = match typecheck, interpret with
-        | true, true -> "Type-checked and interpreted"
-        | true, _ ->    "Type-checked"
-        | _ , true ->   "Interpreted"
-        | false,false -> "Did nothing" in
-      if Js.Unsafe.global##mezzoReturnCode = 0 then
-        Format.printf "%s successfully (in about %.2fs)@." action delta
-      else
-        Format.eprintf "Mezzo terminated abruptly@."
-    with
-    | Js.Error e ->
-      Js.debugger ();
-      Format.eprintf "Mezzo threw an Exception : %s, %s@.%s@."
-        (Js.to_string e##name)
-        (Js.to_string e##message)
-        (Js.Optdef.case (e##stack) (fun () -> "Not backtrace") (fun x ->  Js.to_string x) );
-    | Stack_overflow -> Js.debugger (); ()
-    | e ->
-      Js.debugger ();
-      Format.eprintf "Mezzo threw an Exception : %s@." (Printexc.to_string e)
-
-  end
-
-let span text =
-  let span = Dom_html.createSpan Dom_html.document in
-  let t = Dom_html.document##createTextNode(Js.string text) in
-  Dom.appendChild span t;
-  span
-
-let build_explorer editor files =
-  let ul = by_id "explorer-list" in
-  ignore(Sys.file_exists "corelib/autoload");
-  List.iter (fun (dir,files) ->
-      let li = Dom_html.createLi Dom_html.document in
-      Dom.appendChild ul li;
-      Dom.appendChild li (span dir);
-      Dom.appendChild li (span " ");
-      let collapsed = ref false in
-      let a = Dom_html.createA Dom_html.document in
-      Dom.appendChild li a;
-      a##href <- Js.string "#";
-      a##style##fontSize <- Js.string "font-size: 80%";
-      a##className <- Js.string "toggle";
-      let col_txt = Dom_html.document##createTextNode(Js.string "(collapse)") in
-      Dom.appendChild a col_txt;
-      let ul = Dom_html.createUl Dom_html.document in
-      a##onclick <- Dom_html.handler (fun _ ->
-          if not !collapsed
-          then begin
-            col_txt##data <- Js.string ("(expand)");
-            ul##style##display <- Js.string "none"
-          end else begin
-            col_txt##data <- Js.string ("(collapse)");
-            ul##style##display <- Js.string ""
-          end;
-          collapsed:= not !collapsed;
-          Js._true);
-      ul##className <- Js.string "file-list";
-      Dom.appendChild li ul;
-      List.iter (fun file ->
-          let fullname = dir ^ "/" ^ file in
-          if Sys.file_exists fullname
-          then let li = Dom_html.createLi Dom_html.document in
-            Dom.appendChild ul li;
-            let a = Dom_html.createA Dom_html.document in
-            Dom.appendChild li a;
-            a##href <- Js.string "#";
-            a##onclick <- Dom_html.handler (fun _ ->
-                let content = (Js.Unsafe.variable "caml_fs_file_content") (dir ^ "/" ^ file) in
-                editor##setValue(Js.string content);
-                editor##clearSelection();
-                editor##gotoLine(0);
-              );
-            let t = Dom_html.document##createTextNode(Js.string file) in
-            Dom.appendChild a t;
-            ()
-        ) files;
-      ()
-    ) files;
-  ()
-
-let _ = Dom_html.window##onload <- Dom_html.handler (fun _ ->
-    (by_id "command-clear")##onclick <- Dom_html.handler (fun _ ->
-      (by_id "console")##innerHTML <- Js.string ""; Js._true);
-    (by_id "command-go")##onclick <- Dom_html.handler (fun _ -> !make (); Js._true);
-    (by_id_coerce "option-typecheck" Dom_html.CoerceTo.input)##checked <- Js._true;
-    (by_id_coerce "option-warnerror" Dom_html.CoerceTo.input)##value <- Js.string "-1+2..4-5+6";
-    (by_id "show-more-options")##onclick <- Dom_html.handler (fun _ ->
-        (by_id "more-options")##style##display <- Js.string "";
-        let _ = (by_id "buttons-wrapper")##removeChild(((by_id "show-more-options") :> (Dom.node Js.t))) in
-        Js._true
-      );
+let process
+    (s: Js.js_string Js.t)
+    (type_check: bool Js.t)
+    (interpret: bool Js.t)
+    (debug_level: int)
+    (warn_error: Js.js_string Js.t) =
+  try
+    let s = Js.to_string s in
+    let warn_error = Js.to_string warn_error in
+    let type_check = Js.to_bool type_check in
+    let interpret = Js.to_bool interpret in
     timestamp ();
-    let editor = Js.Unsafe.global##ace##edit(Js.string "editor") in
-    make := (fun () -> make_with_editor editor);
-    build_explorer editor Mezzofiles.all;
+    let f = toplevel_filename in
+    if Sys.file_exists f then Sys.remove toplevel_filename;
+    Sys_js.register_file f s;
+    Js.Unsafe.global##mezzoReturnCode <- 0;
+    let t0 = Sys.time () in
+    (* Reset to the default value and then parse the user-provided one. *)
+    TypeErrors.parse_warn_error !Options.warn_error;
+    TypeErrors.parse_warn_error warn_error;
+
+    (* Debug level. *)
+    Log.enable_debug debug_level;
+
+    let opts =
+      { Driver.html_errors = false; backtraces = false }
+    in
+    if type_check then
+      ignore (Driver.run opts (fun () -> Driver.process f));
+    if interpret then
+      Driver.run opts (fun () -> Driver.interpret f);
+
+    let delta = Sys.time () -. t0 in
+    let action = match type_check, interpret with
+      | true, true -> "Type-checked and interpreted"
+      | true, _ ->    "Type-checked"
+      | _ , true ->   "Interpreted"
+      | false,false -> "Did nothing" in
+    if Js.Unsafe.global##mezzoReturnCode = 0 then
+      MzString.bprintf "%s successfully (in about %.2fs)\n" action delta
+    else
+      MzString.beprintf "Mezzo terminated abruptly\n"
+  with
+  | Js.Error e ->
+    MzString.bprintf "Mezzo threw an Exception : %s, %s\n%s\n."
+      (Js.to_string e##name)
+      (Js.to_string e##message)
+      (Js.Optdef.case (e##stack) (fun () -> "Not backtrace") (fun x ->  Js.to_string x) )
+  | e ->
+    MzString.beprintf "Mezzo threw an Exception : %s\n" (Printexc.to_string e);;
 
 
-    let highlight_range (l1: Lexing.position) (l2: Lexing.position): unit =
-      let open Lexing in
-      let row1 = l1.pos_lnum - 1 in
-      let col1 = l1.pos_cnum - l1.pos_bol in
-      let row2 = l2.pos_lnum - 1 in
-      let col2 = l2.pos_cnum - l2.pos_bol in
-      let r = Js.Unsafe.global##ace##require(Js.string "./range")##_Range in
-      editor##getSelection()##addRange(Js.Unsafe.new_obj r (Array.map Js.Unsafe.inject [| row1; col1; row2; col2 |])) in
-    JsGlue.highlight_range_ := highlight_range;
-    Driver.add_include_dir "corelib";
-    Driver.add_include_dir "stdlib";
-    Driver.add_include_dir ".";
-    Options.js := true;
+let _ =
+  mezzo##beforeInit <- Js.wrap_callback (fun _ ->
+      let highlight_range (l1: Lexing.position) (l2: Lexing.position): unit =
+        let open Lexing in
+        let row1 = l1.pos_lnum - 1 in
+        let col1 = l1.pos_cnum - l1.pos_bol in
+        let row2 = l2.pos_lnum - 1 in
+        let col2 = l2.pos_cnum - l2.pos_bol in
+        let hl = Js.Unsafe.variable "mz_highlight_range" in
+        Js.Unsafe.fun_call hl (Array.map Js.Unsafe.inject [| row1; col1; row2; col2 |]) in
 
-    let flusher _cl = (fun s ->
-        let console = by_id "console" in
-        let div = Dom_html.createDiv Dom_html.document in
-        let txt = Dom_html.document##createTextNode(Js.string s) in
-        div##className <- Js.string "message";
-        Dom.appendChild div txt;
-        Dom.appendChild console div;
-        console##scrollTop <- (console##scrollHeight)) in
-    Sys_js.set_channel_flusher stdout (flusher "");
-    Sys_js.set_channel_flusher stderr (flusher "error-message");
+      JsGlue.highlight_range_ := highlight_range;
+      Driver.add_include_dir "corelib";
+      Driver.add_include_dir "stdlib";
+      Driver.add_include_dir ".";
+      Options.js := true;
+
+      let files =
+        let dir name =
+          let files = Sys.readdir name in
+          let files = Array.map (fun file ->
+              let content = Js.Unsafe.(fun_call (variable "caml_fs_file_content") [| inject (Js.string (name ^ "/" ^ file)) |]) in
+              Js.Unsafe.obj [| "name", Js.Unsafe.inject (Js.string file);
+                               "content", Js.Unsafe.inject (Js.string content);|]) files in
+
+          Js.Unsafe.obj [| "name", Js.Unsafe.inject (Js.string name);
+                           "files", Js.Unsafe.inject files |] in
+        let all = Array.map dir [|"corelib";"stdlib";"demos"|] in
+        Js.array all in
+      let flusher cl = (fun s ->
+          Js.Unsafe.fun_call
+            (Js.Unsafe.variable "mz_log")
+            (Array.map (fun s -> Js.Unsafe.inject (Js.string s)) [|  s; cl|])) in
+      Sys_js.set_channel_flusher stdout (flusher "message");
+      Sys_js.set_channel_flusher stderr (flusher "message error-message");
+      Sys_js.set_channel_flusher timestamp_chan (flusher "timestamp");
+      mezzo##files <- files;
+      timestamp ()
 
 
-    Format.printf "Editor successfully loaded, hit Ctrl-M or Command-M.@.";
-    Js._true
-  )
+
+
+
+    );
+  mezzo##afterInit <- Js.wrap_callback (fun _ ->
+      MzString.bprintf "Editor successfully loaded, hit Ctrl-M or Command-M.\n";
+    );
+  mezzo##process <- Js.wrap_callback process
