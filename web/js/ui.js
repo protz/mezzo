@@ -80,6 +80,7 @@ function mz_build_explorer(dirs){
     var sublist = $("<ul>")
         .addClass("file-list");
     $.each(dir.files, function (i, f) {
+      if(f.name == "autoload") return;
       var item = $("<li>");
       item.append($("<a href='#'></a>")
                   .text(f.name)
