@@ -325,7 +325,8 @@ let flags = Array.make 8 CError;;
  *   for the new message;
  *   - you should update testsuite.ml, the variables silent_warn_error and
  *   pedantic_warn_error should be refreshed.
- *   - $("#option-warnerror") web/js/ui.js
+ * - you should update the variable $("#option-warnerror") accordingly
+ *   in web/js/ui.js
  *)
 let errno_of_error = function
   | UncertainMerge _ ->
