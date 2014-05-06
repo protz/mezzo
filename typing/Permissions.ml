@@ -1396,7 +1396,7 @@ and sub_perm (env: env) (t: typ): result =
               qed
             end
         | _ ->
-            no_proof env (JSubPerm t')
+            no_proof env (JSubPerm t)
       else
         try_proof "Sub-Anchored" begin
           sub env p t' >>=
