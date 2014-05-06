@@ -14,3 +14,4 @@ tmp/*
 myocamlbuild.ml
 .DS_Store
 *#
+*~

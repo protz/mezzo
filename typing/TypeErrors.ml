@@ -21,6 +21,7 @@
 
 open Kind
 open TypeCore
+open Inconsistency
 open Types
 open DerivationPrinter
 open ClFlags
@@ -68,6 +69,7 @@ and raw_error =
   | Instantiated of Variable.name * typ
   | PackWithExists
   | SeveralWorkingFunctionTypes of var
+  | InconsistentEnv
 
 exception TypeCheckerError of error
 
@@ -298,6 +300,9 @@ let print_error buf (env, raw_error) =
       bprintf "Several function types can be used for calling %a, \
         picking an arbitrary one."
         pnames (env, get_names env p)
+  | InconsistentEnv -> 
+      bprintf "Inconsistent environment: %a."
+	pinconsistency (get_inconsistent env)
 ;;
 
 let html_error error =
@@ -311,7 +316,7 @@ let html_error error =
 
 let internal_extracterror = snd;;
 
-let flags = Array.make 7 CError;;
+let flags = Array.make 8 CError;;
 
 (* When adding a new user-configurable error, there are *several* things to
  * update:
@@ -320,6 +325,7 @@ let flags = Array.make 7 CError;;
  *   for the new message;
  *   - you should update testsuite.ml, the variables silent_warn_error and
  *   pedantic_warn_error should be refreshed.
+ *   - $("#option-warnerror") web/js/ui.js
  *)
 let errno_of_error = function
   | UncertainMerge _ ->
@@ -334,6 +340,8 @@ let errno_of_error = function
       5
   | SeveralWorkingFunctionTypes _ ->
       6
+  | InconsistentEnv ->
+      7
   | _ ->
       0
 ;;

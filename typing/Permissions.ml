@@ -530,10 +530,10 @@ and add (env: env) (var: var) (t: typ): env =
         | Some _ when FactInference.is_exclusive env t ->
             Log.debug ~level:4 "%s]%s (two exclusive perms!)" Bash.colors.Bash.red Bash.colors.Bash.default;
             (* We cannot possibly have two exclusive permissions for [x]. *)
-            mark_inconsistent env
+            mark_inconsistent env (ExclusivePerms t)
         | Some branch' ->
             if not (resolved_datacons_equal env branch.branch_datacon branch'.branch_datacon) then
-              mark_inconsistent env
+              mark_inconsistent env (DistinctDatacon (branch, branch'))
             else begin
               (* If we are still here, then the two permissions at hand are
                  not exclusive. This implies, I think, that the two adopts
@@ -577,7 +577,7 @@ and add (env: env) (var: var) (t: typ): env =
         begin match MzList.find_opt (function TyTuple ts' -> Some ts' | _ -> None) original_perms with
         | Some ts' ->
             if List.length ts <> List.length ts' then
-              mark_inconsistent env
+              mark_inconsistent env (TupleArity (ts, ts'))
             else
               List.fold_left2 (fun env t t' ->
                 let t = modulo_flex env t in
@@ -678,7 +678,7 @@ and add_type (env: env) (p: var) (t: typ): env =
    * consistency. *)
   if List.exists (FactInference.is_exclusive env) perms && is_excl then
     let env = add_perm_raw env p t in
-    mark_inconsistent env
+    mark_inconsistent env (ExclusivePerms t)
 
   (* Type is not already in there. Let's simply add it. *)
   else if not (List.exists (equal env t) (get_permissions env p)) then
@@ -1509,4 +1509,12 @@ let sub_perm env p: result =
 
 let sub_constraint env c: result =
   pick_arbitrary (sub_constraint env c)
+;;
+
+let add (env: env) (var: var) (t: typ): env =
+  let was_inconsistent = is_inconsistent env in
+  let env = add env var t in
+  if (not was_inconsistent) && is_inconsistent env then
+    TypeErrors.may_raise_error env TypeErrors.InconsistentEnv;
+  env
 ;;

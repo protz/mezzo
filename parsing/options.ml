@@ -35,7 +35,7 @@ let please_compile =
 ;;
 
 let warn_error =
-  ref "-1+2..4-5+6"
+  ref "-1+2..4-5+6+7"
 ;;
 
 let boot =

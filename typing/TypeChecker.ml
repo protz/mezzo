@@ -1130,7 +1130,7 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
   | EFail ->
       let name = Auto (Variable.register "/inconsistent") in
       let env, x = bind_rigid env (name, KValue, location env) in
-      let env = mark_inconsistent env in
+      let env = mark_inconsistent env FailAnnot in
       env, x
 
   | EBuiltin _ ->

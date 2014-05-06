@@ -57,11 +57,11 @@ let check env point t =
 exception KnownFailure
 
 let silent_warn_error =
-  "-1..6"
+  "-1..7"
 ;;
 
 let pedantic_warn_error =
-  "@1..4+5@6"
+  "@1..4+5@6+7"
 ;;
 
 let simple_test ?(warn_error=silent_warn_error) ?known_failure outcome = fun do_it ->

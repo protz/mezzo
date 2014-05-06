@@ -114,7 +114,7 @@ $(document).ready(function () {
   $("#command-clear").click(mz_clear);
   $("#command-go").click(mz_on_make);
   $("#option-typecheck").prop("checked", true);
-  $("#option-warnerror").val("-1+2..4-5+6");
+  $("#option-warnerror").val("-1+2..4-5+6+7");
   $("#show-more-options").click(function () {
     $(this).next().show("slow");
     $(this).remove();
