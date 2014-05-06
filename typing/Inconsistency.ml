@@ -9,4 +9,3 @@ let pinconsistency (b: Buffer.t)(i: inconsistency): unit =
     | DistinctDatacon (_, _) -> "distinct datatype constructors"
     | TupleArity (_,_) -> "distinct arity of tuples")
 ;;
-

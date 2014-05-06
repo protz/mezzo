@@ -1150,6 +1150,7 @@ and check_bindings
   (rec_flag: rec_flag)
   (patexprs: (pattern * expression) list): env * substitution_kit
   =
+    let was_inconsistent = is_inconsistent env in
     let env, patexprs, subst_kit = bind_patexprs env rec_flag patexprs in
     let { subst_expr; subst_pat; _ } = subst_kit in
     let patterns, expressions = List.split patexprs in
@@ -1180,6 +1181,8 @@ and check_bindings
       let env = unify_pattern env pat var in
       env) env patterns expressions
     in
+    if (not was_inconsistent) && is_inconsistent env then
+      TypeErrors.(may_raise_error env InconsistentEnv);
     env, subst_kit
 ;;
 

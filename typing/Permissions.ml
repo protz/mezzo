@@ -1515,6 +1515,6 @@ let add (env: env) (var: var) (t: typ): env =
   let was_inconsistent = is_inconsistent env in
   let env = add env var t in
   if (not was_inconsistent) && is_inconsistent env then
-    TypeErrors.may_raise_error env TypeErrors.InconsistentEnv;
+    TypeErrors.(may_raise_error env InconsistentEnv);
   env
 ;;
