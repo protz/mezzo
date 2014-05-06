@@ -1045,10 +1045,10 @@ let tests: (string * ((unit -> env) -> unit)) list = [
   ("flexbug.mz", fail);
   ("flexbug2.mz", fail);
   ("cons.mz", pass);
-  ("nesting00.mz", pass);
+  ("nesting00.mz", fail);
   ("nesting02.mz", pass);
   ("nesting03.mz", fail);
-  ("nesting04.mz", pass);
+  ("nesting04.mz", fail);
   ("resugar.mz", pass_known_failure);
 
   (* The following test(s) must pass *with a warning* *)
