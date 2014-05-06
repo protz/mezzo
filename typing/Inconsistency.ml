@@ -1,5 +1,7 @@
 open TypeCore
 
+(* TEMPORARY One should also pretty-print what's causing the
+   inconsistency, which should be provided by the witnesses. *)
 let pinconsistency (b: Buffer.t)(i: inconsistency): unit =
   Buffer.add_string b 
     (match i with
