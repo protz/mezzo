@@ -1051,6 +1051,9 @@ let tests: (string * ((unit -> env) -> unit)) list = [
   ("nesting04.mz", pass);
   ("resugar.mz", pass_known_failure);
 
+  (* The following test(s) must pass *with a warning* *)
+  ("warninconsistent1.mz", pass);
+
   (* The tests below are intentionally not run as they cause the type-checker to
    * loop. We still want to list them as, eventually, we will want to fix them. *)
   ("landin.mz", fun _ -> raise KnownFailure);
