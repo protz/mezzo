@@ -323,7 +323,8 @@ let translate_data_type_def_branch
     | TyConcrete (dref, fields, _dummy_adopts) ->
         let branch_fields = List.map (fun (name, t) ->
             (* This is where we branch onto the regular flavor of translate_type *)
-            name, translate_type_reset_no_kind env t
+            let t, _, _ = translate_type env t in
+            name, t
           ) fields
         in
         let branch_datacon =
