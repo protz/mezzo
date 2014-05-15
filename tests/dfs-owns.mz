@@ -45,7 +45,7 @@ val traverse (consumes g : graph unknown) : graph int =
   (* The recursive function. *)
   let rec visit (n : dynamic | g @ graph unknown * c @ ref int * newGraph @ graph int) : () =
     (* Perform a dynamic ownership test. *)
-    if g owns n then begin
+    if g adopts n then begin
       (* This node has not been visited yet. *)
       take n from g;
       (* Number this node. *)

@@ -55,7 +55,7 @@
 %token          FLEX PACK WITNESS
 %token          VAL LET REC AND IN DOT WITH BEGIN END MATCH FOR ABOVE BELOW DOWNTO
 %token          IF THEN ELSE PRESERVING WHILE DO
-%token          TAKE FROM GIVE TO ADOPTS OWNS TAKING
+%token          TAKE FROM GIVE TO ADOPTS TAKING
 %token<int>     INT
 %token<string>  OPPREFIX OPINFIX0a OPINFIX0b OPINFIX0c OPINFIX0d OPINFIX1 OPINFIX2 OPINFIX3 OPINFIX4
 %token<string>  EQUAL STAR PLUS MINUS COLONEQUAL (* special cases of operators *)
@@ -64,7 +64,7 @@
 %nonassoc THEN
 %nonassoc ELSE
 
-%nonassoc OWNS
+%nonassoc ADOPTS
 %nonassoc COLONEQUAL
 %left     OPINFIX0a
 %left     OPINFIX0b
@@ -874,7 +874,7 @@ raw_algebraic_expression:
     (* TEMPORARY here, unary minus is treated as a non-hygienic macro for
        binary minus; do we want this? does OCaml allow redefining unary
        minus? *)
-| e1 = algebraic_expression OWNS e2 = algebraic_expression
+| e1 = algebraic_expression ADOPTS e2 = algebraic_expression
     { EOwns (e1, e2) }
 | e = raw_application_expression
     { e }
