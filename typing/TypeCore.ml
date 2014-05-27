@@ -218,7 +218,7 @@ type env = {
 and flex_descr = {
   (* If a flexible variable is not instantiated, it has a descriptor. When it
    * becomes instantiated, it loses its descriptor and gains the information
-   * from another type. We have the invariant that importants properties about
+   * from another type. We have the invariant that important properties about
    * the variable (fact, level, kind) are "better" after it lost its descriptor
    * (more precise fact, lower level, equal kind). *)
   structure: structure;
