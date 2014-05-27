@@ -18,7 +18,7 @@ data mutable ref a =
 data narcissic (r : value) a b =
   (* TEMPORARY the name introduction « x: ... » is a hack so that the
    * type-checker doesn't jump into an infinite loop *)
-  Narcissic { content : (x: a | r @ narcissic r a b) -> b }
+  Narcissic { content : (x: a | consumes r @ narcissic r a b) -> b }
 
 (* Let us now define a fixed point combinator. *)
 
@@ -27,7 +27,7 @@ val fix [ a, b ] (ff : (a -> b) -> (a -> b)) : a -> b =
   let r = Ref { content = () } in
   (* We have r @ Ref { content : () } *)
 
-  let f (x : a | r @ narcissic r a b) : b =
+  let f (x : a | consumes r @ narcissic r a b) : b =
 
     (* We have r @ narcissic r a b, so we can read r.content *)
     let self = r.content in
