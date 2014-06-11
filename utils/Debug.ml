@@ -203,8 +203,15 @@ module Graph = struct
    * structural permission + things that are pointed to by structural
    * permissions. This yields some "interesting" graphs. For some definition of
    * "interesting". *)
-  let mark_interesting env conflicts =
+  let mark_interesting env root conflicts =
     let env = refresh_mark env in
+    let env = 
+      match root with
+      | Some root ->
+          mark_reachable env (TyOpen root)
+      | None ->
+          env
+    in
     let env = List.fold_left mark env conflicts in
     fold_terms env (fun env var permissions ->
       List.fold_left (fun env perm ->
@@ -229,9 +236,9 @@ module Graph = struct
     ) env
   ;;
 
-  let write_graph buf (env, conflicts) =
+  let write_graph buf (env, root, conflicts) =
     write_intro buf;
-    let env = mark_interesting env conflicts in
+    let env = mark_interesting env root conflicts in
     fold_terms env (fun () var permissions ->
       let is_conflict = List.exists (same env var) conflicts in
       let names = get_names env var in
@@ -249,9 +256,9 @@ module Graph = struct
     write_outro buf;
   ;;
 
-  let graph env interesting =
+  let graph env ?x interesting =
     let ic, oc = Unix.open_process "dot -Tx11" in
-    MzString.bfprintf oc "%a" write_graph (env, interesting);
+    MzString.bfprintf oc "%a" write_graph (env, x, interesting);
     close_out oc;
     close_in ic;
   ;;
@@ -299,10 +306,10 @@ module Html = struct
     ) []
   ;;
 
-  let render_svg env conflicts =
+  let render_svg env ?x conflicts =
     (* Create the SVG. *)
     let ic, oc = Unix.open_process "dot -Tsvg" in
-    MzString.bfprintf oc "%a" Graph.write_graph (env, conflicts);
+    MzString.bfprintf oc "%a" Graph.write_graph (env, x, conflicts);
     close_out oc;
     let svg = Utils.read ic in
     close_in ic;
@@ -356,10 +363,10 @@ module Html = struct
 
     let render_env_point ((env, point), conflicts) =
       `Assoc [
-        ("svg", `String (render_svg env conflicts));
+        ("svg", `String (render_svg env ~x:point conflicts));
         ("root", `Int (Graph.id_of_point env point));
         ("points", `Assoc (json_of_points env));
-        ("dot", `String (MzString.bsprintf "%a" Graph.write_graph (env, conflicts)));
+        ("dot", `String (MzString.bsprintf "%a" Graph.write_graph (env, Some point, conflicts)));
       ]
     in
 
@@ -394,6 +401,19 @@ module Html = struct
 
 end
 
+module Dot = struct
+  let render_merge (env: cenv) (sub_envs: cenv list) =
+    let write_dot ((env, point), conflicts) s =
+      let f = (fst (location env)).Lexing.pos_fname in
+      let f = MzString.replace ".mz" ("_" ^ s ^ ".dot") f in
+      let oc = open_out f in
+      MzString.bfprintf oc "%a" Graph.write_graph (env, Some point, conflicts)
+    in
+    write_dot (List.nth sub_envs 0) "left";
+    write_dot (List.nth sub_envs 1) "right";
+    write_dot env "dest";
+end
+
 
 let explain ?(text="") ?x env =
   (* By default, explanations print verbose information if debug is enabled, and
@@ -418,7 +438,7 @@ let explain ?(text="") ?x env =
     Html.render env text interesting;
     Html.launch env;
   end else if !enabled = "x11" then begin
-    Graph.graph env interesting
+    Graph.graph env ?x interesting
   end
 ;;
 
@@ -426,5 +446,8 @@ let explain_merge (env: cenv) (sub_envs: cenv list) =
   if !enabled = "html" then begin
     Html.render_merge env sub_envs;
     Html.launch (fst (fst env));
-  end
+  end else if !enabled = "x11" then
+    Log.debug "No graphical explanations for merges in x11 format"
+  else if !enabled = "dot" then
+    Dot.render_merge env sub_envs
 ;;

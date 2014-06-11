@@ -38,7 +38,7 @@ let _ =
   in
   Arg.parse [
     "-explain", Arg.Set_string arg_trace, "<format>  The explain keyword \
-      generates a graphical dump, where <format> is one of html, x11";
+      generates a graphical dump, where <format> is one of html, dot, x11";
     "-nofancypants", Arg.Clear arg_backtraces, "  Don't catch type errors: \
       backtraces point to the place where the error was thrown";
     "-debug", Arg.Set_int arg_debug, " <level>  Output level: 0 (default) = no \
