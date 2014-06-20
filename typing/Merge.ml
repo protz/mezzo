@@ -1047,7 +1047,10 @@ let actually_merge_envs (top: env) ?(annot: typ option) (left: env * var) (right
         else
           let env, point = bind_rigid env (fresh_auto_name "mtwu", KValue, location env) in
           let env = Permissions.add env point t in
-          let t = List.find (fun x -> not (simple x)) (get_permissions env point) in
+          let t =
+            try List.find (fun x -> not (simple x)) (get_permissions env point)
+            with Not_found -> TyUnknown
+          in
           env, t
       in
       let left_env, left_perm = expand left_env left_perm in

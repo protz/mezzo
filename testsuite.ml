@@ -540,6 +540,7 @@ let tests: (string * ((unit -> env) -> unit)) list = [
   ("merge_generalize_val.mz", pass);
 
   ("merge-funcs.mz", pass_known_failure);
+  ("bug-merge-booleans.mz", pass_known_failure);
 
   ("constraints_merge.mz",
     simple_test ~warn_error:pedantic_warn_error Pass);
@@ -1050,6 +1051,9 @@ let tests: (string * ((unit -> env) -> unit)) list = [
   ("nesting03.mz", fail);
   ("nesting04.mz", fail);
   ("resugar.mz", pass_known_failure);
+  ("merge-bug.mz", fail);
+  ("merge-dont-pollute.mz", fail);
+  ("merge-dont-pollute2.mz", fail_known_failure);
   ("destruct-unqualified.mz", fail);
 
   (* The following test(s) must pass *with a warning* *)

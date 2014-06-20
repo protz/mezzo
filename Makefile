@@ -72,7 +72,7 @@ myocamlbuild.ml: ocamlbuild/ocamlbuild_mezzo.ml myocamlbuild.pre.ml
 
 clean:
 	rm -f *~ $(MAIN) $(MAIN).native $(TESTSUITE) $(TESTSUITE).native configure.ml Makefile.config \
-	  myocamlbuild.ml
+	  myocamlbuild.ml parsing/Keywords.ml vim/syntax/mezzo.vim web/js/mezzo.js
 	$(OCAMLBUILD) -clean
 
 test: all
