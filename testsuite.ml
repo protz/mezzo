@@ -1050,6 +1050,7 @@ let tests: (string * ((unit -> env) -> unit)) list = [
   ("nesting03.mz", fail);
   ("nesting04.mz", fail);
   ("resugar.mz", pass_known_failure);
+  ("destruct-unqualified.mz", fail);
 
   (* The following test(s) must pass *with a warning* *)
   ("warninconsistent1.mz", pass);

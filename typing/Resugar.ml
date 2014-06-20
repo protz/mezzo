@@ -24,7 +24,8 @@ let surface_print_var env point =
     S.Unqualified (Variable.register "!! ☠ !!")
 
 let resugar_binding env (x, kind, loc) =
-  S.destruct_unqualified (surface_print_name env x), kind, loc
+  S.unqualify (surface_print_name env x), kind, loc
+
 
 let ( !! ) = function TyOpen x -> x | _ -> assert false;;
 
