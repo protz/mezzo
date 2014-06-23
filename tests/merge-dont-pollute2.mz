@@ -1,0 +1,16 @@
+val x =
+  ()
+
+data mutable t a =
+  | A { a: a }
+  | B
+  | C
+
+val _ =
+  if true then
+    (B: t (() | x @ ref int))
+  else
+    (C: t ({ t } () | x @ ref int))
+
+val _ =
+  assert x @ ref int

@@ -1,0 +1,14 @@
+abstract state
+
+abstract element (s: value) a
+fact duplicable (element s a)
+
+val new: () -> state
+
+val create: [a] duplicable a => (s: state, x: a) -> element s a
+
+val repr: [a] duplicable a => (s: state, e: element s a) -> element s a
+
+val unify: [a] duplicable a => (s: state, x: element s a, y: element s a) -> ()
+
+val find: [a] duplicable a => (s: state, x: element s a) -> a

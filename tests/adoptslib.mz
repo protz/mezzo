@@ -12,6 +12,9 @@ alias adopter_ t = ref (list t)
  * type. *)
 alias dynamic_ = unknown
 
+val dynamic_appears (x: _): (| x @ dynamic_) =
+  ()
+
 (* Creating a new adopter just means allocating a new reference. *)
 val new_ [t] (): adopter_ t =
   newref nil

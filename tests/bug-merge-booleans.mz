@@ -1,0 +1,7 @@
+val _ =
+  let x = 1 in
+  let y = 2 in
+  if x == y && true then
+    assert x = y
+  else
+    ()

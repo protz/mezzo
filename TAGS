@@ -1,4 +1,464 @@
 
+lib/Bash.ml,362
+Bash1,0
+type colorscolors20,1442
+  greengreen21,1458
+  redred22,1475
+  blueblue23,1490
+  yellowyellow24,1506
+  orangeorange25,1524
+  defaultdefault26,1542
+  underlineunderline27,1561
+let mkcolormkcolor30,1585
+let colorscolors31,1634
+let theighttheight41,1813
+let theight, twidthtwidth41,1813
+let boxbox60,2227
+let resetreset84,3026
+
+lib/Bash.mli,325
+Bash1,0
+type colorscolors23,1552
+  greengreen24,1568
+  redred25,1585
+  blueblue26,1600
+  yellowyellow27,1616
+  orangeorange28,1634
+  defaultdefault29,1652
+  underlineunderline30,1671
+val colorscolors34,1772
+val twidthtwidth37,1822
+val theighttheight40,1870
+val boxbox43,1910
+val resetreset46,1999
+
+lib/Either.ml,277
+Either1,0
+type ('a, 'b) eithereither21,1443
+type ('a, 'b) either = LeftLeft21,1443
+type ('a, 'b) either = Left of 'a | RightRight21,1443
+let is_leftis_left23,1492
+let is_rightis_right24,1551
+let assert_leftassert_left25,1611
+let assert_rightassert_right26,1678
+
+lib/Either.mli,277
+Either1,0
+type ('a, 'b) eithereither21,1443
+type ('a, 'b) either = LeftLeft21,1443
+type ('a, 'b) either = Left of 'a | RightRight21,1443
+val is_leftis_left23,1492
+val is_rightis_right24,1529
+val assert_leftassert_left25,1567
+val assert_rightassert_right26,1606
+
+lib/InfiniteArray.ml,349
+InfiniteArray1,0
+type 'a tt20,1177
+    defaultdefault21,1191
+    mutable tabletable22,1208
+    mutable extentextent23,1237
+let default_sizedefault_size26,1321
+let makemake29,1372
+let rec new_lengthnew_length35,1457
+let ensureensure41,1557
+let getget50,1802
+let setset54,1845
+let extentextent59,1931
+let domaindomain62,1958
+
+lib/InfiniteArray.mli,153
+InfiniteArray1,0
+type 'a tt18,1121
+val makemake21,1207
+val getget25,1341
+val setset29,1488
+val extentextent35,1755
+val domaindomain39,1885
+
+lib/LazyList.ml,406
+LazyList1,0
+type 'a tt20,1442
+and 'a nodenode22,1470
+  | NilNil23,1484
+  | ConsCons24,1492
+let nilnil26,1515
+let conscons29,1537
+let nextnext32,1578
+let tltl35,1603
+let hdhd42,1716
+let oneone49,1827
+let rec filterfilter52,1865
+let flattenflatten63,2082
+let rec mapmap86,2560
+let concatconcat94,2712
+let rec iteriter109,3097
+let findfind119,3326
+let existsexists127,3559
+
+lib/LazyList.mli,417
+LazyList1,0
+type 'a tt22,1485
+and 'a nodenode23,1512
+and 'a node = NilNil23,1512
+and 'a node = Nil | ConsCons23,1512
+val nilnil25,1551
+val conscons26,1566
+val nextnext27,1596
+val tltl28,1623
+val hdhd29,1645
+val oneone30,1665
+val filterfilter31,1686
+val flattenflatten32,1728
+val mapmap33,1760
+val concatconcat34,1797
+val iteriter35,1825
+val findfind36,1865
+val existsexists37,1903
+
+lib/Log.ml,439
+Log1,0
+exception MzInternalFailureMzInternalFailure20,1442
+let the_debug_levelthe_debug_level22,1481
+let debug_leveldebug_level24,1510
+let enable_debugenable_debug26,1549
+let debugdebug30,1625
+let warn_countwarn_count38,1827
+let warnwarn39,1850
+let raise_levelraise_level41,1898
+let silentsilent49,2084
+let msgmsg56,2224
+let fail_with_summaryfail_with_summary62,2350
+let errorerror71,2582
+let checkcheck79,2779
+
+lib/Log.mli,347
+Log1,0
+exception MzInternalFailureMzInternalFailure23,1535
+val enable_debugenable_debug28,1801
+val debug_leveldebug_level30,1833
+val debugdebug33,1933
+val warnwarn36,2080
+val errorerror40,2267
+val msgmsg44,2451
+val checkcheck47,2573
+val raise_levelraise_level50,2704
+val silentsilent53,2808
+val warn_countwarn_count57,2851
+
+lib/MzList.ml,948
+MzList1,0
+let rec split3split320,1442
+let ignore_mapignore_map27,1587
+let rec iter3iter330,1655
+let iter2iiter2i40,1871
+let check_for_duplicatescheck_for_duplicates52,2347
+let exit_if_duplicatesexit_if_duplicates71,2768
+let maxmax76,3023
+let filter_somefilter_some78,3065
+let makemake82,3162
+let map2imap2i91,3300
+let fold_left3fold_left3107,3590
+let fold_left2ifold_left2i119,3909
+let fold_leftifold_lefti131,4201
+let fold_rightifold_righti140,4378
+let reducereduce150,4567
+let lastlast153,4628
+let nth_optnth_opt155,4673
+let map_somemap_some161,4765
+let indexindex164,4814
+let combine3combine3172,5000
+let taketake184,5307
+let find_optifind_opti198,5578
+let find_optfind_opt211,5797
+let take_booltake_bool214,5844
+let flatten_mapflatten_map221,5996
+let rec split_mapsplit_map224,6049
+let cutcut233,6221
+let rec equalequal246,6454
+let rec cps_mapcps_map255,6604
+let rec mapmap265,6759
+
+lib/MzList.mli,910
+MzList1,0
+val map2imap2i23,1565
+val fold_rightifold_righti28,1823
+val fold_leftifold_lefti32,1991
+val fold_left2ifold_left2i36,2159
+val fold_left3fold_left339,2299
+val reducereduce43,2516
+val iter2iiter2i46,2611
+val iter3iter349,2730
+val combine3combine352,2873
+val split3split355,3004
+val makemake58,3114
+val lastlast61,3194
+val ignore_mapignore_map64,3270
+val check_for_duplicatescheck_for_duplicates69,3569
+val exit_if_duplicatesexit_if_duplicates75,3901
+val maxmax78,4041
+val filter_somefilter_some81,4118
+val map_somemap_some84,4214
+val nth_optnth_opt87,4333
+val indexindex90,4456
+val taketake95,4662
+val take_booltake_bool96,4733
+val find_optfind_opt98,4798
+val find_optifind_opti99,4854
+val flatten_mapflatten_map101,4919
+val split_mapsplit_map104,5046
+val cutcut106,5110
+val equalequal109,5200
+val cps_mapcps_map112,5297
+val mapmap117,5427
+
+lib/MzMap.ml,457
+MzMap1,0
+module type SS20,1442
+  val keyskeys24,1521
+  val unionunion27,1602
+  val interinter30,1688
+  val minusminus34,1838
+  val xorxor37,1932
+  val to_listto_list40,2015
+  val find_optfind_opt43,2108
+module MakeMake46,2154
+  module MapMap48,2210
+  let keyskeys51,2254
+  let unionunion55,2343
+  let interinter59,2441
+  let minusminus63,2599
+  let xorxor66,2700
+  let to_listto_list70,2801
+  let find_optfind_opt73,2870
+
+lib/MzMap.mli,246
+MzMap1,0
+module type SS22,1499
+  val keyskeys26,1578
+  val unionunion29,1659
+  val interinter32,1745
+  val minusminus36,1895
+  val xorxor39,1989
+  val to_listto_list42,2072
+  val find_optfind_opt45,2165
+module MakeMake48,2211
+
+lib/MzPprint.ml,1132
+MzPprint1,0
+type colorscolors26,1562
+  mutable greengreen27,1578
+  mutable redred28,1605
+  mutable blueblue29,1630
+  mutable yellowyellow30,1656
+  mutable defaultdefault31,1684
+  mutable underlineunderline32,1713
+let colorscolors35,1747
+let enable_colorsenable_colors44,1871
+let disable_colorsdisable_colors53,2242
+let arrowarrow69,2556
+let dblarrowdblarrow73,2586
+let semisemisemisemi76,2616
+let ccolonccolon79,2645
+let commabreakcommabreak82,2673
+let semibreaksemibreak85,2710
+let intint88,2745
+let larrowlarrow91,2768
+let tagoftagof95,2799
+let name_genname_gen99,2834
+let jumpjump113,3355
+let english_joinenglish_join117,3408
+let renderrender120,3471
+let pdocpdoc126,3677
+let dumpdump129,3800
+let parens_with_nestingparens_with_nesting144,4096
+let brackets_with_nestingbrackets_with_nesting147,4170
+let braces_with_nestingbraces_with_nesting158,4332
+let array_with_nestingarray_with_nesting161,4406
+let pluralplural164,4493
+let comma1comma1171,4559
+let commascommas174,4592
+let tupletuple181,4776
+let recordrecord186,4879
+let applicationapplication193,5058
+
+lib/MzString.ml,266
+MzString1,0
+let bsprintfbsprintf20,1442
+let bfprintfbfprintf23,1519
+let bprintfbprintf27,1696
+let beprintfbeprintf30,1737
+let bufbuf33,1779
+let biprintfbiprintf34,1805
+let replacereplace36,1849
+let substringsubstring41,1951
+let splitsplit44,1999
+
+lib/MzString.mli,246
+MzString1,0
+val bsprintfbsprintf24,1574
+val bfprintfbfprintf28,1750
+val bprintfbprintf32,1957
+val beprintfbeprintf36,2131
+val biprintfbiprintf39,2234
+val replacereplace42,2360
+val splitsplit45,2469
+val substringsubstring49,2643
+
+lib/Option.ml,250
+Option1,0
+let mapmap20,1442
+let map_nonemap_none24,1506
+let unit_boolunit_bool28,1563
+let extractextract32,1627
+let iteriter36,1692
+let bindbind40,1755
+let is_someis_some45,1832
+let flattenflatten47,1884
+let to_listto_list49,1935
+
+lib/Option.mli,250
+Option1,0
+val mapmap24,1623
+val map_nonemap_none27,1739
+val unit_boolunit_bool32,1953
+val extractextract35,2030
+val iteriter38,2094
+val bindbind41,2191
+val is_someis_some43,2246
+val flattenflatten45,2278
+val to_listto_list47,2322
+
+lib/PersistentRef.ml,363
+PersistentRef1,0
+module MapMap33,1957
+type locationlocation35,1987
+type 'a storestore38,2012
+  limitlimit39,2030
+  heapheap40,2049
+let emptyempty45,2094
+let makemake52,2162
+let getget57,2272
+let setset66,2480
+let eqeq72,2628
+let neqneq75,2670
+let comparecompare78,2714
+let iteriter83,2789
+let foldfold86,2849
+let validvalid91,2938
+
+lib/PersistentRef.mli,298
+PersistentRef1,0
+type locationlocation24,1595
+type 'a storestore26,1610
+val emptyempty30,1649
+val makemake34,1689
+val getget38,1758
+val setset42,1816
+val iteriter46,1900
+val foldfold50,1959
+val eqeq54,2058
+val neqneq55,2095
+val comparecompare56,2133
+val validvalid60,2200
+
+lib/PersistentUnionFind.ml,466
+PersistentUnionFind1,0
+type 'a contentcontent35,2093
+  | LinkLink36,2111
+  | RootRoot37,2132
+type 'a statestate39,2148
+type pointpoint44,2226
+let rec reprrepr52,2464
+let initinit66,2816
+let createcreate72,2949
+let samesame79,3141
+let unionunion87,3461
+let findfind99,3780
+let updateupdate120,4312
+let union_computedunion_computed131,4783
+let iteriter146,5210
+let foldfold149,5284
+let comparecompare154,5396
+let validvalid156,5433
+
+lib/PersistentUnionFind.mli,380
+PersistentUnionFind1,0
+type pointpoint24,1524
+type 'a statestate30,1688
+val initinit34,1749
+val createcreate39,1896
+val samesame44,2050
+val unionunion51,2359
+val findfind56,2520
+val updateupdate62,2739
+val union_computedunion_computed69,3088
+val iteriter72,3247
+val foldfold76,3367
+val comparecompare78,3436
+val reprrepr80,3472
+val validvalid82,3510
+
+lib/gMap.mli,1022
+GMap1,0
+module type SS20,1442
+  type keykey26,1531
+  type 'a tt30,1597
+  val emptyempty34,1635
+  val lookuplookup39,1795
+  val findfind40,1827
+  val addadd46,2047
+  exception UnchangedUnchanged52,2290
+  val strict_addstrict_add54,2313
+  type 'a decisiondecision61,2624
+  val fine_addfine_add63,2661
+  val memmem68,2808
+  val singletonsingleton72,2919
+  val is_emptyis_empty77,3053
+  val is_singletonis_singleton83,3225
+  val cardinalcardinal88,3410
+  val choosechoose93,3565
+  val lookup_and_removelookup_and_remove100,3864
+  val find_and_removefind_and_remove101,3914
+  val removeremove105,4036
+  val unionunion110,4198
+  val fine_unionfine_union118,4527
+  val iteriter124,4747
+  val foldfold133,5173
+  val fold_revfold_rev138,5345
+  val iter2iter2145,5670
+  val mapmap150,5869
+  val endo_mapendo_map156,6073
+  val comparecompare161,6222
+  module DomainDomain170,6682
+  val domaindomain172,6732
+  val liftlift173,6763
+  val corestrictcorestrict180,7027
+
+lib/gSet.mli,585
+GSet1,0
+module type SS23,1595
+  type elementelement29,1688
+  type tt33,1720
+  val emptyempty37,1755
+  val is_emptyis_empty41,1830
+  val singletonsingleton46,1946
+  val cardinalcardinal50,2029
+  val choosechoose55,2181
+  val memmem60,2292
+  val addadd65,2414
+  val removeremove70,2538
+  val unionunion74,2640
+  val diffdiff78,2754
+  val interinter83,2871
+  val disjointdisjoint88,3034
+  val iteriter93,3204
+  val foldfold104,3793
+  val elementselements108,3910
+  val comparecompare112,3991
+  val equalequal116,4070
+  val subsetsubset120,4161
+
 lib/patricia.ml,3562
 Patricia1,0
 module EndiannessEndianness33,2289
@@ -110,508 +570,72 @@ module DomainDomain587,19927
 module LittleLittle1206,35520
 module BigBig1208,35561
 
-lib/MzMap.mli,246
-MzMap1,0
-module type SS22,1499
-  val keyskeys26,1578
-  val unionunion29,1659
-  val interinter32,1745
-  val minusminus36,1895
-  val xorxor39,1989
-  val to_listto_list42,2072
-  val find_optfind_opt45,2165
-module MakeMake48,2211
-
-lib/MzString.mli,246
-MzString1,0
-val bsprintfbsprintf24,1574
-val bfprintfbfprintf28,1750
-val bprintfbprintf32,1957
-val beprintfbeprintf36,2131
-val biprintfbiprintf39,2234
-val replacereplace42,2360
-val splitsplit45,2469
-val substringsubstring49,2643
-
-lib/Log.mli,347
-Log1,0
-exception MzInternalFailureMzInternalFailure23,1535
-val enable_debugenable_debug28,1801
-val debug_leveldebug_level30,1833
-val debugdebug33,1933
-val warnwarn36,2080
-val errorerror40,2267
-val msgmsg44,2451
-val checkcheck47,2573
-val raise_levelraise_level50,2704
-val silentsilent53,2808
-val warn_countwarn_count57,2851
-
-lib/MzString.ml,266
-MzString1,0
-let bsprintfbsprintf20,1442
-let bfprintfbfprintf23,1519
-let bprintfbprintf27,1696
-let beprintfbeprintf30,1737
-let bufbuf33,1779
-let biprintfbiprintf34,1805
-let replacereplace36,1849
-let substringsubstring41,1951
-let splitsplit44,1999
-
-lib/PersistentRef.mli,298
-PersistentRef1,0
-type locationlocation24,1595
-type 'a storestore26,1610
-val emptyempty30,1649
-val makemake34,1689
-val getget38,1758
-val setset42,1816
-val iteriter46,1900
-val foldfold50,1959
-val eqeq54,2058
-val neqneq55,2095
-val comparecompare56,2133
-val validvalid60,2200
-
-lib/Bash.ml,362
-Bash1,0
-type colorscolors20,1442
-  greengreen21,1458
-  redred22,1475
-  blueblue23,1490
-  yellowyellow24,1506
-  orangeorange25,1524
-  defaultdefault26,1542
-  underlineunderline27,1561
-let mkcolormkcolor30,1585
-let colorscolors31,1634
-let theighttheight41,1813
-let theight, twidthtwidth41,1813
-let boxbox60,2227
-let resetreset84,3026
-
-lib/gSet.mli,585
-GSet1,0
-module type SS23,1595
-  type elementelement29,1688
-  type tt33,1720
-  val emptyempty37,1755
-  val is_emptyis_empty41,1830
-  val singletonsingleton46,1946
-  val cardinalcardinal50,2029
-  val choosechoose55,2181
-  val memmem60,2292
-  val addadd65,2414
-  val removeremove70,2538
-  val unionunion74,2640
-  val diffdiff78,2754
-  val interinter83,2871
-  val disjointdisjoint88,3034
-  val iteriter93,3204
-  val foldfold104,3793
-  val elementselements108,3910
-  val comparecompare112,3991
-  val equalequal116,4070
-  val subsetsubset120,4161
-
-lib/MzMap.ml,457
-MzMap1,0
-module type SS20,1442
-  val keyskeys24,1521
-  val unionunion27,1602
-  val interinter30,1688
-  val minusminus34,1838
-  val xorxor37,1932
-  val to_listto_list40,2015
-  val find_optfind_opt43,2108
-module MakeMake46,2154
-  module MapMap48,2210
-  let keyskeys51,2254
-  let unionunion55,2343
-  let interinter59,2441
-  let minusminus63,2599
-  let xorxor66,2700
-  let to_listto_list70,2801
-  let find_optfind_opt73,2870
-
-lib/Option.ml,250
-Option1,0
-let mapmap20,1442
-let map_nonemap_none24,1506
-let unit_boolunit_bool28,1563
-let extractextract32,1627
-let iteriter36,1692
-let bindbind40,1755
-let is_someis_some45,1832
-let flattenflatten47,1884
-let to_listto_list49,1935
-
-lib/MzList.mli,910
-MzList1,0
-val map2imap2i23,1565
-val fold_rightifold_righti28,1823
-val fold_leftifold_lefti32,1991
-val fold_left2ifold_left2i36,2159
-val fold_left3fold_left339,2299
-val reducereduce43,2516
-val iter2iiter2i46,2611
-val iter3iter349,2730
-val combine3combine352,2873
-val split3split355,3004
-val makemake58,3114
-val lastlast61,3194
-val ignore_mapignore_map64,3270
-val check_for_duplicatescheck_for_duplicates69,3569
-val exit_if_duplicatesexit_if_duplicates75,3901
-val maxmax78,4041
-val filter_somefilter_some81,4118
-val map_somemap_some84,4214
-val nth_optnth_opt87,4333
-val indexindex90,4456
-val taketake95,4662
-val take_booltake_bool96,4733
-val find_optfind_opt98,4798
-val find_optifind_opti99,4854
-val flatten_mapflatten_map101,4919
-val split_mapsplit_map104,5046
-val cutcut106,5110
-val equalequal109,5200
-val cps_mapcps_map112,5297
-val mapmap117,5427
-
-lib/MzPprint.ml,1132
-MzPprint1,0
-type colorscolors26,1562
-  mutable greengreen27,1578
-  mutable redred28,1605
-  mutable blueblue29,1630
-  mutable yellowyellow30,1656
-  mutable defaultdefault31,1684
-  mutable underlineunderline32,1713
-let colorscolors35,1747
-let enable_colorsenable_colors44,1871
-let disable_colorsdisable_colors53,2242
-let arrowarrow66,2519
-let dblarrowdblarrow70,2549
-let semisemisemisemi73,2579
-let ccolonccolon76,2608
-let commabreakcommabreak79,2636
-let semibreaksemibreak82,2673
-let intint85,2708
-let larrowlarrow88,2731
-let tagoftagof92,2762
-let name_genname_gen96,2797
-let jumpjump110,3318
-let english_joinenglish_join114,3371
-let renderrender117,3435
-let pdocpdoc123,3641
-let dumpdump126,3764
-let parens_with_nestingparens_with_nesting141,4060
-let brackets_with_nestingbrackets_with_nesting144,4134
-let braces_with_nestingbraces_with_nesting155,4296
-let array_with_nestingarray_with_nesting158,4370
-let pluralplural161,4457
-let comma1comma1168,4523
-let commascommas171,4556
-let tupletuple178,4740
-let recordrecord183,4843
-let applicationapplication190,5022
-
-lib/PersistentUnionFind.mli,380
-PersistentUnionFind1,0
-type pointpoint24,1524
-type 'a statestate30,1688
-val initinit34,1749
-val createcreate39,1896
-val samesame44,2050
-val unionunion51,2359
-val findfind56,2520
-val updateupdate62,2739
-val union_computedunion_computed69,3088
-val iteriter72,3247
-val foldfold76,3367
-val comparecompare78,3436
-val reprrepr80,3472
-val validvalid82,3510
-
-lib/LazyList.ml,406
-LazyList1,0
-type 'a tt20,1442
-and 'a nodenode22,1470
-  | NilNil23,1484
-  | ConsCons24,1492
-let nilnil26,1515
-let conscons29,1537
-let nextnext32,1578
-let tltl35,1603
-let hdhd42,1716
-let oneone49,1827
-let rec filterfilter52,1865
-let flattenflatten63,2082
-let rec mapmap86,2560
-let concatconcat94,2712
-let rec iteriter109,3097
-let findfind119,3326
-let existsexists127,3559
-
 lib/patricia.mli,66
 Patricia1,0
 module LittleLittle24,1686
 module BigBig26,1730
 
-lib/Either.mli,277
-Either1,0
-type ('a, 'b) eithereither21,1443
-type ('a, 'b) either = LeftLeft21,1443
-type ('a, 'b) either = Left of 'a | RightRight21,1443
-val is_leftis_left23,1492
-val is_rightis_right24,1529
-val assert_leftassert_left25,1567
-val assert_rightassert_right26,1606
+parsing/ClFlags.ml,130
+ClFlags1,0
+type flagflag1,0
+  CErrorCError2,13
+  CError | CWarningCWarning2,13
+  CError | CWarning | CSilentCSilent2,13
 
-lib/Option.mli,250
-Option1,0
-val mapmap24,1623
-val map_nonemap_none27,1739
-val unit_boolunit_bool32,1953
-val extractextract35,2030
-val iteriter38,2094
-val bindbind41,2191
-val is_someis_some43,2246
-val flattenflatten45,2278
-val to_listto_list47,2322
+parsing/Datacon.ml,29
+Datacon1,0
+let pp24,1601
 
-lib/Bash.mli,325
-Bash1,0
-type colorscolors23,1552
-  greengreen24,1568
-  redred25,1585
-  blueblue26,1600
-  yellowyellow27,1616
-  orangeorange28,1634
-  defaultdefault29,1652
-  underlineunderline30,1671
-val colorscolors34,1772
-val twidthtwidth37,1822
-val theighttheight40,1870
-val boxbox43,1910
-val resetreset46,1999
-
-lib/PersistentUnionFind.ml,466
-PersistentUnionFind1,0
-type 'a contentcontent35,2093
-  | LinkLink36,2111
-  | RootRoot37,2132
-type 'a statestate39,2148
-type pointpoint44,2226
-let rec reprrepr52,2464
-let initinit66,2816
-let createcreate72,2949
-let samesame79,3141
-let unionunion87,3461
-let findfind99,3780
-let updateupdate120,4312
-let union_computedunion_computed131,4783
-let iteriter146,5210
-let foldfold149,5284
-let comparecompare154,5396
-let validvalid156,5433
-
-lib/InfiniteArray.mli,153
-InfiniteArray1,0
-type 'a tt18,1121
-val makemake21,1207
-val getget25,1341
-val setset29,1488
-val extentextent35,1755
-val domaindomain39,1885
-
-lib/Either.ml,277
-Either1,0
-type ('a, 'b) eithereither21,1443
-type ('a, 'b) either = LeftLeft21,1443
-type ('a, 'b) either = Left of 'a | RightRight21,1443
-let is_leftis_left23,1492
-let is_rightis_right24,1551
-let assert_leftassert_left25,1611
-let assert_rightassert_right26,1678
-
-lib/Log.ml,439
-Log1,0
-exception MzInternalFailureMzInternalFailure20,1442
-let the_debug_levelthe_debug_level22,1481
-let debug_leveldebug_level24,1510
-let enable_debugenable_debug26,1549
-let debugdebug30,1625
-let warn_countwarn_count38,1827
-let warnwarn39,1850
-let raise_levelraise_level41,1898
-let silentsilent49,2084
-let msgmsg56,2224
-let fail_with_summaryfail_with_summary62,2350
-let errorerror71,2582
-let checkcheck79,2779
-
-lib/InfiniteArray.ml,349
-InfiniteArray1,0
-type 'a tt20,1177
-    defaultdefault21,1191
-    mutable tabletable22,1208
-    mutable extentextent23,1237
-let default_sizedefault_size26,1321
-let makemake29,1372
-let rec new_lengthnew_length35,1457
-let ensureensure41,1557
-let getget50,1802
-let setset54,1845
-let extentextent59,1931
-let domaindomain62,1958
-
-lib/LazyList.mli,417
-LazyList1,0
-type 'a tt22,1485
-and 'a nodenode23,1512
-and 'a node = NilNil23,1512
-and 'a node = Nil | ConsCons23,1512
-val nilnil25,1551
-val conscons26,1566
-val nextnext27,1596
-val tltl28,1623
-val hdhd29,1645
-val oneone30,1665
-val filterfilter31,1686
-val flattenflatten32,1728
-val mapmap33,1760
-val concatconcat34,1797
-val iteriter35,1825
-val findfind36,1865
-val existsexists37,1903
-
-lib/MzList.ml,948
-MzList1,0
-let rec split3split320,1442
-let ignore_mapignore_map27,1587
-let rec iter3iter330,1655
-let iter2iiter2i40,1871
-let check_for_duplicatescheck_for_duplicates52,2347
-let exit_if_duplicatesexit_if_duplicates71,2768
-let maxmax76,3023
-let filter_somefilter_some78,3065
-let makemake82,3162
-let map2imap2i91,3300
-let fold_left3fold_left3107,3590
-let fold_left2ifold_left2i119,3909
-let fold_leftifold_lefti131,4201
-let fold_rightifold_righti140,4378
-let reducereduce150,4567
-let lastlast153,4628
-let nth_optnth_opt155,4673
-let map_somemap_some161,4765
-let indexindex164,4814
-let combine3combine3172,5000
-let taketake184,5307
-let find_optifind_opti198,5578
-let find_optfind_opt211,5797
-let take_booltake_bool214,5844
-let flatten_mapflatten_map221,5996
-let rec split_mapsplit_map224,6049
-let cutcut233,6221
-let rec equalequal246,6454
-let rec cps_mapcps_map255,6604
-let rec mapmap265,6759
-
-lib/gMap.mli,1022
-GMap1,0
-module type SS20,1442
-  type keykey26,1531
-  type 'a tt30,1597
-  val emptyempty34,1635
-  val lookuplookup39,1795
-  val findfind40,1827
-  val addadd46,2047
-  exception UnchangedUnchanged52,2290
-  val strict_addstrict_add54,2313
-  type 'a decisiondecision61,2624
-  val fine_addfine_add63,2661
-  val memmem68,2808
-  val singletonsingleton72,2919
-  val is_emptyis_empty77,3053
-  val is_singletonis_singleton83,3225
-  val cardinalcardinal88,3410
-  val choosechoose93,3565
-  val lookup_and_removelookup_and_remove100,3864
-  val find_and_removefind_and_remove101,3914
-  val removeremove105,4036
-  val unionunion110,4198
-  val fine_unionfine_union118,4527
-  val iteriter124,4747
-  val foldfold133,5173
-  val fold_revfold_rev138,5345
-  val iter2iter2145,5670
-  val mapmap150,5869
-  val endo_mapendo_map156,6073
-  val comparecompare161,6222
-  module DomainDomain170,6682
-  val domaindomain172,6732
-  val liftlift173,6763
-  val corestrictcorestrict180,7027
-
-lib/PersistentRef.ml,363
-PersistentRef1,0
-module MapMap33,1957
-type locationlocation35,1987
-type 'a storestore38,2012
-  limitlimit39,2030
-  heapheap40,2049
-let emptyempty45,2094
-let makemake52,2162
-let getget57,2272
-let setset66,2480
-let eqeq72,2628
-let neqneq75,2670
-let comparecompare78,2714
-let iteriter83,2789
-let foldfold86,2849
-let validvalid91,2938
-
-parsing/Driver.ml,1014
+parsing/Driver.ml,1286
 Driver1,0
-let lex_and_parselex_and_parse26,1590
-let mkprefixmkprefix53,2439
-let lex_and_parse_implementationlex_and_parse_implementation105,4405
-let lex_and_parse_interfacelex_and_parse_interface109,4540
-let include_dirsinclude_dirs118,4810
-let add_include_diradd_include_dir122,4859
-let module_name_for_file_pathmodule_name_for_file_path126,4928
-let find_in_include_dirsfind_in_include_dirs139,5264
-let find_and_lex_interfacefind_and_lex_interface159,5772
-let find_and_lex_implementationfind_and_lex_implementation166,5991
-let check_interfacecheck_interface180,6427
-let import_dependencies_in_scopeimport_dependencies_in_scope186,6560
-let check_implementationcheck_implementation195,6795
-let just_print_interfacejust_print_interface317,11787
-let processprocess335,12209
-type run_optionsrun_options362,13160
-  html_errorshtml_errors363,13181
-  backtracesbacktraces364,13202
-let runrun367,13225
-let print_signatureprint_signature391,13934
-let interpretinterpret422,15024
+let chop_mz_or_mzichop_mz_or_mzi25,1547
+let lex_and_parse_rawlex_and_parse_raw36,1821
+let lex_and_parselex_and_parse67,2832
+let corelib_dirscorelib_dirs77,3241
+let autoload_modulesautoload_modules91,3762
+let mkprefixmkprefix99,4119
+let lex_and_parse_implementationlex_and_parse_implementation149,5945
+let lex_and_parse_interfacelex_and_parse_interface153,6080
+let include_dirsinclude_dirs162,6350
+let print_include_dirsprint_include_dirs166,6399
+let add_include_diradd_include_dir170,6468
+let module_name_for_file_pathmodule_name_for_file_path174,6537
+let find_in_include_dirsfind_in_include_dirs180,6681
+let js_special_mnamejs_special_mname200,7189
+let find_and_lex_interfacefind_and_lex_interface202,7242
+let find_and_lex_implementationfind_and_lex_implementation218,7727
+let check_interfacecheck_interface241,8459
+let import_dependencies_in_scopeimport_dependencies_in_scope247,8592
+let check_implementationcheck_implementation256,8827
+let just_print_interfacejust_print_interface378,13819
+let processprocess396,14241
+type run_optionsrun_options423,15192
+  html_errorshtml_errors424,15213
+  backtracesbacktraces425,15234
+let runrun428,15257
+let print_signatureprint_signature452,15966
+let interpretinterpret483,17038
 
-parsing/Driver.mli,283
+parsing/Driver.mli,435
 Driver1,0
 type run_optionsrun_options22,1509
   html_errorshtml_errors23,1530
   backtracesbacktraces24,1551
 val add_include_diradd_include_dir28,1628
-val processprocess32,1802
-val runrun35,1918
-val print_signatureprint_signature39,2079
-val interpretinterpret44,2295
+val print_include_dirsprint_include_dirs31,1702
+val processprocess35,1879
+val runrun38,1995
+val print_signatureprint_signature42,2156
+val interpretinterpret47,2372
+val lex_and_parse_rawlex_and_parse_raw49,2403
+val check_implementationcheck_implementation52,2513
 
-parsing/KeywordGenerator.ml,22
-KeywordGenerator1,0
+parsing/Hashcons.ml,99
+Hashcons1,0
+type tt20,1442
+let createcreate22,1511
+let addadd25,1578
+let findfind35,1772
 
 parsing/Hashcons.mli,99
 Hashcons1,0
@@ -619,10 +643,6 @@ type tt22,1481
 val createcreate24,1489
 val addadd25,1511
 val findfind26,1539
-
-parsing/Variable.ml,30
-Variable1,0
-let pp24,1593
 
 parsing/Identifier.ml,304
 Identifier1,0
@@ -638,28 +658,6 @@ module MakeMake20,1442
   module MapMap62,2204
   let memoizememoize66,2258
 
-parsing/Datacon.ml,29
-Datacon1,0
-let pp24,1601
-
-parsing/SurfaceSyntaxPrinter.mli,47
-SurfaceSyntaxPrinter1,0
-val printprint6,92
-
-parsing/Kind.ml,273
-Kind1,0
-type kindkind1,0
-  | KTermKTerm2,12
-  | KTypeKType3,22
-  | KPermKPerm4,32
-  | KArrowKArrow5,42
-let karrowkarrow7,69
-let as_arrowas_arrow12,184
-let arityarity21,352
-let rec printprint30,492
-let print_kindprint_kind42,717
-let equalequal45,763
-
 parsing/Identifier.mli,278
 Identifier1,0
 module MakeMake23,1555
@@ -673,10 +671,41 @@ module MakeMake23,1555
   module MapMap43,1980
   val memoizememoize47,2081
 
+parsing/KeywordGenerator.ml,22
+KeywordGenerator1,0
+
 parsing/KeywordPygments.ml,21
 KeywordPygments1,0
 
-parsing/Lexer.mli,218
+parsing/Kind.ml,275
+Kind1,0
+type kindkind1,0
+  | KValueKValue2,12
+  | KTypeKType3,23
+  | KPermKPerm4,33
+  | KArrowKArrow5,43
+let karrowkarrow7,70
+let as_arrowas_arrow12,185
+let arityarity21,353
+let rec printprint30,493
+let print_kindprint_kind42,720
+let equalequal45,766
+
+parsing/Kind.mli,282
+Kind1,0
+type kindkind8,306
+  | KValueKValue9,318
+  | KTypeKType10,329
+  | KPermKPerm11,339
+  | KArrowKArrow12,349
+val karrowkarrow15,421
+val as_arrowas_arrow20,639
+val arityarity23,742
+val printprint26,842
+val print_kindprint_kind27,868
+val equalequal30,957
+
+parsing/Lexer.mli,386
 Lexer1,0
 type errorerror23,1513
 exception LexingErrorLexingError26,1585
@@ -685,66 +714,17 @@ val tokentoken33,1809
 val print_errorprint_error36,1934
 val print_positionprint_position40,2112
 val pp44,2287
-
-parsing/SurfaceSyntaxPrinter.ml,660
-SurfaceSyntaxPrinter1,0
-let rec parenthetic_typeparenthetic_type12,311
-and atomic_typeatomic_type19,449
-and tight_typetight_type34,716
-and normal_typenormal_type45,973
-and loose_typeloose_type72,1682
-and consumes_typeconsumes_type90,2213
-and very_loose_typevery_loose_type99,2370
-and fat_typefat_type114,2796
-and arbitrary_typearbitrary_type133,3192
-and unqualified_variableunqualified_variable140,3388
-and variablevariable143,3446
-and bindingbinding146,3514
-and concreteconcrete156,3735
-and fieldfield176,4189
-and mode_constraintmode_constraint187,4556
-and datacon_referencedatacon_reference190,4644
-let printprint197,4862
-
-parsing/ClFlags.ml,130
-ClFlags1,0
-type flagflag1,0
-  CErrorCError2,13
-  CError | CWarningCWarning2,13
-  CError | CWarning | CSilentCSilent2,13
+val prangeprange47,2376
+val highlight_rangehighlight_range48,2444
+val compare_locscompare_locs50,2511
+val start_posstart_pos52,2612
+val end_posend_pos53,2661
 
 parsing/Module.ml,28
 Module1,0
 let pp24,1601
 
-parsing/Kind.mli,280
-Kind1,0
-type kindkind8,306
-  | KTermKTerm9,318
-  | KTypeKType10,328
-  | KPermKPerm11,338
-  | KArrowKArrow12,348
-val karrowkarrow15,420
-val as_arrowas_arrow20,638
-val arityarity23,741
-val printprint26,841
-val print_kindprint_kind27,867
-val equalequal30,956
-
-parsing/options.ml,215
-Options1,0
-let pedanticpedantic20,1442
-let no_auto_includeno_auto_include24,1473
-let filenamefilename28,1511
-let please_compileplease_compile33,1619
-let warn_errorwarn_error37,1656
-let bootboot41,1697
-
-parsing/Keywords.ml,41
-Keywords1,0
-let keywordskeywords3,84
-
-parsing/ParserUtils.ml,313
+parsing/ParserUtils.ml,349
 ParserUtils1,0
 let varvar22,1462
 let rec is_varis_var28,1637
@@ -755,15 +735,9 @@ let mkinfixmkinfix55,2396
 let mk_tag_update_infomk_tag_update_info76,3004
 let mk_fieldmk_field80,3066
 let rec mktyappmktyapp85,3136
+let mk_concretemk_concrete94,3323
 
-parsing/Hashcons.ml,99
-Hashcons1,0
-type tt20,1442
-let createcreate22,1511
-let addadd25,1578
-let findfind35,1772
-
-parsing/SurfaceSyntax.ml,4996
+parsing/SurfaceSyntax.ml,5097
 SurfaceSyntax1,0
 module FieldField30,1825
 type datacon_infodatacon_info52,2832
@@ -779,207 +753,177 @@ type 'a maybe_qualifiedmaybe_qualified88,4169
 type datacon_referencedatacon_reference102,4720
   datacon_unresolveddatacon_unresolved104,4817
   mutable datacon_infodatacon_info108,5077
-type locationlocation117,5250
-let dummy_locdummy_loc119,5301
-let is_dummy_locis_dummy_loc121,5355
-type binding_flavorbinding_flavor126,5531
-type binding_flavor = UserIntroducedUserIntroduced126,5531
-type binding_flavor = UserIntroduced | AutoIntroducedAutoIntroduced126,5531
-type type_bindingtype_binding128,5586
-type variancevariance131,5670
-type variance = InvariantInvariant131,5670
-type variance = Invariant | CovariantCovariant131,5670
-type variance = Invariant | Covariant | ContravariantContravariant131,5670
-type variance = Invariant | Covariant | Contravariant | BivariantBivariant131,5670
-type type_binding_with_variancetype_binding_with_variance133,5737
-type typtyp135,5796
-  | TyLocatedTyLocated136,5807
-  | TyTupleTyTuple137,5839
-  | TyUnknownTyUnknown138,5863
-  | TyDynamicTyDynamic139,5877
-  | TyEmptyTyEmpty140,5891
-  | TyVarTyVar141,5903
-  | TyConcreteTyConcrete142,5946
-  | TySingletonTySingleton143,6022
-  | TyAppTyApp144,6045
-  | TyArrowTyArrow145,6073
-  | TyForallTyForall146,6098
-  | TyExistsTyExists147,6133
-  | TyAnchoredPermissionTyAnchoredPermission148,6168
-  | TyStarTyStar149,6206
-  | TyNameIntroTyNameIntro150,6230
-  | TyConsumesTyConsumes151,6269
-  | TyBarTyBar152,6291
-  | TyAndTyAnd153,6314
-  | TyImplyTyImply154,6349
-  | TyWildcardTyWildcard155,6386
-and mode_constraintmode_constraint157,6402
-and data_field_defdata_field_def159,6441
-  | FieldValueFieldValue160,6462
-  | FieldPermissionFieldPermission161,6497
-and adopts_clauseadopts_clause163,6552
-type data_type_def_lhsdata_type_def_lhs176,7080
-type single_factsingle_fact179,7157
-  | FactFact180,7177
-type data_type_def_branchdata_type_def_branch182,7229
-type data_type_def_rhsdata_type_def_rhs185,7341
-  | ConcreteConcrete186,7366
-  | AbstractAbstract187,7448
-  | AbbrevAbbrev188,7481
-type data_type_defdata_type_def190,7500
-  lhslhs191,7523
-  rhsrhs192,7549
-type rec_flagrec_flag197,7640
-type rec_flag = NonrecursiveNonrecursive197,7640
-type rec_flag = Nonrecursive | RecursiveRecursive197,7640
-type data_type_groupdata_type_group207,8148
-let binding_of_lhsbinding_of_lhs210,8217
-type patternpattern222,8667
-  | PVarPVar224,8692
-  | PTuplePTuple226,8739
-  | PConstructPConstruct228,8808
-  | PLocatedPLocated230,8906
-  | PConstraintPConstraint232,8955
-  | PAsPAs234,9003
-  | PAnyPAny236,9048
-and expressionexpression243,9162
-  | EConstraintEConstraint245,9193
-  | EVarEVar247,9249
-  | EBuiltinEBuiltin249,9311
-  | ELetELet251,9403
-  | ELetFlexELetFlex253,9491
-  | ELocalTypeELocalType255,9563
-  | EFunEFun257,9643
-  | EAssignEAssign259,9715
-  | EAssignTagEAssignTag261,9790
-  | EAccessEAccess263,9869
-  | EAssertEAssert265,9921
-  | EPackEPack267,9970
-  | EApplyEApply269,10011
-  | ETApplyETApply271,10079
-  | EMatchEMatch273,10151
-  | ETupleETuple275,10239
-  | EConstructEConstruct277,10311
-  | EIfThenElseEIfThenElse279,10418
-  | EWhileEWhile281,10522
-  | EForEFor283,10632
-  | ESequenceESequence285,10771
-  | ELocatedELocated286,10812
-  | EIntEInt287,10850
-  | EExplainedEExplained289,10887
-  | EGiveEGive291,10941
-  | ETakeETake292,10978
-  | EOwnsEOwns293,11015
-  | EFailEFail295,11065
-and tag_update_infotag_update_info297,11076
-  mutable is_phantom_updateis_phantom_update299,11186
-and fieldfield302,11231
-  field_namefield_name303,11245
-  mutable field_offsetfield_offset305,11357
-and offsetoffset308,11399
-and tapptapp311,11419
-  | OrderedOrdered312,11430
-  | NamedNamed313,11449
-and for_flagfor_flag315,11483
-and for_flag = ToTo315,11483
-and for_flag = To | DowntoDownto315,11483
-and for_flag = To | Downto | BelowBelow315,11483
-and for_flag = To | Downto | Below | AboveAbove315,11483
-type definitionsdefinitions323,11643
-type toplevel_itemtoplevel_item326,11715
-  | DataTypeGroupDataTypeGroup327,11736
-  | ValueDefinitionsValueDefinitions328,11773
-  | ValueDeclarationValueDeclaration329,11809
-  | OpenDirectiveOpenDirective330,11852
-type implementationimplementation334,11989
-type interfaceinterface339,12136
-let rec type_to_patterntype_to_pattern350,12541
-and mkpasmkpas422,14729
-let print_maybe_qualifiedprint_maybe_qualified435,15054
-let destruct_unqualifieddestruct_unqualified441,15195
-let unqualifyunqualify447,15335
-let maybe_qualified_equalmaybe_qualified_equal452,15411
+let datacon_name_assert_unqualifieddatacon_name_assert_unqualified111,5125
+type locationlocation122,5393
+let dummy_locdummy_loc124,5444
+let is_dummy_locis_dummy_loc126,5498
+type binding_flavorbinding_flavor131,5674
+type binding_flavor = UserIntroducedUserIntroduced131,5674
+type binding_flavor = UserIntroduced | AutoIntroducedAutoIntroduced131,5674
+type type_bindingtype_binding133,5729
+type variancevariance136,5813
+type variance = InvariantInvariant136,5813
+type variance = Invariant | CovariantCovariant136,5813
+type variance = Invariant | Covariant | ContravariantContravariant136,5813
+type variance = Invariant | Covariant | Contravariant | BivariantBivariant136,5813
+type type_binding_with_variancetype_binding_with_variance138,5880
+type typtyp140,5939
+  | TyLocatedTyLocated141,5950
+  | TyTupleTyTuple142,5982
+  | TyUnknownTyUnknown143,6006
+  | TyDynamicTyDynamic144,6020
+  | TyEmptyTyEmpty145,6034
+  | TyVarTyVar146,6046
+  | TyConcreteTyConcrete147,6089
+  | TySingletonTySingleton148,6124
+  | TyAppTyApp149,6147
+  | TyArrowTyArrow150,6175
+  | TyForallTyForall151,6200
+  | TyExistsTyExists152,6235
+  | TyAnchoredPermissionTyAnchoredPermission153,6270
+  | TyStarTyStar154,6308
+  | TyNameIntroTyNameIntro155,6332
+  | TyConsumesTyConsumes156,6371
+  | TyBarTyBar157,6393
+  | TyAndTyAnd158,6416
+  | TyImplyTyImply159,6451
+  | TyWildcardTyWildcard160,6488
+and mode_constraintmode_constraint162,6504
+and data_field_defdata_field_def164,6543
+and data_type_branchdata_type_branch166,6582
+and adopts_clauseadopts_clause168,6662
+let rec tunloctunloc171,6698
+type data_type_def_lhsdata_type_def_lhs187,7278
+type single_factsingle_fact190,7355
+  | FactFact191,7374
+type data_type_def_branchdata_type_def_branch205,8302
+type data_type_def_rhsdata_type_def_rhs208,8361
+  | ConcreteConcrete209,8386
+  | AbstractAbstract210,8468
+  | AbbrevAbbrev211,8501
+type data_type_defdata_type_def213,8520
+  lhslhs214,8543
+  rhsrhs215,8569
+type rec_flagrec_flag220,8660
+type rec_flag = NonrecursiveNonrecursive220,8660
+type rec_flag = Nonrecursive | RecursiveRecursive220,8660
+type data_type_groupdata_type_group230,9168
+let binding_of_lhsbinding_of_lhs233,9237
+let rec find_branchfind_branch243,9718
+type patternpattern262,10115
+  | PVarPVar264,10140
+  | PTuplePTuple266,10187
+  | PConstructPConstruct268,10256
+  | PLocatedPLocated270,10354
+  | PConstraintPConstraint272,10403
+  | PAsPAs274,10451
+  | PAnyPAny276,10496
+and expressionexpression283,10610
+  | EConstraintEConstraint285,10641
+  | EVarEVar287,10697
+  | EBuiltinEBuiltin289,10759
+  | ELetELet291,10851
+  | ELetFlexELetFlex293,10939
+  | ELocalTypeELocalType295,11011
+  | EFunEFun297,11091
+  | EAssignEAssign299,11163
+  | EAssignTagEAssignTag301,11238
+  | EAccessEAccess303,11317
+  | EAssertEAssert305,11369
+  | EPackEPack307,11418
+  | EApplyEApply309,11459
+  | ETApplyETApply311,11527
+  | EMatchEMatch313,11599
+  | ETupleETuple315,11687
+  | EConstructEConstruct317,11759
+  | EIfThenElseEIfThenElse319,11866
+  | EWhileEWhile321,11969
+  | EForEFor323,12079
+  | ESequenceESequence325,12218
+  | ELocatedELocated326,12259
+  | EIntEInt327,12297
+  | EGiveEGive329,12338
+  | ETakeETake330,12375
+  | EOwnsEOwns331,12412
+  | EFailEFail333,12462
+and tag_update_infotag_update_info335,12473
+  mutable is_phantom_updateis_phantom_update337,12583
+and fieldfield340,12628
+  field_namefield_name341,12642
+  mutable field_offsetfield_offset343,12754
+and offsetoffset346,12796
+and tapptapp349,12816
+  | OrderedOrdered350,12827
+  | NamedNamed351,12846
+and for_flagfor_flag353,12880
+and for_flag = ToTo353,12880
+and for_flag = To | DowntoDownto353,12880
+and for_flag = To | Downto | BelowBelow353,12880
+and for_flag = To | Downto | Below | AboveAbove353,12880
+type definitionsdefinitions361,13040
+type toplevel_itemtoplevel_item364,13112
+  | DataTypeGroupDataTypeGroup365,13133
+  | ValueDefinitionsValueDefinitions366,13170
+  | ValueDeclarationValueDeclaration367,13206
+  | OpenDirectiveOpenDirective368,13249
+type implementationimplementation372,13386
+type interfaceinterface377,13533
+let rec type_to_patterntype_to_pattern388,13938
+and mkpasmkpas458,16036
+let print_maybe_qualifiedprint_maybe_qualified471,16361
+let destruct_unqualifieddestruct_unqualified477,16502
+let unqualifyunqualify483,16642
+let maybe_qualified_equalmaybe_qualified_equal488,16718
 
-typing/TypeErrors.mli,2190
-TypeErrors1,0
-type raw_errorraw_error26,1603
-  | CyclicDependencyCyclicDependency27,1620
-  | NotAFunctionNotAFunction28,1656
-  | ExpectedTypeExpectedType29,1680
-  | ExpectedPermissionExpectedPermission30,1735
-  | RecursiveOnlyForFunctionsRecursiveOnlyForFunctions31,1790
-  | MissingFieldMissingField32,1820
-  | ExtraFieldExtraField33,1851
-  | NoSuchFieldNoSuchField34,1880
-  | CantAssignTagCantAssignTag35,1916
-  | NoSuchFieldInPatternNoSuchFieldInPattern36,1941
-  | BadPatternBadPattern37,2006
-  | BadFieldBadField38,2054
-  | NoTwoConstructorsNoTwoConstructors39,2096
-  | MatchBadDataconMatchBadDatacon40,2125
-  | MatchBadTupleMatchBadTuple41,2167
-  | AssignNotExclusiveAssignNotExclusive42,2192
-  | FieldCountMismatchFieldCountMismatch43,2237
-  | NoMultipleArgumentsNoMultipleArguments44,2282
-  | ResourceAllocationConflictResourceAllocationConflict45,2306
-  | UncertainMergeUncertainMerge46,2344
-  | ConflictingTypeAnnotationsConflictingTypeAnnotations47,2370
-  | IllKindedTypeApplicationIllKindedTypeApplication48,2414
-  | BadTypeApplicationBadTypeApplication49,2481
-  | NonExclusiveAdopteeNonExclusiveAdoptee50,2511
-  | NoAdoptsClauseNoAdoptsClause51,2542
-  | NotDynamicNotDynamic52,2568
-  | NoSuitableTypeForAdoptsNoSuitableTypeForAdopts53,2590
-  | AdoptsNoAnnotationAdoptsNoAnnotation54,2631
-  | NotMergingClausesNotMergingClauses55,2654
-  | NoSuchTypeInSignatureNoSuchTypeInSignature56,2713
-  | DataTypeMismatchInSignatureDataTypeMismatchInSignature57,2777
-  | VarianceAnnotationMismatchVarianceAnnotationMismatch58,2835
-  | ExportNotDuplicableExportNotDuplicable59,2866
-  | LocalTypeLocalType60,2907
-  | InstantiatedInstantiated61,2921
-  | PackWithExistsPackWithExists62,2961
-  | SeveralWorkingFunctionTypesSeveralWorkingFunctionTypes63,2980
-val parse_warn_errorparse_warn_error67,3135
-val raise_errorraise_error71,3261
-val may_raise_errormay_raise_error76,3507
-type errorerror79,3589
-exception TypeCheckerErrorTypeCheckerError82,3654
-val print_errorprint_error86,3779
-val html_errorhtml_error89,3866
-val fold_typefold_type92,3939
-val internal_extracterrorinternal_extracterror96,3990
+parsing/SurfaceSyntaxPrinter.ml,678
+SurfaceSyntaxPrinter1,0
+let rec parenthetic_typeparenthetic_type12,311
+and atomic_typeatomic_type21,500
+and tight_typetight_type36,770
+and normal_typenormal_type47,1027
+and loose_typeloose_type70,1624
+and consumes_typeconsumes_type88,2155
+and very_loose_typevery_loose_type97,2312
+and fat_typefat_type112,2746
+and arbitrary_typearbitrary_type137,3317
+and unqualified_variableunqualified_variable144,3513
+and variablevariable147,3571
+and bindingbinding150,3639
+and concreteconcrete160,3861
+and fieldfield180,4313
+and mode_constraintmode_constraint189,4588
+and datacon_referencedatacon_reference192,4676
+let printprint199,4894
+let pp202,4924
 
-typing/KindPrinter.mli,92
-KindPrinter1,0
-val pgrouppgroup1,0
-val print_kinds_and_factsprint_kinds_and_facts2,72
+parsing/SurfaceSyntaxPrinter.mli,61
+SurfaceSyntaxPrinter1,0
+val printprint6,92
+val pp7,119
 
-typing/DeBruijn.mli,266
-DeBruijn1,0
-val liftlift25,1527
-val tsubsttsubst28,1618
-val tsubst_branchtsubst_branch31,1700
-val tsubst_data_type_grouptsubst_data_type_group34,1793
-val bind_rigid_in_typebind_rigid_in_type40,2138
-val bind_flexible_in_typebind_flexible_in_type46,2382
+parsing/Variable.ml,30
+Variable1,0
+let pp24,1593
 
-typing/TypeChecker.ml,835
-TypeChecker1,0
-let add_hintadd_hint31,1640
-let is_data_type_with_two_constructorsis_data_type_with_two_constructors38,1789
-let has_adopts_clausehas_adopts_clause69,2668
-let expand_if_one_branch_even_if_anchoredexpand_if_one_branch_even_if_anchored90,3233
-let transform_constructor_permissiontransform_constructor_permission111,4163
-let replace_fieldreplace_field133,4853
-let check_function_callcheck_function_call146,5156
-let check_return_typecheck_return_type244,8407
-let rec type_for_function_deftype_for_function_def262,8981
-let rec unify_patternunify_pattern281,9731
-let refine_perms_in_place_for_patternrefine_perms_in_place_for_pattern352,12258
-let rec check_expressioncheck_expression469,16894
-and check_bindingscheck_bindings1133,43436
-let check_declaration_groupcheck_declaration_group1171,44666
+parsing/options.ml,277
+Options1,0
+let pedanticpedantic20,1442
+let no_auto_includeno_auto_include24,1473
+let filenamefilename28,1511
+let please_compileplease_compile33,1619
+let warn_errorwarn_error37,1656
+let bootboot41,1697
+let print_interfaceprint_interface45,1724
+let jsjs49,1762
+
+parsing/Keywords.ml,41
+Keywords1,0
+let keywordskeywords3,84
+
+parsing/JsGlue.ml,102
+JsGlue1,0
+let highlight_range_highlight_range_22,1512
+let highlight_rangehighlight_range25,1608
 
 typing/DataTypeFlavor.ml,276
 DataTypeFlavor1,0
@@ -993,7 +937,279 @@ let can_adoptcan_adopt36,619
 let can_be_writtencan_be_written41,729
 let joinjoin53,1127
 
-typing/ExpressionsCore.ml,1782
+typing/DeBruijn.ml,496
+DeBruijn1,0
+class map_countingmap_counting29,1637
+  method extendextend34,1847
+class liftlift42,1993
+  method tyboundtybound46,2156
+let liftlift53,2249
+class tsubsttsubst66,2673
+  method tyboundtybound71,2892
+let tsubsttsubst93,3999
+let tsubst_branchtsubst_branch96,4076
+let tsubst_data_type_grouptsubst_data_type_group99,4172
+let bind_in_typebind_in_type107,4520
+let bind_rigid_in_typebind_rigid_in_type118,4759
+let bind_flexible_in_typebind_flexible_in_type121,4811
+
+typing/DeBruijn.mli,266
+DeBruijn1,0
+val liftlift25,1527
+val tsubsttsubst28,1618
+val tsubst_branchtsubst_branch31,1700
+val tsubst_data_type_grouptsubst_data_type_group34,1793
+val bind_rigid_in_typebind_rigid_in_type40,2138
+val bind_flexible_in_typebind_flexible_in_type46,2382
+
+typing/DerivationPrinter.ml,989
+DerivationPrinter1,0
+let wordswords26,1516
+let (^^^^^^27,1555
+let print_judgementprint_judgement29,1588
+let comma_or_newlinecomma_or_newline67,2973
+let rec print_ruleprint_rule70,3026
+and print_derivationprint_derivation75,3218
+let pderivationpderivation90,3704
+type explanationexplanation95,3825
+  | MissingAnchoredMissingAnchored96,3844
+  | MissingAbstractMissingAbstract97,3883
+  | OnePossibleOnePossible98,3916
+  | NoRuleForJudgementNoRuleForJudgement99,3947
+  | NoGoodExplanationNoGoodExplanation100,3984
+let possibly_useful_namepossibly_useful_name102,4007
+let print_stypeprint_stype110,4207
+let print_summaryprint_summary114,4326
+let rec print_explanationprint_explanation166,5902
+let rec scorescore188,6707
+let is_atomicis_atomic197,7004
+let make_up_explanationmake_up_explanation208,7312
+let rec gather_explanationgather_explanation232,7940
+let psummarypsummary268,9114
+let print_shortprint_short272,9193
+let pshortpshort276,9290
+
+typing/DerivationPrinter.mli,237
+DerivationPrinter1,0
+val print_derivationprint_derivation25,1575
+val pderivationpderivation26,1642
+val print_shortprint_short27,1703
+val pshortpshort28,1765
+val print_summaryprint_summary29,1821
+val psummarypsummary30,1873
+
+typing/Derivations.ml,1149
+Derivations1,0
+module LL24,1480
+type derivationderivation30,1717
+  | GoodGood31,1735
+  | BadBad33,1807
+and rulerule37,1951
+and rule_instancerule_instance43,2215
+and judgementjudgement45,2243
+  | JSubTypeJSubType46,2259
+  | JSubVarJSubVar47,2285
+  | JSubPermJSubPerm48,2310
+  | JSubPermsJSubPerms49,2330
+  | JSubFloatingJSubFloating50,2356
+  | JSubConstraintJSubConstraint51,2380
+  | JSubConstraintsJSubConstraints52,2418
+  | JEqualJEqual53,2462
+  | JLtJLt54,2486
+  | JGtJGt55,2507
+  | JNothingJNothing56,2528
+  | JAddJAdd57,2541
+  | JDebugJDebug58,2557
+type resultresult64,2847
+let option_of_resultoption_of_result66,2906
+let no_proofno_proof75,3137
+let nothingnothing80,3330
+let is_good_derivationis_good_derivation84,3463
+let is_bad_derivationis_bad_derivation86,3530
+let is_goodis_good88,3596
+type statestate96,3995
+let ( >>~>>~100,4164
+let apply_axiomapply_axiom110,4379
+let try_prooftry_proof119,4659
+let ( >>=>>=137,5291
+let qedqed156,5955
+let failfail160,6036
+let premisespremises164,6155
+let walkwalk176,6387
+let try_severaltry_several224,8410
+let parpar253,9407
+
+typing/Derivations.mli,1109
+Derivations1,0
+type derivationderivation28,1661
+  | GoodGood29,1679
+  | BadBad31,1751
+and rulerule36,2030
+and rule_instancerule_instance39,2076
+and judgementjudgement41,2104
+  | JSubTypeJSubType42,2120
+  | JSubVarJSubVar43,2146
+  | JSubPermJSubPerm44,2171
+  | JSubPermsJSubPerms45,2191
+  | JSubFloatingJSubFloating46,2217
+  | JSubConstraintJSubConstraint47,2241
+  | JSubConstraintsJSubConstraints48,2279
+  | JEqualJEqual49,2323
+  | JLtJLt50,2347
+  | JGtJGt51,2368
+  | JNothingJNothing52,2389
+  | JAddJAdd53,2402
+  | JDebugJDebug54,2418
+val is_bad_derivationis_bad_derivation56,2443
+val is_good_derivationis_good_derivation57,2485
+type resultresult65,2838
+val no_proofno_proof69,3034
+val apply_axiomapply_axiom79,3296
+val try_severaltry_several90,3871
+val parpar100,4109
+val nothingnothing105,4349
+val option_of_resultoption_of_result110,4493
+val is_goodis_good113,4595
+type statestate119,4735
+val try_prooftry_proof124,4964
+val premisespremises129,5262
+val ( >>=>>=135,5630
+val qedqed138,5741
+val failfail141,5797
+val ( >>~>>~147,5934
+
+typing/Exports.ml,460
+Exports1,0
+module TT20,1442
+type value_exportsvalue_exports22,1463
+type datacon_exportsdatacon_exports23,1513
+let bind_implementation_valuesbind_implementation_values25,1594
+let bind_implementation_typesbind_implementation_types33,1877
+let bind_interface_valuebind_interface_value54,2503
+let bind_interface_typesbind_interface_types65,2757
+let find_qualified_varfind_qualified_var88,3517
+let find_unqualified_varfind_unqualified_var96,3775
+
+typing/Exports.mli,441
+Exports1,0
+type value_exportsvalue_exports44,2697
+type datacon_exportsdatacon_exports46,2755
+val bind_implementation_valuesbind_implementation_values52,3107
+val bind_implementation_typesbind_implementation_types57,3265
+val bind_interface_valuebind_interface_value65,3658
+val bind_interface_typesbind_interface_types70,3838
+val find_qualified_varfind_qualified_var77,4163
+val find_unqualified_varfind_unqualified_var81,4390
+
+typing/Expressions.ml,2791
+Expressions1,0
+let e_unite_unit38,1995
+let p_unitp_unit42,2024
+let map_tappmap_tapp46,2053
+let rec collect_patterncollect_pattern56,2335
+let collect_patterncollect_pattern71,2755
+let rec count_patterncount_pattern76,2984
+and count_fieldcount_field92,3345
+and count_patternscount_patterns95,3399
+let count_patexprcount_patexpr98,3468
+let count_patexprscount_patexprs101,3524
+let n_defsn_defs105,3645
+let rec psubstpsubst110,3808
+let tsubst_pattsubst_pat157,5146
+let resolve_branchresolve_branch187,5987
+let resolve_definitionresolve_definition191,6098
+let rec bind_group_inbind_group_in204,6354
+and bind_group_in_groupbind_group_in_group216,6732
+and bind_group_definitionsbind_group_definitions219,6851
+and bind_groupbind_group227,7207
+and bind_group_in_exprbind_group_in_expr240,7705
+and bind_group_in_toplevel_itemsbind_group_in_toplevel_items244,7806
+and extract_dataconsextract_datacons248,7955
+and bind_data_type_group_inbind_data_type_group_in266,8620
+and bind_data_type_group_in_exprbind_data_type_group_in_expr293,9637
+and bind_data_type_group_in_toplevel_itemsbind_data_type_group_in_toplevel_items300,9887
+and tsubst_patexprstsubst_patexprs310,10384
+and tsubst_exprtsubst_expr320,10713
+and tsubst_deftsubst_def443,13948
+and tsubst_toplevel_itemstsubst_toplevel_items448,14086
+and esubst_patexprsesubst_patexprs475,15238
+and esubstesubst488,15679
+and esubst_defesubst_def601,18282
+and esubst_toplevel_itemsesubst_toplevel_items606,18420
+type substitution_kitsubstitution_kit633,19755
+  subst_typesubst_type635,19837
+  subst_exprsubst_expr637,19949
+  subst_defsubst_def639,20073
+  subst_toplevelsubst_toplevel641,20201
+  subst_patsubst_pat643,20314
+  varsvars645,20398
+  namesnames647,20458
+let eloceloc650,20490
+let rec eunloceunloc658,20638
+let bind_evarsbind_evars669,20907
+let bind_varsbind_vars711,22357
+let bind_patexprsbind_patexprs721,22846
+module ExprPrinterExprPrinter735,23279
+  let print_maybe_qualified_dataconprint_maybe_qualified_datacon740,23344
+  let pmaybe_qualified_dataconpmaybe_qualified_datacon744,23461
+  let print_datacon_referenceprint_datacon_reference749,23574
+  let rec print_patexprprint_patexpr753,23689
+  and print_patexprsprint_patexprs764,23998
+  and print_patprint_pat767,24116
+  and print_tappprint_tapp799,25030
+  and print_exprprint_expr806,25247
+  and print_rec_flagprint_rec_flag944,30229
+  and print_ebinderprint_ebinder951,30340
+  and print_binderprint_binder955,30521
+  let print_definitionsprint_definitions959,30661
+  let print_sig_itemprint_sig_item964,30874
+  let psigitempsigitem968,31005
+  let pdefinitionspdefinitions972,31097
+  let pexprpexpr976,31216
+  let ppatppat980,31305
+  let ptappptapp984,31390
+
+typing/Expressions.mli,1543
+Expressions1,0
+val bind_data_type_group_in_toplevel_itemsbind_data_type_group_in_toplevel_items35,1952
+val bind_data_type_group_in_exprbind_data_type_group_in_expr39,2212
+val resolve_branchresolve_branch44,2498
+val e_unite_unit69,3356
+val p_unitp_unit72,3413
+val eunloceunloc75,3496
+val eloceloc78,3589
+val tsubst_exprtsubst_expr83,3676
+type substitution_kitsubstitution_kit93,4162
+  subst_typesubst_type94,4188
+  subst_exprsubst_expr95,4215
+  subst_defsubst_def96,4256
+  subst_toplevelsubst_toplevel97,4298
+  subst_patsubst_pat98,4358
+  varsvars99,4402
+  namesnames100,4421
+val bind_evarsbind_evars104,4505
+val bind_varsbind_vars109,4629
+val bind_patexprsbind_patexprs123,5344
+module ExprPrinterExprPrinter130,5526
+    val print_maybe_qualified_dataconprint_maybe_qualified_datacon132,5553
+    val pmaybe_qualified_dataconpmaybe_qualified_datacon134,5663
+    val print_datacon_referenceprint_datacon_reference136,5767
+    val print_patexprprint_patexpr138,5860
+    val print_patexprsprint_patexprs140,5939
+    val print_patprint_pat142,6026
+    val print_tappprint_tapp143,6082
+    val print_exprprint_expr144,6136
+    val print_rec_flagprint_rec_flag145,6196
+    val print_ebinderprint_ebinder146,6251
+    val print_binderprint_binder149,6337
+    val print_definitionsprint_definitions153,6449
+    val print_sig_itemprint_sig_item157,6534
+    val psigitempsigitem159,6613
+    val pdefinitionspdefinitions161,6686
+    val pexprpexpr162,6747
+    val ppatppat163,6800
+
+typing/ExpressionsCore.ml,1747
 ExpressionsCore1,0
 type tag_update_infotag_update_info29,1662
 type fieldfield32,1720
@@ -1030,460 +1246,26 @@ type expressionexpression64,2703
   | EIfThenElseEIfThenElse108,4264
   | ELocatedELocated109,4327
   | EIntEInt110,4365
-  | EExplainedEExplained112,4402
-  | EGiveEGive114,4456
-  | ETakeETake115,4493
-  | EOwnsEOwns116,4530
-  | EFailEFail118,4580
-and tapptapp120,4591
-  | OrderedOrdered121,4602
-  | NamedNamed122,4621
-and patexprpatexpr124,4655
-type definitionsdefinitions135,5156
-type sig_itemsig_item138,5228
-type toplevel_itemtoplevel_item141,5267
-  | DataTypeGroupDataTypeGroup142,5288
-  | ValueDefinitionsValueDefinitions143,5325
-  | ValueDeclarationValueDeclaration144,5361
-type implementationimplementation146,5395
-type interfaceinterface149,5439
-let internal_ppatinternal_ppat152,5478
-let internal_ptappinternal_ptapp153,5573
+  | EGiveEGive112,4406
+  | ETakeETake113,4443
+  | EOwnsEOwns114,4480
+  | EFailEFail116,4530
+and tapptapp118,4541
+  | OrderedOrdered119,4552
+  | NamedNamed120,4571
+and patexprpatexpr122,4605
+type definitionsdefinitions133,5106
+type sig_itemsig_item136,5178
+type toplevel_itemtoplevel_item139,5217
+  | DataTypeGroupDataTypeGroup140,5238
+  | ValueDefinitionsValueDefinitions141,5275
+  | ValueDeclarationValueDeclaration142,5311
+type implementationimplementation144,5345
+type interfaceinterface147,5389
+let internal_ppatinternal_ppat150,5428
+let internal_ptappinternal_ptapp151,5523
 
-typing/Permissions.ml,1889
-Permissions1,0
-module LL31,1709
-let safety_checksafety_check41,2065
-let refresh_factsrefresh_facts108,4838
-let j_merge_leftj_merge_left121,5210
-let add_floating_permadd_floating_perm146,6157
-let add_hintadd_hint155,6450
-let perm_not_flexperm_not_flex166,6714
-let wrap_barwrap_bar181,7152
-let split_flexible_as_concrete_typesplit_flexible_as_concrete_type204,7891
-let split_flexible_as_tuple_typesplit_flexible_as_tuple_type225,8441
-type sideside239,8778
-type side = LeftLeft239,8778
-type side = Left | RightRight239,8778
-let is_singletonis_singleton241,8804
-class open_all_rigid_inopen_all_rigid_in264,9759
-  methodvisit278,10409
-  methodbranch351,13160
-  methodfield358,13415
-let open_all_rigid_inopen_all_rigid_in365,13622
-let rec clean_varsclean_vars372,13879
-and clean_floating_permissionsclean_floating_permissions381,14202
-and instantiate_flexibleinstantiate_flexible387,14405
-and import_flex_instanciationsimport_flex_instanciations391,14541
-and j_flex_instj_flex_inst397,14749
-and unifyunify408,15120
-and keep_only_duplicablekeep_only_duplicable426,15821
-and addadd443,16409
-and add_permadd_perm603,22856
-and add_permsadd_perms641,23988
-and add_perm_rawadd_perm_raw644,24051
-and add_typeadd_type650,24297
-and subsub674,25166
-and sub_constraintsub_constraint739,27257
-and sub_constraintssub_constraints749,27614
-and sub_type_with_unfoldingsub_type_with_unfolding759,28002
-and sub_typesub_type789,29132
-and add_subadd_sub1159,43294
-and sub_permsub_perm1347,51037
-and sub_permssub_perms1396,52388
-and sub_floating_permsub_floating_perm1425,53556
-let pick_arbitrarypick_arbitrary1448,54160
-type resultresult1452,54192
-let drop_derivationdrop_derivation1454,54247
-let sub_typesub_type1464,54533
-let subsub1468,54623
-let sub_permsub_perm1472,54688
-let sub_constraintsub_constraint1476,54755
-
-typing/Mark.ml,79
-Mark1,0
-type tt20,1442
-let createcreate22,1461
-let equalsequals25,1487
-
-typing/Exports.mli,441
-Exports1,0
-type value_exportsvalue_exports44,2697
-type datacon_exportsdatacon_exports46,2755
-val bind_implementation_valuesbind_implementation_values52,3107
-val bind_implementation_typesbind_implementation_types57,3265
-val bind_interface_valuebind_interface_value65,3658
-val bind_interface_typesbind_interface_types70,3838
-val find_qualified_varfind_qualified_var77,4163
-val find_unqualified_varfind_unqualified_var81,4390
-
-typing/Variance.mli,84
-Variance1,0
-val leqleq30,1782
-val analyze_data_typesanalyze_data_types34,1947
-
-typing/Resugar.mli,85
-Resugar1,0
-val surface_print_varsurface_print_var5,118
-val resugarresugar9,303
-
-typing/TypeChecker.mli,129
-TypeChecker1,0
-val check_declaration_groupcheck_declaration_group30,1942
-val check_function_callcheck_function_call36,2127
-
-typing/Expressions.ml,2767
-Expressions1,0
-let e_unite_unit38,1995
-let p_unitp_unit42,2024
-let map_tappmap_tapp46,2053
-let rec collect_patterncollect_pattern56,2335
-let collect_patterncollect_pattern71,2754
-let rec count_patterncount_pattern76,2983
-and count_fieldcount_field92,3344
-and count_patternscount_patterns95,3398
-let count_patexprcount_patexpr98,3467
-let count_patexprscount_patexprs101,3523
-let n_defsn_defs105,3644
-let rec psubstpsubst110,3807
-let tsubst_pattsubst_pat157,5145
-let resolve_branchresolve_branch187,5986
-let resolve_definitionresolve_definition191,6097
-let rec bind_group_inbind_group_in204,6353
-and bind_group_in_groupbind_group_in_group216,6731
-and bind_group_definitionsbind_group_definitions219,6850
-and bind_groupbind_group227,7206
-and bind_group_in_exprbind_group_in_expr240,7704
-and bind_group_in_toplevel_itemsbind_group_in_toplevel_items244,7805
-and extract_dataconsextract_datacons248,7954
-and bind_data_type_group_inbind_data_type_group_in266,8619
-and bind_data_type_group_in_exprbind_data_type_group_in_expr293,9636
-and bind_data_type_group_in_toplevel_itemsbind_data_type_group_in_toplevel_items300,9886
-and tsubst_patexprstsubst_patexprs310,10383
-and tsubst_exprtsubst_expr320,10712
-and tsubst_deftsubst_def447,14023
-and tsubst_toplevel_itemstsubst_toplevel_items452,14161
-and esubst_patexprsesubst_patexprs479,15313
-and esubstesubst492,15754
-and esubst_defesubst_def609,18428
-and esubst_toplevel_itemsesubst_toplevel_items614,18566
-type substitution_kitsubstitution_kit641,19901
-  subst_typesubst_type643,19983
-  subst_exprsubst_expr645,20095
-  subst_defsubst_def647,20219
-  subst_toplevelsubst_toplevel649,20347
-  subst_patsubst_pat651,20460
-  varsvars653,20544
-  namesnames655,20604
-let rec eunloceunloc659,20701
-let bind_evarsbind_evars670,20970
-let bind_varsbind_vars712,22420
-let bind_patexprsbind_patexprs722,22909
-module ExprPrinterExprPrinter736,23342
-  let print_maybe_qualified_dataconprint_maybe_qualified_datacon741,23407
-  let pmaybe_qualified_dataconpmaybe_qualified_datacon745,23524
-  let print_datacon_referenceprint_datacon_reference750,23637
-  let rec print_patexprprint_patexpr754,23752
-  and print_patexprsprint_patexprs765,24061
-  and print_patprint_pat768,24179
-  and print_tappprint_tapp800,25091
-  and print_exprprint_expr807,25307
-  and print_rec_flagprint_rec_flag948,30366
-  and print_ebinderprint_ebinder955,30477
-  and print_binderprint_binder959,30657
-  let print_definitionsprint_definitions963,30797
-  let print_sig_itemprint_sig_item968,31010
-  let psigitempsigitem972,31140
-  let pdefinitionspdefinitions976,31232
-  let pexprpexpr980,31351
-  let ppatppat984,31440
-  let ptappptapp988,31525
-
-typing/Permissions.mli,526
-Permissions1,0
-type resultresult30,1823
-val unifyunify34,1993
-val addadd38,2140
-val add_permadd_perm42,2275
-val subsub46,2452
-val sub_typesub_type51,2709
-val sub_permsub_perm53,2752
-val add_hintadd_hint55,2788
-val sub_constraintsub_constraint57,2844
-val keep_only_duplicablekeep_only_duplicable60,2959
-val instantiate_flexibleinstantiate_flexible63,3058
-val import_flex_instanciationsimport_flex_instanciations66,3178
-val drop_derivationdrop_derivation69,3298
-val safety_checksafety_check74,3432
-
-typing/KindPrinter.ml,411
-KindPrinter1,0
-let print_abstract_type_defprint_abstract_type_def10,187
-let print_varianceprint_variance15,346
-let print_data_type_defprint_data_type_def28,606
-let print_abbrev_type_defprint_abbrev_type_def50,1374
-let print_defprint_def65,2003
-let print_kindsprint_kinds76,2337
-let print_groupprint_group87,2709
-let pgrouppgroup96,3036
-let print_kinds_and_factsprint_kinds_and_facts101,3124
-
-typing/Mode.mli,470
-Mode1,0
-type modemode45,2570
-  | ModeBottomModeBottom46,2582
-  | ModeDuplicableModeDuplicable47,2597
-  | ModeExclusiveModeExclusive48,2616
-  | ModeAffineModeAffine49,2634
-val bottombottom52,2691
-val toptop55,2753
-val equalequal58,2785
-val comparecompare61,2835
-val is_maximalis_maximal64,2919
-val leqleq67,2978
-val meetmeet70,3063
-val printprint73,3112
-module ModeMapModeMap76,3163
-  val totaltotal81,3384
-  val completecomplete85,3587
-
-typing/DerivationPrinter.ml,278
-DerivationPrinter1,0
-let wordswords25,1502
-let (^^^^^^26,1541
-let print_judgementprint_judgement28,1574
-let comma_or_newlinecomma_or_newline66,2951
-let rec print_ruleprint_rule69,3004
-and print_derivationprint_derivation74,3196
-let pderivationpderivation89,3682
-
-typing/NamespaceSignature.ml,616
-NamespaceSignature1,0
-module type NamespaceNamespace6,134
-  type namename9,189
-  type 'a global_envglobal_env12,285
-  val emptyempty15,345
-  val lookup_unqualifiedlookup_unqualified18,437
-  val extend_unqualifiedextend_unqualified21,553
-  val lookup_qualifiedlookup_qualified24,686
-  val extend_qualifiedextend_qualified27,812
-  val lookup_maybe_qualifiedlookup_maybe_qualified30,967
-  val qualifyqualify33,1116
-  val freezefreeze36,1259
-  val unqualifyunqualify39,1399
-  val zapzap42,1502
-  val unqualified_namesunqualified_names45,1585
-  val print_global_envprint_global_env50,1694
-
-typing/Mode.ml,495
-Mode1,0
-type modemode20,1442
-  | ModeBottomModeBottom21,1454
-  | ModeDuplicableModeDuplicable22,1469
-  | ModeExclusiveModeExclusive23,1488
-  | ModeAffineModeAffine24,1506
-let equalequal28,1547
-let comparecompare31,1589
-let bottombottom34,1647
-let toptop37,1674
-let is_maximalis_maximal40,1698
-let leqleq46,1775
-let meetmeet56,1954
-let printprint67,2148
-let modesmodes77,2316
-module ModeMapModeMap84,2395
-  let totaltotal93,2546
-  let completecomplete100,2673
-
-typing/Derivations.mli,1010
-Derivations1,0
-type derivationderivation28,1661
-  | GoodGood29,1679
-  | BadBad31,1751
-and rulerule36,2030
-and rule_instancerule_instance39,2076
-and judgementjudgement41,2104
-  | JSubTypeJSubType42,2120
-  | JSubVarJSubVar43,2146
-  | JSubPermJSubPerm44,2171
-  | JSubPermsJSubPerms45,2191
-  | JSubFloatingJSubFloating46,2217
-  | JSubConstraintJSubConstraint47,2241
-  | JSubConstraintsJSubConstraints48,2279
-  | JEqualJEqual49,2323
-  | JLtJLt50,2347
-  | JGtJGt51,2368
-  | JNothingJNothing52,2389
-  | JAddJAdd53,2402
-  | JDebugJDebug54,2418
-type resultresult62,2752
-val no_proofno_proof66,2948
-val apply_axiomapply_axiom76,3210
-val try_severaltry_several87,3785
-val parpar97,4023
-val nothingnothing102,4263
-val option_of_resultoption_of_result107,4407
-val is_goodis_good110,4509
-type statestate116,4649
-val try_prooftry_proof121,4878
-val premisespremises126,5176
-val ( >>=>>=132,5544
-val qedqed135,5655
-val failfail138,5711
-val ( >>~>>~144,5848
-
-typing/Hoist.ml,146
-Hoist1,0
-class hoisthoist22,1457
-  method visitvisit29,1759
-let hoisthoist67,2634
-let rec extract_constraintsextract_constraints74,2889
-
-typing/Variance.ml,368
-Variance1,0
-type tt31,1708
-let lublub44,1920
-let leqleq59,2125
-let (~~~~62,2206
-let dotdot76,2714
-let variancevariance94,3208
-module PP159,4769
-  type propertyproperty160,4787
-  let bottombottom161,4807
-  let equalequal162,4832
-  let is_maximalis_maximal163,4850
-module SolverSolver166,4888
-let analyze_data_typesanalyze_data_types168,4926
-
-typing/Exports.ml,460
-Exports1,0
-module TT20,1442
-type value_exportsvalue_exports22,1463
-type datacon_exportsdatacon_exports23,1513
-let bind_implementation_valuesbind_implementation_values25,1594
-let bind_implementation_typesbind_implementation_types33,1876
-let bind_interface_valuebind_interface_value54,2502
-let bind_interface_typesbind_interface_types65,2755
-let find_qualified_varfind_qualified_var88,3515
-let find_unqualified_varfind_unqualified_var96,3773
-
-typing/DeBruijn.ml,496
-DeBruijn1,0
-class map_countingmap_counting29,1637
-  method extendextend34,1847
-class liftlift42,1993
-  method tyboundtybound46,2156
-let liftlift53,2249
-class tsubsttsubst66,2673
-  method tyboundtybound71,2892
-let tsubsttsubst93,3999
-let tsubst_branchtsubst_branch96,4076
-let tsubst_data_type_grouptsubst_data_type_group99,4172
-let bind_in_typebind_in_type107,4520
-let bind_rigid_in_typebind_rigid_in_type118,4759
-let bind_flexible_in_typebind_flexible_in_type121,4811
-
-typing/Types.ml,3283
-Types1,0
-let ( |>|>32,1813
-let ( !*!*33,1839
-let ( >>=>>=34,1872
-let ( ||||||35,1906
-let ( ^=>^=>36,1966
-let ( !!!!38,2005
-let ( !!=!!=43,2129
-let fst3fst350,2282
-let snd3snd351,2307
-let thd3thd352,2332
-let is_useris_user54,2358
-let ty_equalsty_equals56,2417
-let ty_unitty_unit60,2464
-let ty_tuplety_tuple64,2495
-let (@->@->69,2612
-let ty_barty_bar73,2649
-let ty_appty_app80,2722
-let ty_openty_open87,2810
-let fold_starfold_star91,2841
-let strip_quantifiers_and_bindstrip_quantifiers_and_bind98,2973
-let fold_quantifierfold_quantifier109,3264
-let fold_forallfold_forall115,3396
-let fold_existsfold_exists118,3440
-let fresh_auto_namefresh_auto_name121,3484
-let get_locationget_location209,5820
-let get_adopts_clauseget_adopts_clause215,5978
-let is_tyopenis_tyopen244,7051
-let get_branchesget_branches249,7116
-let get_arityget_arity257,7305
-let rec get_kind_for_typeget_kind_for_type261,7384
-let branches_for_dataconbranches_for_datacon295,8003
-let branches_for_branchbranches_for_branch299,8070
-let branch_for_dataconbranch_for_datacon303,8182
-let fields_for_dataconfields_for_datacon311,8406
-let flavor_for_dataconflavor_for_datacon317,8577
-let variancevariance323,8717
-let instantiate_typeinstantiate_type332,8915
-let find_and_instantiate_branchfind_and_instantiate_branch337,9038
-let is_tyappis_tyapp346,9255
-let is_abbrevis_abbrev359,9471
-let assert_concreteassert_concrete366,9580
-let is_concreteis_concrete369,9660
-let is_termis_term372,9732
-let is_permis_perm373,9779
-let is_typeis_type374,9826
-class collectcollect390,10621
-  methodvisit394,10829
-  methodbranch434,11776
-let collectcollect445,12064
-class markmark450,12192
-  methodnormalize452,12257
-  methodtyopen456,12431
-  methodtyarrow465,12716
-let mark_reachablemark_reachable469,12761
-let make_datacon_lettersmake_datacon_letters477,12959
-let bind_datacon_parametersbind_datacon_parameters495,13569
-let rec expand_if_one_branchexpand_if_one_branch507,13994
-let is_staris_star524,14415
-let rec flatten_starflatten_star534,14573
-module TypePrinterTypePrinter556,15116
-  let print_varprint_var562,15247
-  let pvarpvar569,15528
-  let print_dataconprint_datacon573,15596
-  let print_field_nameprint_field_name577,15671
-  let print_fieldprint_field581,15743
-  let p_kindp_kind586,15900
-  let print_namesprint_names590,15962
-  let pnamespnames600,16294
-  let smallintsmallint604,16370
-  let print_pointprint_point625,16792
-  let pnamepname633,16972
-  let print_bindingprint_binding639,17093
-  let rec print_quantifiedprint_quantified646,17253
-  and print_openprint_open655,17518
-  and print_typeprint_type669,18008
-  and print_constraintprint_constraint741,19831
-  and print_data_field_defprint_data_field_def744,19929
-  and print_branchprint_branch747,20041
-  let pfactpfact768,20619
-  let print_factsprint_facts774,20718
-  let print_permission_listprint_permission_list798,21541
-  let ppermission_listppermission_list806,21787
-  let print_permissionsprint_permissions811,21943
-  let ppermissionsppermissions849,23236
-  let ptypeptype855,23368
-  let penvpenv859,23451
-  let pconstraintpconstraint865,23552
-  let print_bindersprint_binders869,23645
-
-typing/Hoist.mli,87
-Hoist1,0
-val hoisthoist37,2399
-val extract_constraintsextract_constraints42,2523
-
-typing/Merge.mli,45
-Merge1,0
-val merge_envsmerge_envs41,2437
-
-typing/ExpressionsCore.mli,1787
+typing/ExpressionsCore.mli,1753
 ExpressionsCore1,0
 type tag_update_infotag_update_info29,1646
 type fieldfield31,1700
@@ -1520,380 +1302,24 @@ type expressionexpression48,2307
   | EIfThenElseEIfThenElse68,3082
   | ELocatedELocated69,3145
   | EIntEInt70,3183
-  | EExplainedEExplained71,3199
-  | EGiveEGive72,3228
-  | ETakeETake73,3265
-  | EOwnsEOwns74,3302
-  | EFailEFail75,3339
-and tapptapp77,3350
-and tapp = OrderedOrdered77,3350
-and tapp = Ordered of typ | NamedNamed77,3350
-and patexprpatexpr79,3408
-type definitionsdefinitions81,3444
-type sig_itemsig_item84,3516
-type toplevel_itemtoplevel_item86,3553
-    DataTypeGroupDataTypeGroup87,3574
-  | ValueDefinitionsValueDefinitions88,3611
-  | ValueDeclarationValueDeclaration89,3647
-type implementationimplementation91,3681
-type interfaceinterface93,3723
-val internal_ppatinternal_ppat97,3769
-val internal_ptappinternal_ptapp98,3830
-
-typing/KindCheck.ml,4556
-KindCheck1,0
-type levellevel32,1925
-type 'v varvar46,2530
-       LocalLocal47,2544
-  | NonLocalNonLocal48,2566
-module VV53,2687
-module DD56,2735
-type varietyvariety68,3396
-  | RealReal69,3411
-  | FictionalFictional70,3461
-type 'v envenv75,3633
-  levellevel78,3687
-  variablesvariables82,3821
-  dataconsdatacons87,4082
-  module_namemodule_name90,4173
-  locloc93,4247
-module PP101,4399
-  let print_varprint_var107,4464
-  let print_varietyprint_variety114,4628
-  let print_envprint_env120,4728
-  let penvpenv128,5049
-  let print_fieldprint_field133,5173
-  let print_fieldsprint_fields136,5235
-  let p_fieldsp_fields139,5317
-let pp144,5387
-type errorerror150,5502
-  | UnboundUnbound151,5515
-  | BoundTwiceBoundTwice152,5575
-  | FictionalEVarFictionalEVar153,5638
-  | MismatchMismatch154,5705
-  | ArityMismatchArityMismatch155,5765
-  | ModeConstraintMismatchModeConstraintMismatch156,5828
-  | IllegalConsumesIllegalConsumes157,5904
-  | BadHypothesisInFactBadHypothesisInFact158,5924
-  | BadConclusionInFactBadConclusionInFact159,5948
-  | NonDistinctHeadsInFactNonDistinctHeadsInFact160,6057
-  | AdopterNotExclusiveAdopterNotExclusive161,6164
-  | FieldMismatchFieldMismatch162,6234
-  | ImplicationOnlyOnArrowImplicationOnlyOnArrow163,6344
-  | MissingExportMissingExport164,6371
-  | TwiceMutableTwiceMutable165,6406
-exception KindErrorKindError169,6498
-let print_errorprint_error173,6572
-let raise_errorraise_error281,10482
-let unboundunbound284,10547
-let bound_twicebound_twice287,10655
-let mismatchmismatch290,10748
-let implication_only_on_arrowimplication_only_on_arrow293,10856
-let emptyempty300,11047
-let module_namemodule_name312,11305
-let enter_moduleenter_module315,11346
-let locationlocation326,11721
-let findfind330,11825
-let find_kindfind_kind336,11958
-let find_varietyfind_variety340,12028
-let find_varfind_var347,12273
-let level2indexlevel2index352,12419
-let find_dataconfind_datacon359,12612
-let resolve_dataconresolve_datacon366,12879
-let check_for_duplicate_bindingscheck_for_duplicate_bindings384,13649
-let check_for_duplicate_dataconscheck_for_duplicate_datacons389,13959
-let check_for_duplicate_fieldscheck_for_duplicate_fields395,14223
-let locatelocate414,14796
-let bind_variablebind_variable418,14906
-let new_local_namenew_local_name424,15203
-let bind_localbind_local431,15480
-let bind_nonlocalbind_nonlocal437,15727
-let extendextend443,15983
-let extend_checkextend_check447,16173
-let bind_dataconbind_datacon451,16343
-let bind_nonlocal_dataconbind_nonlocal_datacon454,16476
-let bind_external_namebind_external_name457,16564
-let bind_external_dataconbind_external_datacon461,16777
-let dissolvedissolve471,17008
-let rec bvbv489,17794
-let bvbv511,18419
-let namesnames530,19257
-let resetreset536,19426
-let bindings_data_group_typesbindings_data_group_types547,19951
-let bind_data_group_dataconsbind_data_group_datacons553,20310
-let rec check_fact_parametercheck_fact_parameter584,21443
-let rec equal_TyVarequal_TyVar594,21839
-let rec check_fact_conclusioncheck_fact_conclusion604,22092
-let check_distinct_headscheck_distinct_heads616,22572
-let check_factscheck_facts622,22848
-type ss650,24262
-  | ConsumesAllowedConsumesAllowed651,24271
-  | ConsumesDisallowedConsumesDisallowed652,24291
-let rec checkcheck654,24315
-and inferinfer680,25191
-and infer_resetinfer_reset784,28064
-and check_resetcheck_reset787,28145
-and check_branchcheck_branch792,28397
-and check_fieldcheck_field798,28605
-and check_exact_fieldscheck_exact_fields807,28884
-and check_mode_constraintcheck_mode_constraint828,29728
-let check_field_resetcheck_field_reset862,31051
-let check_unresolved_branchcheck_unresolved_branch869,31238
-let check_data_type_defcheck_data_type_def880,31764
-let branches_of_data_type_groupbranches_of_data_type_group908,32877
-let branches_of_interfacebranches_of_interface918,33110
-let rec check_patterncheck_pattern934,33631
-let appropriateappropriate957,34297
-let rec check_patexprcheck_patexpr969,34698
-and check_expressioncheck_expression992,35745
-and check_type_argumentcheck_type_argument1118,39334
-and check_data_type_groupcheck_data_type_group1123,39444
-let check_implementationcheck_implementation1143,40395
-let check_interfacecheck_interface1168,41167
-let find_variablefind_variable1199,42236
-let find_nonlocal_variablefind_nonlocal_variable1207,42601
-let extendextend1222,42981
-let get_exportsget_exports1225,43040
-
-typing/TypeErrors.ml,2446
-TypeErrors1,0
-type errorerror29,1566
-and raw_errorraw_error31,1596
-  | CyclicDependencyCyclicDependency32,1612
-  | NotAFunctionNotAFunction33,1648
-  | ExpectedTypeExpectedType34,1672
-  | ExpectedPermissionExpectedPermission35,1727
-  | RecursiveOnlyForFunctionsRecursiveOnlyForFunctions36,1782
-  | MissingFieldMissingField37,1812
-  | ExtraFieldExtraField38,1843
-  | NoSuchFieldNoSuchField39,1872
-  | CantAssignTagCantAssignTag40,1908
-  | NoSuchFieldInPatternNoSuchFieldInPattern41,1933
-  | BadPatternBadPattern42,1982
-  | BadFieldBadField43,2014
-  | NoTwoConstructorsNoTwoConstructors44,2056
-  | MatchBadDataconMatchBadDatacon45,2085
-  | MatchBadTupleMatchBadTuple46,2127
-  | AssignNotExclusiveAssignNotExclusive47,2152
-  | FieldCountMismatchFieldCountMismatch48,2197
-  | NoMultipleArgumentsNoMultipleArguments49,2242
-  | ResourceAllocationConflictResourceAllocationConflict50,2266
-  | UncertainMergeUncertainMerge51,2304
-  | ConflictingTypeAnnotationsConflictingTypeAnnotations52,2330
-  | IllKindedTypeApplicationIllKindedTypeApplication53,2374
-  | BadTypeApplicationBadTypeApplication54,2425
-  | NonExclusiveAdopteeNonExclusiveAdoptee55,2455
-  | NoAdoptsClauseNoAdoptsClause56,2486
-  | NotDynamicNotDynamic57,2512
-  | NoSuitableTypeForAdoptsNoSuitableTypeForAdopts58,2534
-  | AdoptsNoAnnotationAdoptsNoAnnotation59,2575
-  | NotMergingClausesNotMergingClauses60,2598
-  | NoSuchTypeInSignatureNoSuchTypeInSignature61,2657
-  | DataTypeMismatchInSignatureDataTypeMismatchInSignature62,2721
-  | VarianceAnnotationMismatchVarianceAnnotationMismatch63,2779
-  | ExportNotDuplicableExportNotDuplicable64,2810
-  | LocalTypeLocalType65,2851
-  | InstantiatedInstantiated66,2865
-  | PackWithExistsPackWithExists67,2905
-  | SeveralWorkingFunctionTypesSeveralWorkingFunctionTypes68,2924
-exception TypeCheckerErrorTypeCheckerError70,2964
-let raise_errorraise_error72,3001
-exception NotFoldableNotFoldable80,3175
-let rec fold_varfold_var85,3394
-and fold_typefold_type116,4104
-and fold_branchfold_branch181,5480
-let fold_typefold_type196,5899
-let fold_varfold_var204,6009
-let print_errorprint_error214,6211
-let html_errorhtml_error445,15020
-let internal_extracterrorinternal_extracterror463,15576
-let flagsflags465,15611
-let errno_of_errorerrno_of_error475,16012
-let may_raise_errormay_raise_error492,16275
-let parse_warn_errorparse_warn_error503,16519
-
-typing/TypeCore.mli,7087
-TypeCore1,0
-module FieldField31,1661
-type namename36,1835
-type name = UserUser36,1835
-type name = User of Module.name * Variable.name | AutoAuto36,1835
-type locationlocation39,1952
-type quantifierquantifier42,2052
-  | ForallForall43,2070
-  | ExistsExists44,2081
-type type_bindingtype_binding47,2156
-type flavorflavor52,2362
-  | UserIntroducedUserIntroduced53,2407
-  | AutoIntroducedAutoIntroduced54,2426
-type db_indexdb_index59,2629
-type varvar65,2868
-type data_field_defdata_field_def70,2938
-and typtyp73,3004
-  | TyUnknownTyUnknown75,3049
-  | TyDynamicTyDynamic76,3063
-  | TyBoundTyBound80,3186
-  | TyOpenTyOpen81,3210
-  | TyQTyQ84,3277
-  | TyAppTyApp85,3329
-  | TyTupleTyTuple88,3387
-  | TyConcreteTyConcrete89,3411
-  | TySingletonTySingleton92,3465
-  | TyArrowTyArrow95,3516
-  | TyBarTyBar98,3561
-  | TyAnchoredPermissionTyAnchoredPermission101,3609
-  | TyEmptyTyEmpty102,3647
-  | TyStarTyStar103,3659
-  | TyAndTyAnd106,3706
-and mode_constraintmode_constraint109,3743
-and branchbranch111,3782
-  branch_flavorbranch_flavor112,3797
-  branch_dataconbranch_datacon122,4390
-  branch_fieldsbranch_fields123,4426
-  branch_adoptsbranch_adopts126,4582
-and resolved_dataconresolved_datacon129,4607
-type variancevariance135,4737
-type variance = SurfaceSyntax.variance = InvariantInvariant135,4737
-type variance = SurfaceSyntax.variance = Invariant | CovariantCovariant135,4737
-type variance = SurfaceSyntax.variance = Invariant | Covariant | ContravariantContravariant135,4737
-type variance = SurfaceSyntax.variance = Invariant | Covariant | Contravariant | BivariantBivariant135,4737
-type type_deftype_def137,4829
-  | ConcreteConcrete138,4845
-  | AbstractAbstract139,4870
-  | AbbrevAbbrev140,4883
-type data_typedata_type142,4902
-  data_namedata_name143,4921
-  data_locationdata_location144,4949
-  data_definitiondata_definition145,4976
-  data_variancedata_variance146,5005
-  data_factdata_fact147,5037
-  data_kinddata_kind148,5061
-type data_type_groupdata_type_group151,5083
-  group_recursivegroup_recursive152,5108
-  group_itemsgroup_items153,5151
-module DataconMapDataconMap161,5303
-module VarMapVarMap167,5660
-module IVarMapIVarMap170,5785
-type envenv180,6027
-val empty_envempty_env183,6067
-val locatelocate186,6135
-val locationlocation189,6224
-val module_namemodule_name192,6291
-val enter_moduleenter_module195,6392
-val is_inconsistentis_inconsistent198,6485
-val mark_inconsistentmark_inconsistent201,6570
-val modify_kenvmodify_kenv205,6734
-val kenvkenv207,6835
-val is_flexibleis_flexible218,7160
-val is_rigidis_rigid219,7196
-val modulo_flexmodulo_flex227,7670
-val import_flex_instanciations_rawimport_flex_instanciations_raw236,8021
-val instantiate_flexible_rawinstantiate_flexible_raw243,8430
-val samesame247,8613
-val merge_leftmerge_left253,8909
-val get_floating_permissionsget_floating_permissions256,9032
-val set_floating_permissionsset_floating_permissions259,9153
-val get_namesget_names267,9374
-val get_nameget_name268,9414
-val get_kindget_kind271,9492
-val get_factget_fact274,9545
-val get_locationsget_locations277,9609
-val get_definitionget_definition280,9692
-val get_varianceget_variance283,9827
-val add_locationadd_location287,9930
-val get_permissionsget_permissions297,10321
-val set_permissionsset_permissions300,10414
-val reset_permissionsreset_permissions303,10516
-val set_factset_fact311,10705
-val set_definitionset_definition314,10826
-val update_definitionupdate_definition317,10978
-val update_varianceupdate_variance320,11070
-exception UnboundPointUnboundPoint327,11269
-val cleanclean331,11437
-val equalequal336,11665
-val resolved_datacons_equalresolved_datacons_equal339,11759
-val construct_branchconstruct_branch353,12395
-val find_branchfind_branch357,12572
-val touch_branchtouch_branch361,12714
-val bind_rigidbind_rigid369,12906
-val bind_flexiblebind_flexible372,12994
-val bind_flexible_beforebind_flexible_before375,13105
-val fold_definitionsfold_definitions391,13699
-val fold_termsfold_terms395,13868
-val foldfold398,13973
-val mapmap401,14059
-val is_markedis_marked408,14202
-val markmark409,14236
-val refresh_markrefresh_mark410,14264
-class virtual ['env, 'result] visitorvisitor416,14375
-  method normalizenormalize422,14662
-  method extendextend427,14845
-  method visitvisit431,15008
-  method virtual tyunknowntyunknown434,15106
-  method virtual tydynamictydynamic435,15150
-  method virtual tyboundtybound436,15194
-  method virtual tyopentyopen437,15248
-  method virtual tyqtyq438,15296
-  method virtual tyapptyapp439,15381
-  method virtual tytupletytuple440,15440
-  method virtual tyconcretetyconcrete441,15494
-  method virtual tysingletontysingleton442,15549
-  method virtual tyarrowtyarrow443,15602
-  method virtual tybartybar444,15658
-  method virtual tyanchoredpermissiontyanchoredpermission445,15712
-  method virtual tyemptytyempty446,15781
-  method virtual tystartystar447,15823
-  method virtual tyandtyand448,15878
-class ['env] mapmap454,15997
-  method tyunknowntyunknown459,16116
-  method tydynamictydynamic460,16148
-  method tyboundtybound461,16180
-  method tyopentyopen462,16222
-  method tyqtyq463,16258
-  method tyapptyapp464,16331
-  method tytupletytuple465,16378
-  method tyconcretetyconcrete466,16420
-  method tysingletontysingleton467,16463
-  method tyarrowtyarrow468,16504
-  method tybartybar469,16548
-  method tyanchoredpermissiontyanchoredpermission470,16590
-  method tyemptytyempty471,16647
-  method tystartystar472,16677
-  method tyandtyand473,16720
-  method branchbranch476,16831
-  method resolved_dataconresolved_datacon478,16948
-  method fieldfield480,17075
-  method data_type_groupdata_type_group482,17197
-class ['env] iteriter488,17321
-  method tyunknowntyunknown493,17442
-  method tydynamictydynamic494,17475
-  method tyboundtybound495,17508
-  method tyopentyopen496,17551
-  method tyqtyq497,17588
-  method tyapptyapp498,17662
-  method tytupletytuple499,17710
-  method tyconcretetyconcrete500,17753
-  method tysingletontysingleton501,17797
-  method tyarrowtyarrow502,17839
-  method tybartybar503,17884
-  method tyanchoredpermissiontyanchoredpermission504,17927
-  method tyemptytyempty505,17985
-  method tystartystar506,18016
-  method tyandtyand507,18060
-  method branchbranch510,18168
-  method resolved_dataconresolved_datacon512,18279
-  method fieldfield514,18390
-  method data_type_groupdata_type_group516,18498
-val ty_bottomty_bottom526,18687
-val is_non_bottomis_non_bottom527,18707
-val internal_ptypeinternal_ptype534,18962
-val internal_pnamesinternal_pnames535,19019
-val internal_ppermissionsinternal_ppermissions536,19083
-val internal_pfactinternal_pfact537,19141
-val internal_pflexlistinternal_pflexlist538,19198
-val internal_uniqvaridinternal_uniqvarid539,19248
-val internal_checklevelinternal_checklevel540,19290
-val internal_wasflexibleinternal_wasflexible541,19334
+  | EGiveEGive71,3199
+  | ETakeETake72,3236
+  | EOwnsEOwns73,3273
+  | EFailEFail74,3310
+and tapptapp76,3321
+and tapp = OrderedOrdered76,3321
+and tapp = Ordered of typ | NamedNamed76,3321
+and patexprpatexpr78,3379
+type definitionsdefinitions80,3415
+type sig_itemsig_item83,3487
+type toplevel_itemtoplevel_item85,3524
+    DataTypeGroupDataTypeGroup86,3545
+  | ValueDefinitionsValueDefinitions87,3582
+  | ValueDeclarationValueDeclaration88,3618
+type implementationimplementation90,3652
+type interfaceinterface92,3694
+val internal_ppatinternal_ppat96,3740
+val internal_ptappinternal_ptapp97,3801
 
 typing/Fact.ml,1020
 Fact1,0
@@ -1928,203 +1354,77 @@ let completecomplete257,8506
 let printprint278,9295
 let internal_printinternal_print307,10167
 
-typing/Mark.mli,79
-Mark1,0
-type tt20,1442
-val createcreate21,1449
-val equalsequals22,1471
+typing/Fact.mli,853
+Fact1,0
+type parameterparameter27,1653
+module ParameterMapParameterMap30,1679
+type propertyproperty70,3357
+and factfact76,3572
+and hypothesishypothesis89,4206
+  | HFalseHFalse90,4223
+  | HConjunctionHConjunction91,4234
+and hypotheseshypotheses93,4266
+val conjunctionconjunction105,4658
+val bottombottom112,4891
+val equalequal115,4926
+val leqleq118,4988
+val joinjoin121,5070
+val join_manyjoin_many122,5101
+val meetmeet128,5413
+val is_maximalis_maximal132,5555
+val constantconstant141,5921
+val implicationimplication148,6256
+val duplicableduplicable151,6354
+val allow_exclusiveallow_exclusive155,6512
+val disallow_exclusivedisallow_exclusive159,6639
+val parameterparameter163,6806
+val composecompose169,7096
+val completecomplete174,7303
+val printprint186,7689
+val internal_printinternal_print191,7934
 
-typing/Expressions.mli,1520
-Expressions1,0
-val bind_data_type_group_in_toplevel_itemsbind_data_type_group_in_toplevel_items35,1952
-val bind_data_type_group_in_exprbind_data_type_group_in_expr39,2212
-val resolve_branchresolve_branch44,2498
-val e_unite_unit69,3356
-val p_unitp_unit72,3413
-val eunloceunloc75,3496
-val tsubst_exprtsubst_expr80,3588
-type substitution_kitsubstitution_kit90,4074
-  subst_typesubst_type91,4100
-  subst_exprsubst_expr92,4127
-  subst_defsubst_def93,4168
-  subst_toplevelsubst_toplevel94,4210
-  subst_patsubst_pat95,4270
-  varsvars96,4314
-  namesnames97,4333
-val bind_evarsbind_evars101,4417
-val bind_varsbind_vars106,4541
-val bind_patexprsbind_patexprs120,5256
-module ExprPrinterExprPrinter127,5438
-    val print_maybe_qualified_dataconprint_maybe_qualified_datacon129,5465
-    val pmaybe_qualified_dataconpmaybe_qualified_datacon131,5575
-    val print_datacon_referenceprint_datacon_reference133,5679
-    val print_patexprprint_patexpr135,5772
-    val print_patexprsprint_patexprs137,5851
-    val print_patprint_pat139,5938
-    val print_tappprint_tapp140,5994
-    val print_exprprint_expr141,6048
-    val print_rec_flagprint_rec_flag142,6108
-    val print_ebinderprint_ebinder143,6163
-    val print_binderprint_binder146,6249
-    val print_definitionsprint_definitions150,6361
-    val print_sig_itemprint_sig_item154,6446
-    val psigitempsigitem156,6525
-    val pdefinitionspdefinitions158,6598
-    val pexprpexpr159,6659
-    val ppatppat160,6712
+typing/FactInference.ml,783
+FactInference1,0
+let assumeassume34,1694
+type worldworld60,3040
+  envenv62,3080
+  variablesvariables65,3229
+  valuationvaluation68,3383
+  parametersparameters71,3519
+let trivial_worldtrivial_world78,3775
+let rec inferinfer93,4260
+and infer_concreteinfer_concrete238,9905
+and infer_fieldinfer_field254,10438
+and infer_with_kindsinfer_with_kinds257,10480
+and infer_with_kindinfer_with_kind260,10560
+and bind_assume_inferbind_assume_infer271,10823
+let prepare_branchesprepare_branches300,11821
+let prepare_typeprepare_type326,12797
+let check_adopts_clausescheck_adopts_clauses365,14248
+let analyze_data_typesanalyze_data_types397,15575
+let has_modehas_mode483,18545
+let is_duplicableis_duplicable501,19058
+let is_exclusiveis_exclusive504,19105
 
-typing/Types.mli,2831
-Types1,0
-val fst3fst332,1750
-val snd3snd333,1780
-val thd3thd334,1810
-val ( !!!!39,1917
-val ( !!=!!=42,2014
-val ( !*!*45,2070
-val ( >>=>>=48,2136
-val ( ||||||51,2241
-val ( ^=>^=>54,2365
-val ( |>|>57,2427
-val expand_if_one_branchexpand_if_one_branch71,2989
-val collectcollect76,3226
-val branches_for_branchbranches_for_branch88,3674
-val branches_for_dataconbranches_for_datacon91,3808
-val branch_for_dataconbranch_for_datacon94,3936
-val fields_for_dataconfields_for_datacon97,4047
-val flavor_for_dataconflavor_for_datacon100,4166
-val ty_unitty_unit114,4531
-val ty_tuplety_tuple117,4566
-val ( @->@->120,4657
-val ty_barty_bar123,4774
-val ty_appty_app126,4886
-val ty_equalsty_equals129,4969
-val ty_openty_open132,5021
-val is_tyappis_tyapp140,5172
-val is_staris_star144,5327
-val is_concreteis_concrete147,5393
-val assert_concreteassert_concrete150,5490
-val is_tyopenis_tyopen153,5560
-val is_abbrevis_abbrev156,5673
-val is_termis_term159,5746
-val is_permis_perm162,5818
-val is_typeis_type165,5890
-val is_useris_user168,5959
-val flatten_starflatten_star177,6302
-val fold_starfold_star181,6442
-val fold_forallfold_forall184,6532
-val fold_existsfold_exists187,6653
-val mark_reachablemark_reachable196,6923
-val bind_datacon_parametersbind_datacon_parameters208,7314
-val instantiate_typeinstantiate_type214,7540
-val find_and_instantiate_branchfind_and_instantiate_branch217,7659
-val get_locationget_location226,7877
-val get_adopts_clauseget_adopts_clause227,7919
-val get_arityget_arity228,7961
-val get_kind_for_typeget_kind_for_type229,7995
-val variancevariance232,8101
-val fresh_auto_namefresh_auto_name234,8147
-val make_datacon_lettersmake_datacon_letters235,8184
-module TypePrinterTypePrinter242,8302
-    val print_varprint_var244,8329
-    val pvarpvar245,8382
-    val print_dataconprint_datacon246,8428
-    val print_field_nameprint_field_name247,8486
-    val print_fieldprint_field248,8545
-    val p_kindp_kind249,8608
-    val print_namesprint_names250,8650
-    val pnamespnames252,8716
-    val pnamepname253,8769
-    val print_quantifiedprint_quantified254,8815
-    val print_pointprint_point258,8918
-    val print_typeprint_type259,8972
-    val print_constraintprint_constraint260,9025
-    val print_data_field_defprint_data_field_def263,9108
-    val print_branchprint_branch265,9188
-    val pfactpfact269,9273
-    val print_factsprint_facts270,9319
-    val print_permission_listprint_permission_list271,9366
-    val ppermission_listppermission_list273,9440
-    val print_permissionsprint_permissions274,9497
-    val ppermissionsppermissions275,9550
-    val ptypeptype276,9597
-    val penvpenv277,9643
-    val pconstraintpconstraint278,9682
-    val print_bindersprint_binders280,9752
+typing/FactInference.mli,203
+FactInference1,0
+val assumeassume29,1719
+val analyze_data_typesanalyze_data_types37,2168
+val has_modehas_mode42,2401
+val is_duplicableis_duplicable45,2487
+val is_exclusiveis_exclusive48,2570
 
-typing/Resugar.ml,488
-Resugar1,0
-module SS4,38
-let surface_print_varsurface_print_var6,64
-let surface_print_pointsurface_print_point14,261
-let resugar_bindingresugar_binding26,619
-let rec resugarresugar35,887
-and resugar_arrowresugar_arrow120,4364
-and resugar_resolved_branchresugar_resolved_branch151,5697
-and resugar_fieldresugar_field168,6459
-and reset_mode_constraintreset_mode_constraint171,6551
-and resetreset174,6616
-and spill_soupspill_soup181,6807
-let resugarresugar190,7056
+typing/Hoist.ml,146
+Hoist1,0
+class hoisthoist22,1457
+  method visitvisit29,1759
+let hoisthoist67,2634
+let rec extract_constraintsextract_constraints74,2889
 
-typing/Namespace.mli,125
-Namespace1,0
-module MakeNamespaceMakeNamespace5,70
-  type namename7,134
-  val printprint8,146
-  module MapMap9,174
-
-typing/DerivationPrinter.mli,105
-DerivationPrinter1,0
-val print_derivationprint_derivation23,1560
-val pderivationpderivation24,1627
-
-typing/Derivations.ml,1148
-Derivations1,0
-module LL24,1480
-type derivationderivation30,1717
-  | GoodGood31,1735
-  | BadBad33,1807
-and rulerule38,2086
-and rule_instancerule_instance41,2132
-and judgementjudgement43,2160
-  | JSubTypeJSubType44,2176
-  | JSubVarJSubVar45,2202
-  | JSubPermJSubPerm46,2227
-  | JSubPermsJSubPerms47,2247
-  | JSubFloatingJSubFloating48,2273
-  | JSubConstraintJSubConstraint49,2297
-  | JSubConstraintsJSubConstraints50,2335
-  | JEqualJEqual51,2379
-  | JLtJLt52,2403
-  | JGtJGt53,2424
-  | JNothingJNothing54,2445
-  | JAddJAdd55,2458
-  | JDebugJDebug56,2474
-type resultresult62,2764
-let option_of_resultoption_of_result64,2823
-let no_proofno_proof73,3054
-let nothingnothing78,3247
-let is_good_derivationis_good_derivation82,3380
-let is_bad_derivationis_bad_derivation84,3447
-let is_goodis_good86,3513
-type statestate94,3912
-let ( >>~>>~98,4081
-let apply_axiomapply_axiom108,4296
-let try_prooftry_proof117,4576
-let ( >>=>>=135,5208
-let qedqed154,5872
-let failfail158,5953
-let premisespremises162,6072
-let walkwalk174,6304
-let try_severaltry_several222,8327
-let parpar251,9324
-
-typing/Modules.ml,152
-Modules1,0
-module SS23,1608
-module EE24,1633
-let collect_dependenciescollect_dependencies27,1692
-let all_dependenciesall_dependencies190,6490
+typing/Hoist.mli,87
+Hoist1,0
+val hoisthoist37,2399
+val extract_constraintsextract_constraints42,2523
 
 typing/Interfaces.ml,187
 Interfaces1,0
@@ -2133,7 +1433,128 @@ module EE25,1537
 module TT26,1564
 let build_interfacebuild_interface33,1873
 let import_interfaceimport_interface41,2192
-let checkcheck93,4284
+let checkcheck93,4285
+
+typing/Interfaces.mli,86
+Interfaces1,0
+val import_interfaceimport_interface32,2116
+val checkcheck40,2635
+
+typing/KindCheck.ml,4603
+KindCheck1,0
+type levellevel32,1925
+type 'v varvar46,2530
+       LocalLocal47,2544
+  | NonLocalNonLocal48,2566
+module VV53,2687
+module DD56,2735
+type varietyvariety68,3398
+  | RealReal69,3413
+  | FictionalFictional70,3463
+type 'v envenv75,3635
+  levellevel78,3689
+  variablesvariables82,3823
+  dataconsdatacons87,4084
+  module_namemodule_name90,4175
+  locloc93,4249
+module PP101,4401
+  let print_nameprint_name107,4466
+  let print_nameietyprint_nameiety114,4631
+  let print_envprint_env120,4732
+  let penvpenv128,5055
+  let print_fieldprint_field133,5179
+  let print_fieldsprint_fields136,5241
+  let p_fieldsp_fields139,5323
+let pp144,5393
+type errorerror150,5508
+  | UnboundUnbound151,5521
+  | BoundTwiceBoundTwice152,5581
+  | FictionalEVarFictionalEVar153,5644
+  | MismatchMismatch154,5711
+  | ArityMismatchArityMismatch155,5771
+  | ModeConstraintMismatchModeConstraintMismatch156,5834
+  | IllegalConsumesIllegalConsumes157,5910
+  | BadHypothesisInFactBadHypothesisInFact158,5930
+  | BadConclusionInFactBadConclusionInFact159,5954
+  | NonDistinctHeadsInFactNonDistinctHeadsInFact160,6063
+  | AdopterNotExclusiveAdopterNotExclusive161,6170
+  | FieldMismatchFieldMismatch162,6240
+  | ImplicationOnlyOnArrowImplicationOnlyOnArrow163,6350
+  | MissingExportMissingExport164,6377
+  | TwiceMutableTwiceMutable165,6412
+  | MalformedBranchMalformedBranch166,6469
+exception KindErrorKindError170,6531
+let print_errorprint_error174,6605
+let raise_errorraise_error286,10648
+let unboundunbound289,10713
+let bound_twicebound_twice292,10821
+let mismatchmismatch295,10914
+let implication_only_on_arrowimplication_only_on_arrow298,11022
+let emptyempty305,11213
+let module_namemodule_name317,11471
+let enter_moduleenter_module320,11512
+let locationlocation331,11887
+let findfind335,11991
+let find_kindfind_kind341,12124
+let find_varietyfind_variety345,12194
+let find_varfind_var352,12439
+let level2indexlevel2index357,12585
+let find_datacon_rawfind_datacon_raw363,12703
+let find_dataconfind_datacon368,12962
+let resolve_dataconresolve_datacon374,13167
+let check_for_duplicate_bindingscheck_for_duplicate_bindings391,13936
+let check_for_duplicate_dataconscheck_for_duplicate_datacons396,14246
+let check_for_duplicate_fieldscheck_for_duplicate_fields406,14605
+let locatelocate419,15045
+let bind_variablebind_variable423,15155
+let new_local_namenew_local_name429,15452
+let bind_localbind_local436,15729
+let bind_nonlocalbind_nonlocal442,15976
+let extendextend448,16232
+let extend_checkextend_check452,16422
+let bind_dataconbind_datacon456,16592
+let bind_nonlocal_dataconbind_nonlocal_datacon459,16725
+let bind_external_namebind_external_name462,16813
+let bind_external_dataconbind_external_datacon466,17026
+let dissolvedissolve476,17257
+let rec bvbv494,18044
+let bvbv516,18671
+let namesnames535,19509
+let resetreset541,19678
+let bindings_data_group_typesbindings_data_group_types552,20203
+let bind_data_group_dataconsbind_data_group_datacons558,20562
+let rec check_fact_parametercheck_fact_parameter592,21778
+let rec equal_TyVarequal_TyVar602,22174
+let rec check_fact_conclusioncheck_fact_conclusion612,22427
+let check_distinct_headscheck_distinct_heads624,22907
+let check_factscheck_facts630,23183
+type ss658,24598
+  | ConsumesAllowedConsumesAllowed659,24607
+  | ConsumesDisallowedConsumesDisallowed660,24627
+let rec checkcheck662,24651
+and inferinfer688,25527
+and infer_resetinfer_reset792,28401
+and check_resetcheck_reset795,28482
+and check_branchcheck_branch800,28734
+and check_fieldcheck_field806,28942
+and check_exact_fieldscheck_exact_fields812,29140
+and check_mode_constraintcheck_mode_constraint830,29914
+let check_unresolved_branchcheck_unresolved_branch864,31237
+let check_data_type_defcheck_data_type_def874,31698
+let branches_of_data_type_groupbranches_of_data_type_group902,32811
+let branches_of_interfacebranches_of_interface912,33044
+let rec check_patterncheck_pattern928,33565
+let appropriateappropriate951,34232
+let rec check_patexprcheck_patexpr963,34633
+and check_expressioncheck_expression986,35680
+and check_type_argumentcheck_type_argument1109,39222
+and check_data_type_groupcheck_data_type_group1114,39332
+let check_implementationcheck_implementation1134,40283
+let check_interfacecheck_interface1159,41055
+let find_variablefind_variable1190,42124
+let find_nonlocal_variablefind_nonlocal_variable1198,42489
+let extendextend1213,42869
+let get_exportsget_exports1216,42928
 
 typing/KindCheck.mli,1178
 KindCheck1,0
@@ -2168,12 +1589,320 @@ val check_implementationcheck_implementation168,7923
 val check_interfacecheck_interface173,8143
 val pp179,8310
 
-typing/Interfaces.mli,86
-Interfaces1,0
-val import_interfaceimport_interface32,2116
-val checkcheck40,2635
+typing/KindPrinter.ml,413
+KindPrinter1,0
+let print_abstract_type_defprint_abstract_type_def10,187
+let print_nameianceprint_nameiance15,347
+let print_data_type_defprint_data_type_def28,608
+let print_abbrev_type_defprint_abbrev_type_def50,1378
+let print_defprint_def65,2010
+let print_kindsprint_kinds76,2344
+let print_groupprint_group87,2716
+let pgrouppgroup96,3043
+let print_kinds_and_factsprint_kinds_and_facts101,3131
 
-typing/TypeCore.ml,10041
+typing/KindPrinter.mli,92
+KindPrinter1,0
+val pgrouppgroup1,0
+val print_kinds_and_factsprint_kinds_and_facts2,72
+
+typing/Mark.ml,79
+Mark1,0
+type tt20,1442
+let createcreate22,1461
+let equalsequals25,1487
+
+typing/Mark.mli,79
+Mark1,0
+type tt20,1442
+val createcreate21,1449
+val equalsequals22,1471
+
+typing/Merge.ml,544
+Merge1,0
+type tt25,1490
+type outcomeoutcome27,1547
+type outcome = MergeWithMergeWith27,1547
+type outcome = MergeWith of var | ProceedProceed27,1547
+type outcome = MergeWith of var | Proceed | AbortAbort27,1547
+let build_flexible_type_applicationbuild_flexible_type_application31,1693
+let is_validis_valid43,2288
+module LifoLifo53,2397
+  let createcreate54,2418
+  let poppop55,2445
+  let pushpush56,2502
+  let removeremove57,2534
+let actually_merge_envsactually_merge_envs66,2725
+let merge_envsmerge_envs1115,48873
+
+typing/Merge.mli,62
+Merge1,0
+type tt24,1509
+val merge_envsmerge_envs43,2494
+
+typing/Mode.ml,495
+Mode1,0
+type modemode20,1442
+  | ModeBottomModeBottom21,1454
+  | ModeDuplicableModeDuplicable22,1469
+  | ModeExclusiveModeExclusive23,1488
+  | ModeAffineModeAffine24,1506
+let equalequal28,1547
+let comparecompare31,1589
+let bottombottom34,1647
+let toptop37,1674
+let is_maximalis_maximal40,1698
+let leqleq46,1775
+let meetmeet56,1954
+let printprint67,2148
+let modesmodes77,2316
+module ModeMapModeMap84,2395
+  let totaltotal93,2546
+  let completecomplete100,2673
+
+typing/Mode.mli,470
+Mode1,0
+type modemode45,2570
+  | ModeBottomModeBottom46,2582
+  | ModeDuplicableModeDuplicable47,2597
+  | ModeExclusiveModeExclusive48,2616
+  | ModeAffineModeAffine49,2634
+val bottombottom52,2691
+val toptop55,2753
+val equalequal58,2785
+val comparecompare61,2835
+val is_maximalis_maximal64,2919
+val leqleq67,2978
+val meetmeet70,3063
+val printprint73,3112
+module ModeMapModeMap76,3163
+  val totaltotal81,3384
+  val completecomplete85,3587
+
+typing/Modules.ml,152
+Modules1,0
+module SS23,1608
+module EE24,1633
+let collect_dependenciescollect_dependencies27,1692
+let all_dependenciesall_dependencies183,6297
+
+typing/Modules.mli,59
+Modules1,0
+val all_dependenciesall_dependencies22,1485
+
+typing/Namespace.ml,883
+Namespace1,0
+module MakeNamespaceMakeNamespace5,70
+  type namename12,268
+  type 'a local_envlocal_env16,351
+  type 'a global_envglobal_env20,430
+    modulesmodules22,510
+    currentcurrent24,604
+  let emptyempty27,636
+  let lookup_locallookup_local32,732
+  let extend_localextend_local35,812
+  let lookup_unqualifiedlookup_unqualified38,912
+  let extend_unqualifiedextend_unqualified41,1009
+  let lookup_qualifiedlookup_qualified44,1151
+  let lookup_maybe_qualifiedlookup_maybe_qualified53,1491
+  let freezefreeze60,1751
+  let extend_qualifiedextend_qualified74,2451
+  let qualifyqualify89,3082
+  let unqualifyunqualify101,3512
+  let zapzap115,4161
+  let unqualified_namesunqualified_names118,4251
+  let print_local_envprint_local_env125,4410
+  let print_module_envprint_module_env132,4621
+  let print_global_envprint_global_env139,4846
+
+typing/Namespace.mli,125
+Namespace1,0
+module MakeNamespaceMakeNamespace5,70
+  type namename7,134
+  val printprint8,146
+  module MapMap9,174
+
+typing/NamespaceSignature.ml,616
+NamespaceSignature1,0
+module type NamespaceNamespace6,134
+  type namename9,189
+  type 'a global_envglobal_env12,285
+  val emptyempty15,345
+  val lookup_unqualifiedlookup_unqualified18,437
+  val extend_unqualifiedextend_unqualified21,553
+  val lookup_qualifiedlookup_qualified24,686
+  val extend_qualifiedextend_qualified27,812
+  val lookup_maybe_qualifiedlookup_maybe_qualified30,967
+  val qualifyqualify33,1116
+  val freezefreeze36,1259
+  val unqualifyunqualify39,1399
+  val zapzap42,1502
+  val unqualified_namesunqualified_names45,1585
+  val print_global_envprint_global_env50,1694
+
+typing/Permissions.ml,1889
+Permissions1,0
+module LL31,1709
+let safety_checksafety_check41,2065
+let refresh_factsrefresh_facts108,4838
+let j_merge_leftj_merge_left121,5210
+let add_floating_permadd_floating_perm146,6157
+let add_hintadd_hint155,6450
+let perm_not_flexperm_not_flex166,6714
+let wrap_barwrap_bar181,7152
+let split_flexible_as_concrete_typesplit_flexible_as_concrete_type208,7993
+let split_flexible_as_tuple_typesplit_flexible_as_tuple_type229,8543
+type sideside243,8880
+type side = LeftLeft243,8880
+type side = Left | RightRight243,8880
+let is_singletonis_singleton245,8906
+class open_all_rigid_inopen_all_rigid_in263,9654
+  methodvisit279,10493
+  methodbranch372,14069
+  methodfield379,14324
+let open_all_rigid_inopen_all_rigid_in387,14616
+let rec clean_varsclean_vars395,14918
+and clean_floating_permissionsclean_floating_permissions404,15241
+and instantiate_flexibleinstantiate_flexible410,15444
+and import_flex_instanciationsimport_flex_instanciations414,15580
+and j_flex_instj_flex_inst420,15788
+and unifyunify431,16159
+and keep_only_duplicablekeep_only_duplicable449,16860
+and addadd466,17448
+and add_permadd_perm626,23895
+and add_permsadd_perms664,25027
+and add_perm_rawadd_perm_raw667,25090
+and add_typeadd_type673,25336
+and subsub697,26205
+and sub_constraintsub_constraint773,28850
+and sub_constraintssub_constraints783,29207
+and sub_type_with_unfoldingsub_type_with_unfolding793,29595
+and sub_typesub_type823,30727
+and add_subadd_sub1193,44889
+and sub_permsub_perm1381,52632
+and sub_permssub_perms1430,53983
+and sub_floating_permsub_floating_perm1459,55151
+let pick_arbitrarypick_arbitrary1482,55755
+type resultresult1486,55787
+let drop_derivationdrop_derivation1488,55842
+let sub_typesub_type1498,56128
+let subsub1502,56218
+let sub_permsub_perm1506,56283
+let sub_constraintsub_constraint1510,56350
+
+typing/Permissions.mli,526
+Permissions1,0
+type resultresult30,1823
+val unifyunify34,1993
+val addadd38,2140
+val add_permadd_perm42,2275
+val subsub46,2452
+val sub_typesub_type51,2709
+val sub_permsub_perm53,2752
+val add_hintadd_hint55,2788
+val sub_constraintsub_constraint57,2844
+val keep_only_duplicablekeep_only_duplicable60,2959
+val instantiate_flexibleinstantiate_flexible63,3058
+val import_flex_instanciationsimport_flex_instanciations66,3178
+val drop_derivationdrop_derivation69,3298
+val safety_checksafety_check74,3432
+
+typing/Resugar.ml,506
+Resugar1,0
+module SS4,38
+let surface_print_namesurface_print_name6,64
+let surface_print_varsurface_print_var14,262
+let resugar_bindingresugar_binding26,683
+let ( !!!!29,788
+let rec resugarresugar37,1011
+and resugar_arrowresugar_arrow123,4489
+and resugar_resolved_branchresugar_resolved_branch154,5823
+and resugar_fieldresugar_field171,6583
+and reset_mode_constraintreset_mode_constraint174,6660
+and resetreset177,6725
+and spill_soupspill_soup184,6916
+let resugarresugar193,7165
+
+typing/Resugar.mli,87
+Resugar1,0
+val surface_print_namesurface_print_name5,118
+val resugarresugar9,304
+
+typing/TransSurface.ml,1914
+TransSurface1,0
+module TT37,2039
+module EE38,2059
+type envenv40,2087
+let name_username_user46,2288
+let name_autoname_auto47,2363
+let tvartvar50,2489
+let evarevar56,2666
+let resolve_dataconresolve_datacon61,2751
+let rec conjunctionconjunction67,2946
+let toptop74,3062
+let twicetwice82,3170
+let auto_tyqauto_tyq85,3203
+let rec translate_type_rawtranslate_type_raw106,4334
+and translate_typetranslate_type218,7831
+and translate_arrow_typetranslate_arrow_type221,7934
+and translate_type_reset_rawtranslate_type_reset_raw249,9240
+and translate_type_resettranslate_type_reset260,9711
+and translate_type_reset_no_kindtranslate_type_reset_no_kind263,9795
+and translate_fields_valuestranslate_fields_values266,9880
+and translate_adopts_clausetranslate_adopts_clause273,10070
+and translate_quantified_type_rawtranslate_quantified_type_raw280,10263
+and translate_mode_constraint_rawtranslate_mode_constraint_raw286,10496
+and translate_implication_rawtranslate_implication_raw290,10608
+let translate_data_type_def_branchtranslate_data_type_def_branch309,11482
+let translate_single_facttranslate_single_fact361,13361
+let translate_facttranslate_fact395,14872
+let translate_data_type_deftranslate_data_type_def402,15183
+let translate_data_type_grouptranslate_data_type_group451,17077
+let clean_patternclean_pattern494,18660
+let rec translate_patterntranslate_pattern542,20178
+let strip_tappstrip_tapp571,21172
+let map_tappmap_tapp578,21255
+let rec extrude_wildcardsextrude_wildcards589,21646
+let rec translate_exprtranslate_expr648,23690
+and translate_patexprstranslate_patexprs905,32710
+let translate_itemtranslate_item940,33943
+let rec translate_itemstranslate_items963,34792
+let translate_implementationtranslate_implementation975,35148
+let translate_interfacetranslate_interface981,35437
+let translate_type_resettranslate_type_reset985,35615
+
+typing/TransSurface.mli,271
+TransSurface1,0
+type envenv24,1537
+val translate_type_resettranslate_type_reset27,1625
+val translate_data_type_grouptranslate_data_type_group36,2159
+val translate_implementationtranslate_implementation43,2358
+val translate_interfacetranslate_interface46,2503
+
+typing/TypeChecker.ml,897
+TypeChecker1,0
+let add_hintadd_hint31,1640
+let merge_and_pack_conflictsmerge_and_pack_conflicts35,1682
+let is_data_type_with_two_constructorsis_data_type_with_two_constructors44,2054
+let has_adopts_clausehas_adopts_clause75,2933
+let expand_if_one_branch_even_if_anchoredexpand_if_one_branch_even_if_anchored96,3498
+let transform_constructor_permissiontransform_constructor_permission117,4428
+let replace_fieldreplace_field139,5118
+let check_function_callcheck_function_call152,5421
+let check_return_typecheck_return_type250,8672
+let rec type_for_function_deftype_for_function_def268,9246
+let rec unify_patternunify_pattern287,9996
+let refine_perms_in_place_for_patternrefine_perms_in_place_for_pattern358,12523
+let rec check_expressioncheck_expression475,17159
+and check_bindingscheck_bindings1148,44087
+let check_declaration_groupcheck_declaration_group1186,45317
+
+typing/TypeChecker.mli,129
+TypeChecker1,0
+val check_declaration_groupcheck_declaration_group30,1942
+val check_function_callcheck_function_call36,2127
+
+typing/TypeCore.ml,9957
 TypeCore1,0
 type db_indexdb_index29,1723
 type pointpoint32,1746
@@ -2237,381 +1966,721 @@ type data_typedata_type134,4373
 type data_type_groupdata_type_group143,4554
   group_recursivegroup_recursive144,4579
   group_itemsgroup_items145,4622
-let fold_starfold_star153,4824
-let construct_branchconstruct_branch156,4900
-let rec find_branchfind_branch167,5207
-let rec touch_branchtouch_branch178,5420
-type binding_typebinding_type193,5849
-type binding_type = RigidRigid193,5849
-type binding_type = Rigid | FlexibleFlexible193,5849
-type permissionspermissions195,5887
-type levellevel197,5916
-module IntMapIntMap199,5934
-type envenv205,6077
-  statestate207,6170
-  markmark210,6285
-  locationlocation213,6332
-  inconsistentinconsistent219,6638
-  floating_permissionsfloating_permissions225,6926
-  last_bindinglast_binding229,7055
-  current_levelcurrent_level232,7135
-  flexibleflexible235,7199
-  kenvkenv245,7815
-and flex_descrflex_descr251,7940
-  structurestructure257,8327
-  original_leveloriginal_level259,8354
-and structurestructure262,8382
-and structure = NotInstantiatedNotInstantiated262,8382
-and structure = NotInstantiated of var_descr | InstantiatedInstantiated262,8382
-and bindingbinding264,8450
-and var_descrvar_descr267,8565
-  namesnames269,8644
-  locationslocations270,8664
-  kindkind274,8794
-  binding_markbinding_mark278,8934
-  factfact284,9252
-  levellevel287,9305
-and extra_descrextra_descr290,9324
-and extra_descr = DTypeDType290,9324
-and extra_descr = DType of type_descr | DTermDTerm290,9324
-and extra_descr = DType of type_descr | DTerm of term_descr | DNoneDNone290,9324
-and type_descrtype_descr292,9393
-  definitiondefinition295,9518
-  variancevariance296,9542
-and term_descrterm_descr299,9572
-  permissionspermissions301,9652
-let internal_ptypeinternal_ptype307,9797
-let internal_pnamesinternal_pnames308,9887
-let internal_ppermissionsinternal_ppermissions309,9984
-let internal_pfactinternal_pfact310,10073
-let empty_envempty_env313,10191
-let locatelocate325,10503
-let locationlocation329,10557
-let is_inconsistentis_inconsistent331,10600
-let mark_inconsistentmark_inconsistent333,10658
-let module_namemodule_name335,10722
-let modify_kenvmodify_kenv337,10784
-let kenvkenv343,10868
-let enter_moduleenter_module345,10899
-let findfind349,11004
-let find_flexfind_flex359,11372
-let validvalid363,11460
-exception UnboundPointUnboundPoint375,11731
-let find_flex_or_failfind_flex_or_fail378,11800
-let replace_flexreplace_flex385,11988
-let rec modulo_flexmodulo_flex391,12246
-let modulo_flex_vmodulo_flex_v404,12527
-let is_flexibleis_flexible408,12663
-let is_rigidis_rigid416,12804
-let assert_varassert_var423,12986
-let assert_pointassert_point432,13168
-let update_extra_descrupdate_extra_descr441,13365
-let get_var_descrget_var_descr450,13633
-let update_var_descrupdate_var_descr464,14004
-let initial_permissions_for_pointinitial_permissions_for_point484,14567
-let get_permissionsget_permissions488,14666
-let set_permissionsset_permissions497,14874
-let reset_permissionsreset_permissions506,15083
-let get_factget_fact516,15346
-let get_locationsget_locations520,15444
-let add_locationadd_location524,15541
-let get_namesget_names530,15718
-let get_nameget_name534,15803
-let get_definitionget_definition542,15969
-let get_varianceget_variance555,16225
-let update_varianceupdate_variance565,16419
-let update_definitionupdate_definition574,16732
-let set_definitionset_definition583,17043
-let get_kindget_kind592,17337
-let set_factset_fact596,17415
-let get_floating_permissionsget_floating_permissions601,17559
-let set_floating_permissionsset_floating_permissions605,17645
-class virtual ['env, 'result] visitorvisitor613,17876
-  method normalizenormalize619,18169
-  method extendextend625,18362
-  method visitvisit630,18543
-  method virtual tyunknowntyunknown664,19538
-  method virtual tydynamictydynamic665,19582
-  method virtual tyboundtybound666,19626
-  method virtual tyopentyopen667,19680
-  method virtual tyqtyq668,19728
-  method virtual tyapptyapp669,19813
-  method virtual tytupletytuple670,19872
-  method virtual tyconcretetyconcrete671,19926
-  method virtual tysingletontysingleton672,19981
-  method virtual tyarrowtyarrow673,20034
-  method virtual tybartybar674,20090
-  method virtual tyanchoredpermissiontyanchoredpermission675,20144
-  method virtual tyemptytyempty676,20213
-  method virtual tystartystar677,20255
-  method virtual tyandtyand678,20310
-class ['env] mapmap686,20512
-  method tyunknowntyunknown693,20677
-  method tydynamictydynamic696,20718
-  method tyboundtybound699,20759
-  method tyopentyopen702,20800
-  method tyqtyq705,20839
-  method tyapptyapp709,20982
-  method tytupletytuple712,21072
-  method tyconcretetyconcrete715,21138
-  method tysingletontysingleton718,21212
-  method tyarrowtyarrow721,21277
-  method tybartybar724,21362
-  method tyanchoredpermissiontyanchoredpermission727,21443
-  method tyemptytyempty730,21554
-  method tystartystar733,21591
-  method tyandtyand736,21674
-  method private visit_manyvisit_many740,21821
-  method branchbranch744,21949
-  method resolved_dataconresolved_datacon753,22322
-  method fieldfield757,22444
-  method private mode_constraintmode_constraint761,22571
-  method data_type_groupdata_type_group765,22716
-class ['env] iteriter794,23834
-  method tyunknowntyunknown800,23976
-  method tydynamictydynamic803,24010
-  method tyboundtybound806,24044
-  method tyopentyopen809,24079
-  method tyqtyq812,24113
-  method tyapptyapp816,24232
-  method tytupletytuple820,24318
-  method tyconcretetyconcrete823,24374
-  method tysingletontysingleton826,24435
-  method tyarrowtyarrow829,24486
-  method tybartybar833,24565
-  method tyanchoredpermissiontyanchoredpermission837,24642
-  method tyemptytyempty841,24734
-  method tystartystar844,24766
-  method tyandtyand848,24844
-  method private visit_manyvisit_many853,24983
-  method branchbranch857,25108
-  method resolved_dataconresolved_datacon863,25365
-  method fieldfield867,25480
-  method private mode_constraintmode_constraint871,25592
-  method data_type_groupdata_type_group875,25722
-let levellevel898,26534
-let cleanclean909,26817
-let instantiate_flexible_rawinstantiate_flexible_raw934,27676
-module VarMapVarMap978,28974
-module IVarMapIVarMap988,29220
-  type keykey989,29244
-  type 'data tt990,29261
-  let createcreate991,29297
-  let clearclear992,29332
-  let addadd993,29366
-  let findfind994,29409
-  let iteriter995,29443
-let samesame999,29543
-let merge_left_p2pmerge_left_p2p1010,29829
-let merge_leftmerge_left1033,30701
-let internal_pflexinternal_pflex1070,31857
-let internal_pflexlistinternal_pflexlist1080,32208
-let import_flex_instanciations_rawimport_flex_instanciations_raw1088,32397
-let rec resolved_datacons_equalresolved_datacons_equal1146,34719
-and equalequal1152,34950
-let mkdescrmkdescr1224,37059
-let top_facttop_fact1236,37273
-let mkfactmkfact1239,37321
-let bind_rigidbind_rigid1247,37403
-let fresh_atomfresh_atom1276,38249
-let bind_flexible_rawbind_flexible_raw1283,38325
-let bind_flexiblebind_flexible1308,39071
-let bind_flexible_beforebind_flexible_before1312,39157
-let _internal_fold_internal_fold1328,39691
-let foldfold1332,39769
-let fold_termsfold_terms1339,39889
-let fold_definitionsfold_definitions1345,40098
-let mapmap1351,40311
-let is_markedis_marked1359,40486
-let markmark1364,40623
-let refresh_markrefresh_mark1368,40746
-let internal_uniqvaridinternal_uniqvarid1374,40906
-let internal_checklevelinternal_checklevel1382,41085
-let internal_wasflexibleinternal_wasflexible1392,41346
-let ty_bottomty_bottom1401,41543
-let is_non_bottomis_non_bottom1409,41701
+type binding_typebinding_type152,4773
+type binding_type = RigidRigid152,4773
+type binding_type = Rigid | FlexibleFlexible152,4773
+type permissionspermissions154,4811
+type levellevel156,4840
+module IntMapIntMap158,4858
+type envenv164,5001
+  statestate166,5094
+  markmark169,5209
+  locationlocation172,5256
+  inconsistentinconsistent178,5562
+  floating_permissionsfloating_permissions184,5850
+  last_bindinglast_binding188,5979
+  current_levelcurrent_level191,6059
+  flexibleflexible194,6123
+  kenvkenv204,6739
+and flex_descrflex_descr210,6864
+  structurestructure216,7251
+  original_leveloriginal_level217,7275
+and structurestructure220,7303
+and structure = NotInstantiatedNotInstantiated220,7303
+and structure = NotInstantiated of var_descr | InstantiatedInstantiated220,7303
+and bindingbinding222,7371
+and var_descrvar_descr225,7486
+  namesnames227,7565
+  locationslocations228,7585
+  kindkind232,7716
+  binding_markbinding_mark236,7856
+  factfact242,8174
+  levellevel245,8227
+and extra_descrextra_descr248,8246
+and extra_descr = DTypeDType248,8246
+and extra_descr = DType of type_descr | DTermDTerm248,8246
+and extra_descr = DType of type_descr | DTerm of term_descr | DNoneDNone248,8246
+and type_descrtype_descr250,8315
+  definitiondefinition253,8440
+  variancevariance254,8464
+and term_descrterm_descr257,8494
+  permissionspermissions259,8574
+let internal_ptypeinternal_ptype265,8719
+let internal_pnamesinternal_pnames266,8809
+let internal_ppermissionsinternal_ppermissions267,8906
+let internal_pfactinternal_pfact268,8995
+let empty_envempty_env271,9113
+let locatelocate283,9425
+let locationlocation287,9479
+let is_inconsistentis_inconsistent289,9522
+let mark_inconsistentmark_inconsistent291,9580
+let module_namemodule_name293,9644
+let modify_kenvmodify_kenv295,9706
+let kenvkenv301,9790
+let enter_moduleenter_module303,9821
+let findfind307,9926
+let rec touch_branchtouch_branch318,10191
+let find_branchfind_branch357,11966
+let find_flexfind_flex371,12497
+let validvalid375,12585
+exception UnboundPointUnboundPoint387,12856
+let find_flex_or_failfind_flex_or_fail390,12925
+let replace_flexreplace_flex397,13113
+let rec modulo_flexmodulo_flex403,13371
+let modulo_flex_vmodulo_flex_v416,13652
+let is_flexibleis_flexible420,13788
+let is_rigidis_rigid428,13929
+let assert_varassert_var435,14111
+let assert_pointassert_point444,14293
+let update_extra_descrupdate_extra_descr453,14490
+let get_var_descrget_var_descr462,14758
+let update_var_descrupdate_var_descr476,15129
+let initial_permissions_for_pointinitial_permissions_for_point496,15692
+let get_permissionsget_permissions500,15791
+let set_permissionsset_permissions509,15999
+let reset_permissionsreset_permissions518,16208
+let get_factget_fact528,16471
+let get_locationsget_locations532,16569
+let add_locationadd_location536,16666
+let get_namesget_names542,16843
+let get_nameget_name546,16928
+let get_definitionget_definition554,17094
+let get_varianceget_variance567,17350
+let update_varianceupdate_variance577,17544
+let update_definitionupdate_definition586,17857
+let set_definitionset_definition595,18168
+let get_kindget_kind604,18462
+let set_factset_fact608,18540
+let get_floating_permissionsget_floating_permissions613,18684
+let set_floating_permissionsset_floating_permissions617,18770
+class virtual ['env, 'result] visitorvisitor625,19001
+  method normalizenormalize631,19294
+  method extendextend637,19487
+  method visitvisit642,19668
+  method virtual tyunknowntyunknown676,20663
+  method virtual tydynamictydynamic677,20707
+  method virtual tyboundtybound678,20751
+  method virtual tyopentyopen679,20805
+  method virtual tyqtyq680,20853
+  method virtual tyapptyapp681,20938
+  method virtual tytupletytuple682,20997
+  method virtual tyconcretetyconcrete683,21051
+  method virtual tysingletontysingleton684,21106
+  method virtual tyarrowtyarrow685,21159
+  method virtual tybartybar686,21215
+  method virtual tyanchoredpermissiontyanchoredpermission687,21269
+  method virtual tyemptytyempty688,21338
+  method virtual tystartystar689,21380
+  method virtual tyandtyand690,21435
+class ['env] mapmap698,21637
+  method tyunknowntyunknown705,21802
+  method tydynamictydynamic708,21843
+  method tyboundtybound711,21884
+  method tyopentyopen714,21925
+  method tyqtyq717,21964
+  method tyapptyapp721,22107
+  method tytupletytuple724,22197
+  method tyconcretetyconcrete727,22263
+  method tysingletontysingleton730,22337
+  method tyarrowtyarrow733,22402
+  method tybartybar736,22487
+  method tyanchoredpermissiontyanchoredpermission739,22568
+  method tyemptytyempty742,22679
+  method tystartystar745,22716
+  method tyandtyand748,22799
+  method private visit_manyvisit_many752,22946
+  method branchbranch756,23074
+  method resolved_dataconresolved_datacon765,23447
+  method fieldfield769,23569
+  method private mode_constraintmode_constraint773,23696
+  method data_type_groupdata_type_group777,23841
+class ['env] iteriter806,24959
+  method tyunknowntyunknown812,25101
+  method tydynamictydynamic815,25135
+  method tyboundtybound818,25169
+  method tyopentyopen821,25204
+  method tyqtyq824,25238
+  method tyapptyapp828,25357
+  method tytupletytuple832,25443
+  method tyconcretetyconcrete835,25499
+  method tysingletontysingleton838,25560
+  method tyarrowtyarrow841,25611
+  method tybartybar845,25690
+  method tyanchoredpermissiontyanchoredpermission849,25767
+  method tyemptytyempty853,25859
+  method tystartystar856,25891
+  method tyandtyand860,25969
+  method private visit_manyvisit_many865,26108
+  method branchbranch869,26233
+  method resolved_dataconresolved_datacon875,26490
+  method fieldfield879,26605
+  method private mode_constraintmode_constraint883,26717
+  method data_type_groupdata_type_group887,26847
+let levellevel910,27659
+let cleanclean921,27942
+let instantiate_flexible_rawinstantiate_flexible_raw946,28801
+module VarMapVarMap990,30099
+module IVarMapIVarMap1000,30345
+  type keykey1001,30369
+  type 'data tt1002,30386
+  let createcreate1003,30422
+  let clearclear1004,30457
+  let addadd1005,30491
+  let findfind1006,30534
+  let iteriter1007,30568
+let samesame1011,30668
+let merge_left_p2pmerge_left_p2p1022,30954
+let merge_leftmerge_left1045,31826
+let internal_pflexinternal_pflex1082,32982
+let internal_pflexlistinternal_pflexlist1092,33333
+let import_flex_instanciations_rawimport_flex_instanciations_raw1100,33522
+let rec resolved_datacons_equalresolved_datacons_equal1158,35844
+and equalequal1164,36075
+let mkdescrmkdescr1236,38184
+let top_facttop_fact1248,38398
+let mkfactmkfact1251,38446
+let bind_rigidbind_rigid1259,38529
+let fresh_atomfresh_atom1288,39376
+let bind_flexible_rawbind_flexible_raw1295,39452
+let bind_flexiblebind_flexible1320,40198
+let bind_flexible_beforebind_flexible_before1324,40284
+let _internal_fold_internal_fold1340,40818
+let foldfold1344,40896
+let fold_termsfold_terms1351,41016
+let fold_definitionsfold_definitions1357,41225
+let mapmap1363,41438
+let is_markedis_marked1371,41613
+let markmark1376,41750
+let refresh_markrefresh_mark1380,41873
+let internal_uniqvaridinternal_uniqvarid1386,42033
+let internal_checklevelinternal_checklevel1394,42212
+let internal_wasflexibleinternal_wasflexible1404,42473
+let ty_bottomty_bottom1413,42670
+let is_non_bottomis_non_bottom1421,42828
 
-typing/FactInference.ml,783
-FactInference1,0
-let assumeassume34,1694
-type worldworld60,3040
-  envenv62,3080
-  variablesvariables65,3229
-  valuationvaluation68,3383
-  parametersparameters71,3519
-let trivial_worldtrivial_world78,3775
-let rec inferinfer93,4260
-and infer_concreteinfer_concrete238,9905
-and infer_fieldinfer_field254,10438
-and infer_with_kindsinfer_with_kinds257,10480
-and infer_with_kindinfer_with_kind260,10560
-and bind_assume_inferbind_assume_infer271,10822
-let prepare_branchesprepare_branches300,11819
-let prepare_typeprepare_type326,12794
-let check_adopts_clausescheck_adopts_clauses365,14244
-let analyze_data_typesanalyze_data_types397,15571
-let has_modehas_mode483,18541
-let is_duplicableis_duplicable501,19054
-let is_exclusiveis_exclusive504,19101
+typing/TypeCore.mli,7040
+TypeCore1,0
+module FieldField31,1661
+type namename36,1835
+type name = UserUser36,1835
+type name = User of Module.name * Variable.name | AutoAuto36,1835
+type locationlocation39,1952
+type quantifierquantifier42,2052
+  | ForallForall43,2070
+  | ExistsExists44,2081
+type type_bindingtype_binding47,2156
+type flavorflavor52,2362
+  | UserIntroducedUserIntroduced53,2407
+  | AutoIntroducedAutoIntroduced54,2426
+type db_indexdb_index59,2629
+type varvar65,2868
+type data_field_defdata_field_def70,2938
+and typtyp73,3004
+  | TyUnknownTyUnknown75,3049
+  | TyDynamicTyDynamic76,3063
+  | TyBoundTyBound80,3186
+  | TyOpenTyOpen81,3210
+  | TyQTyQ84,3277
+  | TyAppTyApp85,3329
+  | TyTupleTyTuple88,3387
+  | TyConcreteTyConcrete89,3411
+  | TySingletonTySingleton92,3465
+  | TyArrowTyArrow95,3516
+  | TyBarTyBar98,3561
+  | TyAnchoredPermissionTyAnchoredPermission101,3609
+  | TyEmptyTyEmpty102,3647
+  | TyStarTyStar103,3659
+  | TyAndTyAnd106,3706
+and mode_constraintmode_constraint109,3743
+and branchbranch111,3782
+  branch_flavorbranch_flavor112,3797
+  branch_dataconbranch_datacon122,4390
+  branch_fieldsbranch_fields123,4426
+  branch_adoptsbranch_adopts126,4582
+and resolved_dataconresolved_datacon129,4607
+type variancevariance135,4737
+type variance = SurfaceSyntax.variance = InvariantInvariant135,4737
+type variance = SurfaceSyntax.variance = Invariant | CovariantCovariant135,4737
+type variance = SurfaceSyntax.variance = Invariant | Covariant | ContravariantContravariant135,4737
+type variance = SurfaceSyntax.variance = Invariant | Covariant | Contravariant | BivariantBivariant135,4737
+type type_deftype_def137,4829
+  | ConcreteConcrete138,4845
+  | AbstractAbstract139,4870
+  | AbbrevAbbrev140,4883
+type data_typedata_type142,4902
+  data_namedata_name143,4921
+  data_locationdata_location144,4949
+  data_definitiondata_definition145,4976
+  data_variancedata_variance146,5005
+  data_factdata_fact147,5037
+  data_kinddata_kind148,5061
+type data_type_groupdata_type_group151,5083
+  group_recursivegroup_recursive152,5108
+  group_itemsgroup_items153,5151
+module DataconMapDataconMap161,5303
+module VarMapVarMap167,5679
+module IVarMapIVarMap170,5804
+type envenv180,6046
+val empty_envempty_env183,6086
+val locatelocate186,6154
+val locationlocation189,6243
+val module_namemodule_name192,6310
+val enter_moduleenter_module195,6411
+val is_inconsistentis_inconsistent198,6504
+val mark_inconsistentmark_inconsistent201,6589
+val modify_kenvmodify_kenv205,6753
+val kenvkenv207,6854
+val is_flexibleis_flexible218,7179
+val is_rigidis_rigid219,7215
+val modulo_flexmodulo_flex227,7689
+val import_flex_instanciations_rawimport_flex_instanciations_raw236,8040
+val instantiate_flexible_rawinstantiate_flexible_raw243,8449
+val samesame247,8632
+val merge_leftmerge_left253,8928
+val get_floating_permissionsget_floating_permissions256,9051
+val set_floating_permissionsset_floating_permissions259,9172
+val get_namesget_names267,9393
+val get_nameget_name271,9534
+val get_kindget_kind274,9612
+val get_factget_fact277,9665
+val get_locationsget_locations280,9729
+val get_definitionget_definition283,9812
+val get_varianceget_variance286,9947
+val add_locationadd_location290,10050
+val get_permissionsget_permissions300,10441
+val set_permissionsset_permissions303,10534
+val reset_permissionsreset_permissions306,10636
+val set_factset_fact314,10825
+val set_definitionset_definition317,10946
+val update_definitionupdate_definition320,11098
+val update_varianceupdate_variance323,11190
+exception UnboundPointUnboundPoint330,11389
+val cleanclean334,11557
+val equalequal339,11785
+val resolved_datacons_equalresolved_datacons_equal342,11879
+val find_branchfind_branch356,12499
+val touch_branchtouch_branch360,12641
+val bind_rigidbind_rigid368,12833
+val bind_flexiblebind_flexible371,12921
+val bind_flexible_beforebind_flexible_before374,13032
+val fold_definitionsfold_definitions390,13626
+val fold_termsfold_terms394,13795
+val foldfold397,13900
+val mapmap400,13986
+val is_markedis_marked407,14129
+val markmark408,14163
+val refresh_markrefresh_mark409,14191
+class virtual ['env, 'result] visitorvisitor415,14302
+  method normalizenormalize421,14589
+  method extendextend426,14772
+  method visitvisit430,14935
+  method virtual tyunknowntyunknown433,15033
+  method virtual tydynamictydynamic434,15077
+  method virtual tyboundtybound435,15121
+  method virtual tyopentyopen436,15175
+  method virtual tyqtyq437,15223
+  method virtual tyapptyapp438,15308
+  method virtual tytupletytuple439,15367
+  method virtual tyconcretetyconcrete440,15421
+  method virtual tysingletontysingleton441,15476
+  method virtual tyarrowtyarrow442,15529
+  method virtual tybartybar443,15585
+  method virtual tyanchoredpermissiontyanchoredpermission444,15639
+  method virtual tyemptytyempty445,15708
+  method virtual tystartystar446,15750
+  method virtual tyandtyand447,15805
+class ['env] mapmap453,15924
+  method tyunknowntyunknown458,16043
+  method tydynamictydynamic459,16075
+  method tyboundtybound460,16107
+  method tyopentyopen461,16149
+  method tyqtyq462,16185
+  method tyapptyapp463,16258
+  method tytupletytuple464,16305
+  method tyconcretetyconcrete465,16347
+  method tysingletontysingleton466,16390
+  method tyarrowtyarrow467,16431
+  method tybartybar468,16475
+  method tyanchoredpermissiontyanchoredpermission469,16517
+  method tyemptytyempty470,16574
+  method tystartystar471,16604
+  method tyandtyand472,16647
+  method branchbranch475,16758
+  method resolved_dataconresolved_datacon477,16875
+  method fieldfield479,17002
+  method data_type_groupdata_type_group481,17124
+class ['env] iteriter487,17248
+  method tyunknowntyunknown492,17369
+  method tydynamictydynamic493,17402
+  method tyboundtybound494,17435
+  method tyopentyopen495,17478
+  method tyqtyq496,17515
+  method tyapptyapp497,17589
+  method tytupletytuple498,17637
+  method tyconcretetyconcrete499,17680
+  method tysingletontysingleton500,17724
+  method tyarrowtyarrow501,17766
+  method tybartybar502,17811
+  method tyanchoredpermissiontyanchoredpermission503,17854
+  method tyemptytyempty504,17912
+  method tystartystar505,17943
+  method tyandtyand506,17987
+  method branchbranch509,18095
+  method resolved_dataconresolved_datacon511,18206
+  method fieldfield513,18317
+  method data_type_groupdata_type_group515,18425
+val ty_bottomty_bottom525,18614
+val is_non_bottomis_non_bottom526,18634
+val internal_ptypeinternal_ptype533,18889
+val internal_pnamesinternal_pnames534,18946
+val internal_ppermissionsinternal_ppermissions535,19010
+val internal_pfactinternal_pfact536,19068
+val internal_pflexlistinternal_pflexlist537,19125
+val internal_uniqvaridinternal_uniqvarid538,19175
+val internal_checklevelinternal_checklevel539,19217
+val internal_wasflexibleinternal_wasflexible540,19261
 
-typing/TransSurface.mli,271
-TransSurface1,0
-type envenv24,1537
-val translate_type_resettranslate_type_reset27,1625
-val translate_data_type_grouptranslate_data_type_group36,2159
-val translate_implementationtranslate_implementation43,2358
-val translate_interfacetranslate_interface46,2503
+typing/TypeErrors.ml,2281
+TypeErrors1,0
+type errorerror30,1583
+and raw_errorraw_error32,1613
+  | OverrideAutoloadOverrideAutoload33,1629
+  | CyclicDependencyCyclicDependency34,1660
+  | NotAFunctionNotAFunction35,1696
+  | ExpectedTypeExpectedType36,1720
+  | ExpectedPermissionExpectedPermission37,1775
+  | RecursiveOnlyForFunctionsRecursiveOnlyForFunctions38,1830
+  | MissingFieldMissingField39,1860
+  | ExtraFieldExtraField40,1891
+  | NoSuchFieldNoSuchField41,1920
+  | CantAssignTagCantAssignTag42,1956
+  | NoSuchFieldInPatternNoSuchFieldInPattern43,1981
+  | BadPatternBadPattern44,2030
+  | BadFieldBadField45,2062
+  | NoTwoConstructorsNoTwoConstructors46,2104
+  | MatchBadDataconMatchBadDatacon47,2133
+  | MatchBadTupleMatchBadTuple48,2175
+  | AssignNotExclusiveAssignNotExclusive49,2200
+  | FieldCountMismatchFieldCountMismatch50,2245
+  | NoMultipleArgumentsNoMultipleArguments51,2290
+  | ResourceAllocationConflictResourceAllocationConflict52,2314
+  | UncertainMergeUncertainMerge53,2352
+  | ConflictingTypeAnnotationsConflictingTypeAnnotations54,2378
+  | IllKindedTypeApplicationIllKindedTypeApplication55,2422
+  | BadTypeApplicationBadTypeApplication56,2473
+  | NonExclusiveAdopteeNonExclusiveAdoptee57,2503
+  | NoAdoptsClauseNoAdoptsClause58,2534
+  | NotDynamicNotDynamic59,2560
+  | NoSuitableTypeForAdoptsNoSuitableTypeForAdopts60,2582
+  | AdoptsNoAnnotationAdoptsNoAnnotation61,2623
+  | NotMergingClausesNotMergingClauses62,2646
+  | NoSuchTypeInSignatureNoSuchTypeInSignature63,2705
+  | DataTypeMismatchInSignatureDataTypeMismatchInSignature64,2769
+  | VarianceAnnotationMismatchVarianceAnnotationMismatch65,2827
+  | ExportNotDuplicableExportNotDuplicable66,2858
+  | LocalTypeLocalType67,2899
+  | InstantiatedInstantiated68,2913
+  | PackWithExistsPackWithExists69,2953
+  | SeveralWorkingFunctionTypesSeveralWorkingFunctionTypes70,2972
+exception TypeCheckerErrorTypeCheckerError72,3012
+let raise_errorraise_error74,3049
+let print_errorprint_error84,3254
+let html_errorhtml_error303,11482
+let internal_extracterrorinternal_extracterror312,11735
+let flagsflags314,11770
+let errno_of_errorerrno_of_error324,12171
+let may_raise_errormay_raise_error341,12433
+let parse_warn_errorparse_warn_error352,12677
 
-typing/Namespace.ml,883
-Namespace1,0
-module MakeNamespaceMakeNamespace5,70
-  type namename12,268
-  type 'a local_envlocal_env16,351
-  type 'a global_envglobal_env20,430
-    modulesmodules22,510
-    currentcurrent24,604
-  let emptyempty27,636
-  let lookup_locallookup_local32,732
-  let extend_localextend_local35,812
-  let lookup_unqualifiedlookup_unqualified38,912
-  let extend_unqualifiedextend_unqualified41,1009
-  let lookup_qualifiedlookup_qualified44,1151
-  let lookup_maybe_qualifiedlookup_maybe_qualified53,1491
-  let freezefreeze60,1751
-  let extend_qualifiedextend_qualified74,2451
-  let qualifyqualify89,3082
-  let unqualifyunqualify101,3512
-  let zapzap115,4161
-  let unqualified_namesunqualified_names118,4251
-  let print_local_envprint_local_env125,4410
-  let print_module_envprint_module_env132,4621
-  let print_global_envprint_global_env139,4846
+typing/TypeErrors.mli,2204
+TypeErrors1,0
+type raw_errorraw_error26,1603
+  | OverrideAutoloadOverrideAutoload27,1620
+  | CyclicDependencyCyclicDependency28,1651
+  | NotAFunctionNotAFunction29,1687
+  | ExpectedTypeExpectedType30,1711
+  | ExpectedPermissionExpectedPermission31,1766
+  | RecursiveOnlyForFunctionsRecursiveOnlyForFunctions32,1821
+  | MissingFieldMissingField33,1851
+  | ExtraFieldExtraField34,1882
+  | NoSuchFieldNoSuchField35,1911
+  | CantAssignTagCantAssignTag36,1947
+  | NoSuchFieldInPatternNoSuchFieldInPattern37,1972
+  | BadPatternBadPattern38,2037
+  | BadFieldBadField39,2085
+  | NoTwoConstructorsNoTwoConstructors40,2127
+  | MatchBadDataconMatchBadDatacon41,2156
+  | MatchBadTupleMatchBadTuple42,2198
+  | AssignNotExclusiveAssignNotExclusive43,2223
+  | FieldCountMismatchFieldCountMismatch44,2268
+  | NoMultipleArgumentsNoMultipleArguments45,2313
+  | ResourceAllocationConflictResourceAllocationConflict46,2337
+  | UncertainMergeUncertainMerge47,2375
+  | ConflictingTypeAnnotationsConflictingTypeAnnotations48,2401
+  | IllKindedTypeApplicationIllKindedTypeApplication49,2445
+  | BadTypeApplicationBadTypeApplication50,2512
+  | NonExclusiveAdopteeNonExclusiveAdoptee51,2542
+  | NoAdoptsClauseNoAdoptsClause52,2573
+  | NotDynamicNotDynamic53,2599
+  | NoSuitableTypeForAdoptsNoSuitableTypeForAdopts54,2621
+  | AdoptsNoAnnotationAdoptsNoAnnotation55,2662
+  | NotMergingClausesNotMergingClauses56,2685
+  | NoSuchTypeInSignatureNoSuchTypeInSignature57,2744
+  | DataTypeMismatchInSignatureDataTypeMismatchInSignature58,2808
+  | VarianceAnnotationMismatchVarianceAnnotationMismatch59,2866
+  | ExportNotDuplicableExportNotDuplicable60,2897
+  | LocalTypeLocalType61,2938
+  | InstantiatedInstantiated62,2952
+  | PackWithExistsPackWithExists63,2992
+  | SeveralWorkingFunctionTypesSeveralWorkingFunctionTypes64,3011
+val parse_warn_errorparse_warn_error68,3166
+val raise_errorraise_error72,3292
+val may_raise_errormay_raise_error77,3538
+type errorerror80,3620
+exception TypeCheckerErrorTypeCheckerError83,3685
+val print_errorprint_error87,3810
+val html_errorhtml_error90,3897
+val internal_extracterrorinternal_extracterror94,3937
 
-typing/Modules.mli,59
-Modules1,0
-val all_dependenciesall_dependencies22,1485
+typing/Types.ml,3399
+Types1,0
+let ( |>|>32,1813
+let ( !*!*33,1839
+let ( >>=>>=34,1872
+let ( ||||||35,1906
+let ( ^=>^=>36,1966
+let ( !!!!38,2005
+let ( !!=!!=43,2129
+let fst3fst350,2282
+let snd3snd351,2307
+let thd3thd352,2332
+let is_useris_user54,2358
+let ty_equalsty_equals56,2417
+let ty_unitty_unit60,2464
+let ty_tuplety_tuple64,2495
+let (@->@->69,2612
+let ty_barty_bar73,2649
+let ty_appty_app80,2722
+let ty_openty_open87,2810
+let fold_starfold_star91,2841
+let strip_quantifiers_and_bindstrip_quantifiers_and_bind98,2973
+let fold_quantifierfold_quantifier109,3264
+let fold_forallfold_forall115,3396
+let fold_existsfold_exists118,3440
+let fresh_auto_namefresh_auto_name121,3484
+let get_locationget_location209,5820
+let get_adopts_clauseget_adopts_clause215,5978
+let is_tyopenis_tyopen244,7051
+let get_branchesget_branches249,7116
+let get_arityget_arity257,7305
+let rec get_kind_for_typeget_kind_for_type261,7384
+let branches_for_dataconbranches_for_datacon295,8003
+let branches_for_branchbranches_for_branch299,8070
+let branch_for_dataconbranch_for_datacon303,8182
+let fields_for_dataconfields_for_datacon311,8406
+let flavor_for_dataconflavor_for_datacon317,8577
+let variancevariance323,8717
+let instantiate_typeinstantiate_type332,8915
+let find_and_instantiate_branchfind_and_instantiate_branch337,9038
+let is_tyappis_tyapp346,9255
+let is_abbrevis_abbrev359,9471
+let assert_concreteassert_concrete366,9580
+let is_concreteis_concrete369,9660
+let is_termis_term372,9732
+let is_permis_perm373,9780
+let is_typeis_type374,9827
+class collectcollect390,10622
+  methodvisit394,10830
+  methodbranch434,11777
+let collectcollect445,12065
+class markmark450,12193
+  methodnormalize452,12258
+  methodtyopen456,12432
+  methodtyarrow465,12717
+let mark_reachablemark_reachable469,12762
+let make_datacon_lettersmake_datacon_letters477,12960
+let bind_datacon_parametersbind_datacon_parameters495,13570
+let rec expand_if_one_branchexpand_if_one_branch507,13995
+let is_staris_star524,14416
+let rec flatten_starflatten_star534,14574
+module TypePrinterTypePrinter556,15117
+  let string_of_namestring_of_name562,15248
+  let print_nameprint_name566,15373
+  let pnamepname573,15591
+  let print_dataconprint_datacon577,15661
+  let print_field_nameprint_field_name581,15736
+  let print_fieldprint_field585,15808
+  let p_kindp_kind590,15965
+  let print_namesprint_names594,16027
+  let print_uservarprint_uservar604,16360
+  let pnamespnames613,16659
+  let smallintsmallint617,16735
+  let print_varprint_var638,17157
+  let pvarpvar646,17336
+  let puvarpuvar650,17423
+  let print_bindingprint_binding656,17546
+  let rec print_quantifiedprint_quantified663,17708
+  and print_openprint_open672,17974
+  and print_typeprint_type686,18460
+  and print_constraintprint_constraint758,20283
+  and print_data_field_defprint_data_field_def761,20381
+  and print_branchprint_branch764,20493
+  let pfactpfact785,21071
+  let print_factsprint_facts791,21170
+  let print_permission_listprint_permission_list815,21994
+  let ppermission_listppermission_list823,22240
+  let print_permissionsprint_permissions828,22396
+  let ppermissionsppermissions866,23689
+  let ptypeptype872,23821
+  let penvpenv876,23904
+  let pconstraintpconstraint882,24005
+  let print_bindersprint_binders886,24098
 
-typing/TransSurface.ml,2052
-TransSurface1,0
-module TT37,2039
-module EE38,2059
-type envenv40,2087
-let name_username_user46,2288
-let name_autoname_auto47,2363
-let tvartvar50,2489
-let evarevar56,2666
-let resolve_dataconresolve_datacon61,2751
-let rec conjunctionconjunction67,2946
-let toptop74,3062
-let twicetwice82,3170
-let auto_tyqauto_tyq85,3203
-let rec translate_typetranslate_type90,3356
-and translate_arrow_typetranslate_arrow_type203,6978
-and translate_type_resettranslate_type_reset231,8284
-and translate_type_reset_no_kindtranslate_type_reset_no_kind242,8760
-and translate_fields_valuestranslate_fields_values245,8845
-and translate_fields_permstranslate_fields_perms255,9123
-and translate_adopts_clausetranslate_adopts_clause264,9354
-and translate_quantified_typetranslate_quantified_type271,9547
-and translate_mode_constrainttranslate_mode_constraint277,9766
-and translate_implicationtranslate_implication280,9852
-let rec translate_data_type_def_branchtranslate_data_type_def_branch298,10688
-and translate_adoptstranslate_adopts322,11682
-and translate_field_defs_valuestranslate_field_defs_values329,11844
-and translate_field_defs_permstranslate_field_defs_perms337,12055
-let rec tunloctunloc349,12267
-let translate_single_facttranslate_single_fact356,12358
-let translate_facttranslate_fact390,13869
-let translate_data_type_deftranslate_data_type_def397,14180
-let translate_data_type_grouptranslate_data_type_group446,16074
-let clean_patternclean_pattern489,17657
-let rec translate_patterntranslate_pattern537,19213
-let strip_tappstrip_tapp566,20207
-let map_tappmap_tapp573,20290
-let rec extrude_wildcardsextrude_wildcards584,20681
-let rec translate_exprtranslate_expr647,22927
-and translate_patexprstranslate_patexprs908,32026
-let translate_itemtranslate_item943,33259
-let rec translate_itemstranslate_items966,34108
-let translate_implementationtranslate_implementation978,34464
-let translate_interfacetranslate_interface984,34753
-let translate_type_resettranslate_type_reset988,34931
+typing/Types.mli,2958
+Types1,0
+val fst3fst332,1750
+val snd3snd333,1780
+val thd3thd334,1810
+val ( !!!!39,1917
+val ( !!=!!=42,2014
+val ( !*!*45,2070
+val ( >>=>>=48,2136
+val ( ||||||51,2241
+val ( ^=>^=>54,2365
+val ( |>|>57,2427
+val expand_if_one_branchexpand_if_one_branch71,2989
+val collectcollect76,3226
+val branches_for_branchbranches_for_branch88,3674
+val branches_for_dataconbranches_for_datacon91,3808
+val branch_for_dataconbranch_for_datacon94,3936
+val fields_for_dataconfields_for_datacon97,4047
+val flavor_for_dataconflavor_for_datacon100,4166
+val ty_unitty_unit114,4531
+val ty_tuplety_tuple117,4566
+val ( @->@->120,4657
+val ty_barty_bar123,4774
+val ty_appty_app126,4886
+val ty_equalsty_equals129,4969
+val ty_openty_open132,5021
+val is_tyappis_tyapp140,5172
+val is_staris_star144,5327
+val is_concreteis_concrete147,5393
+val assert_concreteassert_concrete150,5490
+val is_tyopenis_tyopen153,5560
+val is_abbrevis_abbrev156,5673
+val is_termis_term159,5746
+val is_permis_perm162,5818
+val is_typeis_type165,5890
+val is_useris_user168,5959
+val flatten_starflatten_star177,6302
+val fold_starfold_star181,6442
+val fold_forallfold_forall184,6532
+val fold_existsfold_exists187,6653
+val mark_reachablemark_reachable196,6923
+val bind_datacon_parametersbind_datacon_parameters208,7314
+val instantiate_typeinstantiate_type214,7540
+val find_and_instantiate_branchfind_and_instantiate_branch217,7659
+val get_locationget_location226,7877
+val get_adopts_clauseget_adopts_clause227,7919
+val get_arityget_arity228,7961
+val get_kind_for_typeget_kind_for_type229,7995
+val variancevariance232,8101
+val fresh_auto_namefresh_auto_name234,8147
+val make_datacon_lettersmake_datacon_letters235,8184
+module TypePrinterTypePrinter242,8302
+    val string_of_namestring_of_name247,8476
+    val print_nameprint_name250,8605
+    val pnamepname251,8659
+    val print_uservarprint_uservar255,8858
+    val puvarpuvar256,8914
+    val print_varprint_var259,9025
+    val pvarpvar260,9077
+    val print_namesprint_names263,9149
+    val pnamespnames264,9209
+    val print_permission_listprint_permission_list267,9302
+    val ppermission_listppermission_list268,9370
+    val print_permissionsprint_permissions271,9487
+    val ppermissionsppermissions272,9540
+    val print_dataconprint_datacon274,9588
+    val print_field_nameprint_field_name275,9646
+    val print_fieldprint_field276,9705
+    val p_kindp_kind277,9768
+    val print_quantifiedprint_quantified278,9810
+    val print_typeprint_type282,9913
+    val print_constraintprint_constraint283,9966
+    val print_data_field_defprint_data_field_def286,10049
+    val print_branchprint_branch288,10129
+    val pfactpfact292,10214
+    val print_factsprint_facts293,10260
+    val ptypeptype294,10307
+    val penvpenv295,10353
+    val pconstraintpconstraint296,10392
+    val print_bindersprint_binders298,10462
 
-typing/Fact.mli,853
-Fact1,0
-type parameterparameter27,1653
-module ParameterMapParameterMap30,1679
-type propertyproperty70,3357
-and factfact76,3572
-and hypothesishypothesis89,4206
-  | HFalseHFalse90,4223
-  | HConjunctionHConjunction91,4234
-and hypotheseshypotheses93,4266
-val conjunctionconjunction105,4658
-val bottombottom112,4891
-val equalequal115,4926
-val leqleq118,4988
-val joinjoin121,5070
-val join_manyjoin_many122,5101
-val meetmeet128,5413
-val is_maximalis_maximal132,5555
-val constantconstant141,5921
-val implicationimplication148,6256
-val duplicableduplicable151,6354
-val allow_exclusiveallow_exclusive155,6512
-val disallow_exclusivedisallow_exclusive159,6639
-val parameterparameter163,6806
-val composecompose169,7096
-val completecomplete174,7303
-val printprint186,7689
-val internal_printinternal_print191,7934
+typing/Variance.ml,368
+Variance1,0
+type tt31,1708
+let lublub44,1920
+let leqleq59,2125
+let (~~~~62,2206
+let dotdot76,2714
+let variancevariance94,3208
+module PP159,4769
+  type propertyproperty160,4787
+  let bottombottom161,4807
+  let equalequal162,4832
+  let is_maximalis_maximal163,4850
+module SolverSolver166,4888
+let analyze_data_typesanalyze_data_types168,4926
 
-typing/FactInference.mli,203
-FactInference1,0
-val assumeassume29,1719
-val analyze_data_typesanalyze_data_types37,2168
-val has_modehas_mode42,2401
-val is_duplicableis_duplicable45,2487
-val is_exclusiveis_exclusive48,2570
+typing/Variance.mli,84
+Variance1,0
+val leqleq30,1782
+val analyze_data_typesanalyze_data_types34,1947
 
-typing/Merge.ml,527
-Merge1,0
-type outcomeoutcome25,1490
-type outcome = MergeWithMergeWith25,1490
-type outcome = MergeWith of var | ProceedProceed25,1490
-type outcome = MergeWith of var | Proceed | AbortAbort25,1490
-let build_flexible_type_applicationbuild_flexible_type_application29,1636
-let is_validis_valid41,2231
-module LifoLifo51,2340
-  let createcreate52,2361
-  let poppop53,2388
-  let pushpush54,2445
-  let removeremove55,2477
-let actually_merge_envsactually_merge_envs64,2668
-let merge_envsmerge_envs1082,47412
+typing/ResugarFold.ml,250
+ResugarFold1,0
+let depth_exceededdepth_exceeded9,207
+let defaultdefault11,245
+let rec fold_varfold_var16,475
+and fold_typefold_type51,1536
+and fold_branchfold_branch113,2910
+let fold_typefold_type128,3329
+let fold_varfold_var132,3381
 
-utils/Debug.ml,738
+typing/ResugarFold.mli,73
+ResugarFold1,0
+val fold_typefold_type4,57
+val fold_varfold_var5,91
+
+utils/Debug.ml,949
 Debug1,0
-let enabledenabled26,1505
-let enable_traceenable_trace27,1528
-module GraphGraph29,1565
-  let id_of_pointid_of_point31,1588
-  let draw_pointdraw_point35,1658
-  let write_introwrite_intro130,4637
-  let write_outrowrite_outro137,4821
-  let write_simple_graphwrite_simple_graph141,4879
-  let write_graphwrite_graph152,5185
-  let graphgraph172,5702
-module HtmlHtml182,5864
-  let pygmentizepygmentize184,5886
-  let json_of_locjson_of_loc189,6054
-  let json_of_pointsjson_of_points199,6321
-  let render_svgrender_svg223,7257
-  let render_baserender_base233,7489
-  let renderrender255,8092
-  let render_mergerender_merge270,8403
-let explainexplain297,9038
-let explain_mergeexplain_merge325,9693
+type cenvcenv27,1574
+let enabledenabled29,1610
+let enable_traceenable_trace30,1633
+let is_osxis_osx31,1669
+let uniqueunique38,1804
+module GraphGraph56,2128
+  let id_of_pointid_of_point58,2151
+  let draw_pointdraw_point62,2221
+  let write_introwrite_intro180,6062
+  let write_outrowrite_outro187,6246
+  let write_simple_graphwrite_simple_graph191,6304
+  let mark_interestingmark_interesting206,6865
+  let write_graphwrite_graph232,7654
+  let graphgraph252,8274
+module HtmlHtml262,8463
+  let pygmentizepygmentize264,8485
+  let json_of_locjson_of_loc269,8653
+  let json_of_pointsjson_of_points279,8920
+  let render_svgrender_svg302,9826
+  let get_json_filenameget_json_filename313,10149
+  let render_baserender_base320,10414
+  let renderrender339,10946
+  let render_mergerender_merge354,11281
+  let launchlaunch378,11973
+let explainexplain398,12578
+let explain_mergeexplain_merge425,13522
 
 utils/TestUtils.ml,488
 TestUtils1,0
@@ -2726,16 +2795,16 @@ let rec match_patternmatch_pattern506,16081
 let match_irrefutable_patternmatch_irrefutable_pattern542,17229
 let match_refutable_patternmatch_refutable_pattern549,17433
 let rec evaleval559,17703
-and switchswitch744,23169
-and eval_definitionseval_definitions765,24000
-and eval_recursive_equationeval_recursive_equation794,25291
-let evaluate_data_type_defevaluate_data_type_def822,26331
-let eval_implementation_itemeval_implementation_item857,27608
-let eval_implementationeval_implementation885,28631
-let export_interface_itemexport_interface_item902,29499
-let export_interfaceexport_interface929,30581
-let eval_uniteval_unit946,31350
-let eval_lone_implementationeval_lone_implementation958,31856
+and switchswitch741,23127
+and eval_definitionseval_definitions762,23958
+and eval_recursive_equationeval_recursive_equation791,25249
+let evaluate_data_type_defevaluate_data_type_def819,26289
+let eval_implementation_itemeval_implementation_item852,27550
+let eval_implementationeval_implementation880,28573
+let export_interface_itemexport_interface_item897,29441
+let export_interfaceexport_interface926,30647
+let eval_uniteval_unit943,31416
+let eval_lone_implementationeval_lone_implementation955,31922
 
 interpreter/Interpreter.mli,152
 Interpreter1,0
@@ -2743,6 +2812,59 @@ type envenv10,359
 val emptyempty14,398
 val eval_uniteval_unit18,498
 val eval_lone_implementationeval_lone_implementation23,688
+
+compiler/Compile.ml,119
+Compile1,0
+let ($$3,68
+let translate_file_nametranslate_file_name11,312
+let implementationimplementation17,481
+
+compiler/Compile.mli,52
+Compile1,0
+val implementationimplementation3,68
+
+compiler/Mezzo2UntypedMezzo.ml,1050
+Mezzo2UntypedMezzo1,0
+module UU2,19
+let adopter_fieldadopter_field14,433
+let init_adopter_fieldinit_adopter_field17,489
+let rec is_unitis_unit25,739
+let abandonabandon39,1032
+let ff58,1449
+let f, tt58,1449
+let freshfresh69,1774
+let is_normalis_normal80,2132
+type continuationcontinuation100,2729
+let namename103,2783
+let rec reset_translreset_transl121,3474
+and evaleval128,3781
+and transltransl135,4004
+and reset_transl_equationsreset_transl_equations249,7613
+and eval_fieldeval_field255,7778
+let transl_data_type_def_lhstransl_data_type_def_lhs274,8549
+let transl_data_field_deftransl_data_field_def277,8610
+let transl_data_type_def_branchtransl_data_type_def_branch281,8676
+let transl_data_type_branchestransl_data_type_branches286,8886
+let transl_data_type_deftransl_data_type_def289,8976
+let transl_data_type_grouptransl_data_type_group299,9232
+let transl_itemtransl_item306,9463
+let translate_implementationtranslate_implementation323,9989
+let translate_interfacetranslate_interface330,10193
+
+compiler/Mezzo2UntypedMezzo.mli,170
+Mezzo2UntypedMezzo1,0
+val adopter_fieldadopter_field3,58
+val translate_implementationtranslate_implementation4,91
+val translate_interfacetranslate_interface5,181
+
+compiler/OCamlKeywords.ml,101
+OCamlKeywords1,0
+let create_hashtablecreate_hashtable3,53
+let keyword_tablekeyword_table10,205
+
+compiler/OCamlKeywords.mli,55
+OCamlKeywords1,0
+val keyword_tablekeyword_table1,0
 
 compiler/UntypedMezzo.ml,1223
 UntypedMezzo1,0
@@ -2784,48 +2906,45 @@ type toplevel_itemtoplevel_item117,4346
 type implementationimplementation123,4645
 type interfaceinterface126,4689
 
-compiler/UntypedOCamlPrinter.ml,1122
-UntypedOCamlPrinter1,0
-let objobj12,359
-let vobjvobj15,390
-let varvar24,707
-let rec atomic_patternatomic_pattern55,1194
-and normal_patternnormal_pattern74,1637
-and dangerous_patterndangerous_pattern83,1870
-and patternpattern89,2014
-let rec atomic_expressionatomic_expression100,2344
-and prefix_applicationprefix_application160,3878
-and normal_expressionnormal_expression182,4775
-and sequence_expressionsequence_expression188,4967
-and dangling_expressiondangling_expression204,5518
-and flagflag236,6241
-and for_flagfor_flag242,6359
-and branchbranch246,6436
-and equationsequations253,6565
-and equationequation259,6663
-and expressionexpression264,6769
-let tyty271,6911
-let data_type_def_branchdata_type_def_branch277,7004
-let data_type_def_lhsdata_type_def_lhs287,7234
-let mutabilitymutability298,7466
-let record_defrecord_def304,7561
-let data_type_def_rhsdata_type_def_rhs311,7743
-let data_type_defdata_type_def317,7894
-let definitiondefinition326,8147
-let toplevel_itemtoplevel_item337,8349
-let implementationimplementation347,8618
-let interfaceinterface352,8723
+compiler/UntypedMezzo2UntypedOCaml.ml,1237
+UntypedMezzo2UntypedOCaml1,0
+module OO3,37
+let identifieridentifier16,534
+let translate_module_nametranslate_module_name32,1153
+let field_indexfield_index40,1395
+let sort_by_indexsort_by_index50,1722
+let extract_field_indexextract_field_index59,2032
+let print_maybe_qualifiedprint_maybe_qualified78,2699
+let print_datacon_referenceprint_datacon_reference86,2897
+let paspas95,3132
+let seqseq104,3236
+let gtzgtz114,3397
+let rec magicmagic119,3462
+let rec translate_patterntranslate_pattern159,5141
+and completecomplete190,6221
+let rec transltransl211,6966
+and transl_equationstransl_equations289,9797
+and transl_branchestransl_branches301,10223
+and is_non_trivial_patternis_non_trivial_pattern308,10447
+let tyvartyvar328,11039
+let tyty331,11088
+let initinit334,11128
+let tyvarstyvars344,11298
+let tystys347,11386
+let data_sum_namedata_sum_name354,11609
+let data_branchdata_branch357,11703
+let data_sumdata_sum363,11965
+let translate_itemtranslate_item389,12593
+let translate_implementationtranslate_implementation403,13050
+let translate_interfacetranslate_interface410,13250
+let translate_interface_as_implementation_filtertranslate_interface_as_implementation_filter417,13547
 
-compiler/Compile.ml,119
-Compile1,0
-let ($$3,68
-let translate_file_nametranslate_file_name11,312
-let implementationimplementation17,480
-
-compiler/UntypedOCamlPrinter.mli,94
-UntypedOCamlPrinter1,0
-val implementationimplementation6,84
-val interfaceinterface7,131
+compiler/UntypedMezzo2UntypedOCaml.mli,294
+UntypedMezzo2UntypedOCaml1,0
+val translate_module_nametranslate_module_name3,66
+val translate_implementationtranslate_implementation4,115
+val translate_interfacetranslate_interface5,204
+val translate_interface_as_implementation_filtertranslate_interface_as_implementation_filter6,278
 
 compiler/UntypedOCaml.ml,1728
 UntypedOCaml1,0
@@ -2884,97 +3003,47 @@ type toplevel_itemtoplevel_item120,4126
 type implementationimplementation126,4281
 type interfaceinterface129,4327
 
-compiler/OCamlKeywords.mli,55
-OCamlKeywords1,0
-val keyword_tablekeyword_table1,0
+compiler/UntypedOCamlPrinter.ml,1122
+UntypedOCamlPrinter1,0
+let objobj12,359
+let vobjvobj15,390
+let varvar24,707
+let rec atomic_patternatomic_pattern55,1194
+and normal_patternnormal_pattern74,1637
+and dangerous_patterndangerous_pattern83,1870
+and patternpattern89,2014
+let rec atomic_expressionatomic_expression100,2344
+and prefix_applicationprefix_application160,3878
+and normal_expressionnormal_expression182,4775
+and sequence_expressionsequence_expression188,4967
+and dangling_expressiondangling_expression204,5518
+and flagflag236,6241
+and for_flagfor_flag242,6359
+and branchbranch246,6436
+and equationsequations253,6565
+and equationequation259,6663
+and expressionexpression264,6769
+let tyty271,6911
+let data_type_def_branchdata_type_def_branch277,7004
+let data_type_def_lhsdata_type_def_lhs287,7234
+let mutabilitymutability298,7466
+let record_defrecord_def304,7561
+let data_type_def_rhsdata_type_def_rhs311,7743
+let data_type_defdata_type_def317,7894
+let definitiondefinition326,8147
+let toplevel_itemtoplevel_item337,8349
+let implementationimplementation347,8618
+let interfaceinterface352,8723
 
-compiler/Compile.mli,52
-Compile1,0
-val implementationimplementation3,68
-
-compiler/Mezzo2UntypedMezzo.mli,170
-Mezzo2UntypedMezzo1,0
-val adopter_fieldadopter_field3,58
-val translate_implementationtranslate_implementation4,91
-val translate_interfacetranslate_interface5,181
-
-compiler/Mezzo2UntypedMezzo.ml,1050
-Mezzo2UntypedMezzo1,0
-module UU2,19
-let adopter_fieldadopter_field14,433
-let init_adopter_fieldinit_adopter_field17,489
-let rec is_unitis_unit25,739
-let abandonabandon39,1032
-let ff58,1447
-let f, tt58,1447
-let freshfresh69,1772
-let is_normalis_normal80,2130
-type continuationcontinuation100,2727
-let namename103,2781
-let rec reset_translreset_transl121,3472
-and evaleval128,3779
-and transltransl135,4002
-and reset_transl_equationsreset_transl_equations251,7652
-and eval_fieldeval_field257,7817
-let transl_data_type_def_lhstransl_data_type_def_lhs276,8588
-let transl_data_field_deftransl_data_field_def279,8649
-let transl_data_type_def_branchtransl_data_type_def_branch285,8762
-let transl_data_type_branchestransl_data_type_branches288,8890
-let transl_data_type_deftransl_data_type_def291,8980
-let transl_data_type_grouptransl_data_type_group299,9215
-let transl_itemtransl_item306,9446
-let translate_implementationtranslate_implementation323,9972
-let translate_interfacetranslate_interface330,10176
-
-compiler/UntypedMezzo2UntypedOCaml.mli,294
-UntypedMezzo2UntypedOCaml1,0
-val translate_module_nametranslate_module_name3,66
-val translate_implementationtranslate_implementation4,115
-val translate_interfacetranslate_interface5,204
-val translate_interface_as_implementation_filtertranslate_interface_as_implementation_filter6,278
-
-compiler/OCamlKeywords.ml,101
-OCamlKeywords1,0
-let create_hashtablecreate_hashtable3,53
-let keyword_tablekeyword_table10,205
-
-compiler/UntypedMezzo2UntypedOCaml.ml,1237
-UntypedMezzo2UntypedOCaml1,0
-module OO3,37
-let identifieridentifier16,534
-let translate_module_nametranslate_module_name32,1153
-let field_indexfield_index40,1394
-let sort_by_indexsort_by_index50,1721
-let extract_field_indexextract_field_index59,2031
-let print_maybe_qualifiedprint_maybe_qualified78,2698
-let print_datacon_referenceprint_datacon_reference86,2896
-let paspas95,3131
-let seqseq104,3235
-let gtzgtz114,3396
-let rec magicmagic119,3461
-let rec translate_patterntranslate_pattern159,5140
-and completecomplete190,6220
-let rec transltransl211,6965
-and transl_equationstransl_equations289,9784
-and transl_branchestransl_branches301,10210
-and is_non_trivial_patternis_non_trivial_pattern308,10434
-let tyvartyvar328,11026
-let tyty331,11075
-let initinit334,11115
-let tyvarstyvars344,11285
-let tystys347,11373
-let data_sum_namedata_sum_name354,11596
-let data_branchdata_branch357,11690
-let data_sumdata_sum363,11952
-let translate_itemtranslate_item389,12580
-let translate_implementationtranslate_implementation403,13037
-let translate_interfacetranslate_interface410,13237
-let translate_interface_as_implementation_filtertranslate_interface_as_implementation_filter417,13534
+compiler/UntypedOCamlPrinter.mli,94
+UntypedOCamlPrinter1,0
+val implementationimplementation6,84
+val interfaceinterface7,131
 
 tests/unit/UnitTests.ml,46
 UnitTests1,0
 let unit_testsunit_tests6,51
 
-ocamlbuild/ocamlbuild_mezzo.ml,44
+ocamlbuild/ocamlbuild_mezzo.ml,78
 Ocamlbuild_mezzo1,0
-let initinit30,1782
+let apply_rules_and_flagsapply_rules_and_flags30,1782

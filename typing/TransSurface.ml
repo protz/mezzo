@@ -92,13 +92,13 @@ let auto_tyq q binding ty =
  * as if a consumes annotations were applied.
  *
  * We need to override a few cases when translating a data type definition, as
- * the [TyConcrete] case there is treated differently ("_reset" variant on the
- * fields + no call to [resolve_datacon]). Instead of choosing a visitor
- * pattern, I decided to parameterize the function over [ff], which is the
- * recursive function that is called. Gaining the regular [translate_type] is
- * just a matter of doing a Y-combinator style application. The
- * [translate_type_reset] and [translate_quantified_type] functions are also in
- * this style, so that we don't have to re-implement their logic.
+ * the [TyConcrete] case there is treated differently (no call to
+ * [resolve_datacon]). Instead of choosing a visitor pattern, I decided to
+ * parameterize the function over [ff], which is the recursive function that is
+ * called. Gaining the regular [translate_type] is just a matter of doing a
+ * Y-combinator style application. The [translate_type_reset] and
+ * [translate_quantified_type] functions are also in this style, so that we
+ * don't have to re-implement their logic.
  *
  * BEWARE, however: two functions have not been converted to this style:
  * translate_arrow_type, translate_type_reset_no_kind.
@@ -323,7 +323,8 @@ let translate_data_type_def_branch
     | TyConcrete (dref, fields, _dummy_adopts) ->
         let branch_fields = List.map (fun (name, t) ->
             (* This is where we branch onto the regular flavor of translate_type *)
-            name, translate_type_reset_no_kind env t
+            let t, _, _ = translate_type env t in
+            name, t
           ) fields
         in
         let branch_datacon =

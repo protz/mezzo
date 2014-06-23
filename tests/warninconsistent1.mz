@@ -1,0 +1,16 @@
+(* Inconsistent permissions: *)
+val test1 (x: ref int, y: ref bool | x = y ): () = ()
+
+(* Distinct constructors: *)
+val test2 (x: bool | x = true | x = false): () = ()
+
+(* Tuple arity *)
+val test3 (a: int, b: int, c: int, x: dynamic 
+          | x @ (=a, =b) 
+	  | x @ (=a, =b, =c)): () = ()
+
+
+(* Explicit fail *)
+val test4 : () -> () = fail
+
+val x : () = 2

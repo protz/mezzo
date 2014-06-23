@@ -139,12 +139,15 @@ let print_summary env x =
   in
   (* Find its useful permissions. *)
   let useful_permission env x =
-    let ps = get_permissions env x in
-    let ps = List.filter (function
-      | TySingleton _ | TyUnknown -> false
-      | _ -> true
-    ) ps in
-    ps
+    if is_flexible env x then
+      []
+    else
+      let ps = get_permissions env x in
+      let ps = List.filter (function
+        | TySingleton _ | TyUnknown -> false
+        | _ -> true
+      ) ps in
+      ps
   in
   let perm_text =
     match useful_permission env x with

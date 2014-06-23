@@ -545,7 +545,8 @@ let rec flatten_star env t =
   | _ ->
       Log.check
         (get_kind_for_type env t = KPerm)
-        "Bad internal usage of [flatten_star].";
+        "Bad internal usage of [flatten_star]: %a"
+        !internal_ptype (env, t);
       [t]
 ;;
 

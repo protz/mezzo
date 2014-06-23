@@ -6,10 +6,10 @@ val () =
   let p1 = P in
   let p2 = P in
   give (c : cell int) to p1;
-  if p2 owns c then fail;
+  if p2 adopts c then fail;
   take c from p1;
   give (c : cell int) to p2;
-  if p1 owns c then fail;
+  if p1 adopts c then fail;
   take c from p2;
-  if p2 owns c then fail;
+  if p2 adopts c then fail;
   print 1

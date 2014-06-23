@@ -3,7 +3,7 @@ data mutable t = T adopts u
 and mutable u = U
 
 val f (x: t, y: dynamic) : u =
-  if x owns y then begin
+  if x adopts y then begin
     take y from x;
     y
   end

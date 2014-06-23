@@ -155,10 +155,18 @@ type permissions = typ list
 
 type level = int
 
+type inconsistency = 
+  | Consistent
+  | FailAnnot
+  | ExclusivePerms of typ
+  | DistinctDatacon of branch * branch
+  | TupleArity of typ list * typ list
+
 module IntMap = Map.Make(struct
   type t = int
   let compare = Pervasives.compare
 end)
+
 
 (** This is the environment that we use throughout. *)
 type env = {
@@ -175,7 +183,7 @@ type env = {
    * a point acquired two exclusive permissions, or maybe because the user wrote
    * "fail" at some point. This is by no means exhaustive: we only detect a few
    * inconsistencies when we're lucky. *)
-  inconsistent: bool;
+  inconsistent: inconsistency;
 
   (* This is a list of abstract permissions available in the environment. It can
    * either be a type application, i.e. "p x", where "p" is abstract, or a type
@@ -210,7 +218,7 @@ type env = {
 and flex_descr = {
   (* If a flexible variable is not instantiated, it has a descriptor. When it
    * becomes instantiated, it loses its descriptor and gains the information
-   * from another type. We have the invariant that importants properties about
+   * from another type. We have the invariant that important properties about
    * the variable (fact, level, kind) are "better" after it lost its descriptor
    * (more precise fact, lower level, equal kind). *)
   structure: structure;
@@ -272,7 +280,7 @@ let empty_env = {
   state = PersistentUnionFind.init ();
   mark = Mark.create ();
   location = Lexing.dummy_pos, Lexing.dummy_pos;
-  inconsistent = false;
+  inconsistent = Consistent;
   floating_permissions = [];
   last_binding = Rigid;
   current_level = 0;
@@ -286,9 +294,15 @@ let locate env location =
 
 let location { location; _ } = location;;
 
-let is_inconsistent { inconsistent; _ } = inconsistent;;
+let get_inconsistent { inconsistent; _ } = inconsistent;;
 
-let mark_inconsistent env = { env with inconsistent = true };;
+let is_inconsistent { inconsistent; _ } = 
+  match inconsistent with
+  | Consistent -> false
+  | _ -> true
+;;
+
+let mark_inconsistent env err = { env with inconsistent = err };;
 
 let module_name { kenv; _ } = KindCheck.(module_name kenv);;
 

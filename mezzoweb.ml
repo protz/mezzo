@@ -52,10 +52,6 @@ let mz_log s cl : unit =
   Js.Unsafe.(fun_call
                (variable "mz_log")
                (Array.map (fun s -> inject (Js.string s)) [|s; cl|]))
-let file_content name : string =
-  Js.Unsafe.(fun_call
-               (variable "caml_fs_file_content")
-               [| inject (Js.string name) |])
 let empty_obj () : 'a Js.t = Js.Unsafe.obj [||]
 (* ======Unsafe mode OFF====== *)
 
@@ -148,7 +144,7 @@ let _ =
           let files = Sys.readdir name in
           let files = Array.map (fun file ->
               let f : file Js.t = empty_obj () in
-              let content = file_content (name ^ "/" ^ file) in
+              let content = Sys_js.file_content (name ^ "/" ^ file) in
               f##name <- (Js.string file);
               f##content <- (Js.string content);
               f

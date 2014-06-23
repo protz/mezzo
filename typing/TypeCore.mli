@@ -194,11 +194,22 @@ val module_name: env -> Module.name
 (** Enter another toplevel unit (implementation, interface). *)
 val enter_module: env -> Module.name -> env
 
+
+type inconsistency = 
+  | Consistent
+  | FailAnnot
+  | ExclusivePerms of typ
+  | DistinctDatacon of branch * branch
+  | TupleArity of typ list * typ list
+
+(** Getter for inconsistent *)
+val get_inconsistent: env -> inconsistency
+
 (** Is the current environment inconsistent? *)
 val is_inconsistent: env -> bool
 
 (** Mark the environment as being inconsistent. *)
-val mark_inconsistent: env -> env
+val mark_inconsistent: env -> inconsistency -> env
 
 (** An environment contains a kind-checking environment that contains mapping
  * for all the current module's _dependencies_. *)
