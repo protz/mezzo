@@ -1,0 +1,47 @@
+open thread
+open lock
+open osf
+
+
+(* The suspension of a future is either:
+     - a computation awaiting its (one shot) evaluation, or
+     - the memoized result of that computation *)
+
+data suspension a = 
+       | mutable Init { k: osf () a }
+       | Res { r: a }
+
+(* The future itself is the pair of:
+     - a suspension [s]
+     - a lock asserting that [s] is fully-evaluated *)
+
+alias future a = (s: unknown, lock (s @ Res { r: a }))
+
+
+(* To create a future, the key idea (due to François) is to create the
+   lock in [locked] state: the [compute] thread we spawn is
+   responsible for evaluating the suspension and release the lock
+   afterward. [compute] is thus responsible for enforcing the
+   invariant, which holds forever after. *)
+
+val new [a] duplicable a => (consumes k: osf () a) : future a
+    = let susp = Init { k = k } in
+      let l : (l: lock (susp @ Res { r: a }) | l @ locked)  = new_locked () in
+      let compute (| consumes (susp @ Init { k: osf () a } * 
+                                  l @ locked)) : () = 
+        (* Turn susp.Init { k = k } into susp.Res { r = susp.k () }: *)
+	susp.k <- susp.k (); 
+        tag of susp <- Res;
+	release l
+      in
+      (* Concurrently compute and return the future: *)
+      spawn compute; (susp, l)
+
+(* By this design, forcing a future consists simply in waiting for
+   [compute] to terminate, ie. wait for [l] to be released. *)
+
+val force [a] duplicable a => (f: future a) : a 
+  = let s, l = f in
+    acquire l; release l;
+    s.r
+
