@@ -27,6 +27,10 @@ val new [p: perm] (| consumes p) : lock p =
   (* This unsafe type cast causes the permission [l @ lock p] to appear. *)
   magic::magic l
 
+val new_locked [p: perm] () : (l: lock p | l @ locked) = 
+  let l : private_lock p = Taken in
+  magic::magic l
+
 (* To acquire a lock, we check that it is currently [Free], and
    change it to [Taken]. *)
 

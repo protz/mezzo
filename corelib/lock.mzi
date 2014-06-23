@@ -23,6 +23,9 @@ abstract locked
 
 val new: [p: perm] (| consumes p) -> lock p
 
+
+val new_locked: [p: perm] () -> (l: lock p | l @ locked)
+
 (* Acquisition. *)
 
 val acquire:     [p: perm] (l: lock p) -> (| p * l @ locked)
