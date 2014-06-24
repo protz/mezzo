@@ -1,0 +1,20 @@
+(* An "interesting" variant of the type of [get] for references. This
+   type is in principle most general, i.e., equivalent to the several
+   other most general types of [get]. *)
+
+val get [a] (x: Ref { contents: (consumes a) }) : a =
+  x.contents
+
+(* [get1] is just an eta-expansion of [get], with a lot of annotations. *)
+
+val get1 [a] duplicable a => (x: ref a) : a =
+  let flex c : value in 
+  assert x @ ref (=c) * c @ a;
+  assert x @ Ref { contents = c } * c @ a;
+  let y = get [=c] x in
+  assert y = c;
+  assert c @ a;
+  assert x @ Ref { contents = c }; (* BUG? why does this fail? *)
+  assert x @ ref (=c);
+  y
+

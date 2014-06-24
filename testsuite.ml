@@ -1055,6 +1055,7 @@ let tests: (string * ((unit -> env) -> unit)) list = [
   ("merge-dont-pollute.mz", fail);
   ("merge-dont-pollute2.mz", fail_known_failure);
   ("destruct-unqualified.mz", fail);
+  ("get.mz", pass);
 
   (* The following test(s) must pass *with a warning* *)
   ("warninconsistent1.mz", pass);
