@@ -17,12 +17,18 @@ abstract locked
 (* The invariant [p] is fixed at creation time. *)
 
 (* When the lock is created, it is available; for this reason, [new]
-   consumes the permission [p]. One could offer a variant of [new]
-   where the lock is initially held; this variant would not require
-   [p], and would produce [l @ locked]. *)
+   consumes the permission [p]. *)
 
 val new: [p: perm] (| consumes p) -> lock p
 
+(* This variant of [new] creates a lock that is initially held. In theory, it
+   is more expressive: one can recover [new] as the sequential composition of
+   [new_locked] and [release], whereas one cannot recover [new_locked] as a
+   the sequential composition of [new] and [acquire]. Indeed, [new_locked]
+   offers extra flexibility: it allows creating a lock of type [lock p] even
+   if one does not (yet) have the permission [p] at hand. The lock can be
+   shared immediately and can be used as a kind of promise that eventually [p]
+   will be available. *)
 
 val new_locked: [p: perm] () -> (l: lock p | l @ locked)
 
