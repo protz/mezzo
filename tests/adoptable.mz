@@ -1,0 +1,52 @@
+(* Just playing around. *)
+
+open list
+
+abstract tadopts +a
+
+abstract adoptable_by (y : value)
+fact duplicable (adoptable_by y)
+
+abstract unadopted_by (y : value)
+
+val share [y: value] (x: unadopted_by y) : (| x @ adoptable_by y) =
+  magic::magic()
+
+val ogive [a] (consumes x: a, y: tadopts a | consumes x @ unadopted_by y) : () =
+  magic::magic()
+
+alias node_of (g : value) =
+  adoptable_by g
+
+alias nodes_of (g : value) =
+  list (node_of g)
+
+data mutable node (g : value) a =
+  Node {
+    payload: a;
+    successors: nodes_of g
+  }
+
+data mutable graph a = (g: Graph {
+  roots: nodes_of g
+} | g @ tadopts (node g a))
+
+val g : graph int =
+  let g = Graph {
+    roots = nil
+  } in
+  let () : (| g @ tadopts ([a] a)) = magic::magic() in
+  let n = Node {
+    payload = 0;
+    successors = nil
+  } in
+  let () : (| n @ unadopted_by g) = magic::magic() in
+  assert g @ tadopts (node g int);
+  share n;
+  assert n @ node_of g;
+  g.roots <- cons [node_of g] (n, nil);
+  n.successors <- cons [node_of g] (n, nil);
+  ogive (n, g);
+  assert g @ graph int;
+  g
+

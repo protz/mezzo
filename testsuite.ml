@@ -1041,6 +1041,7 @@ let tests: (string * ((unit -> env) -> unit)) list = [
   ("shortest.mz", pass);
   ("snapshot.mz", pass);
   ("adoptslib.mz", pass);
+  ("adoptable.mz", pass);
   ("wildcard1.mz", pass);
   ("wildcard2.mz", pass);
   ("flexbug.mz", fail);
