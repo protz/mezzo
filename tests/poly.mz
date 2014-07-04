@@ -1,0 +1,11 @@
+open list
+
+val f () : [a] list a =
+  Nil
+
+val () =
+  let x = f() in
+  assert x @ list int;
+  assert x @ list bool;
+  assert x @ [a] list a
+
