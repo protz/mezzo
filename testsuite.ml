@@ -1028,6 +1028,7 @@ let tests: (string * ((unit -> env) -> unit)) list = [
   ("assert-var.mz", pass);
   ("internal_choice.mz", pass);
   ("server.mz", pass);
+  ("copy2.mz", pass);
   ("array-borrow-1.mz", pass);
   ("array-borrow-2.mz", fail);
   ("booltrue.mz", pass);
