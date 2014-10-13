@@ -11,6 +11,13 @@ data mutable region =
 val newregion () : region =
   Region
 
+(* [runST] is not very useful, as the user will typically prefer to use
+   [newregion] directly. This is just to show that we can encode it. *)
+
+val runST [a] (f: [rho: value] (| rho @ region) -> a) : a =
+  let rho = newregion() in
+  f [rho] ()
+
 (* An inhabitant of a region [rho] at type [a] is a value [x] together with
    a proof that [x @ a] is nested in [rho]. This means that whoever owns the
    region [rho] has access to [x] at type [a]. *)
