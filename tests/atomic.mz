@@ -37,8 +37,8 @@ val swap [a] (r: ref a, consumes x: a) : a =
 (* TEMPORARY a type abbreviation would be useful here *)
 
 (* A lock is implemented as an atomic reference to a Boolean. The
-   value_ [true] means that the lock is free, hence the permission
-   [p] is stored within the lock. The value_ [false] means that the
+   value [true] means that the lock is free, hence the permission
+   [p] is stored within the lock. The value [false] means that the
    lock is already taken, hence no permission is stored within the
    lock. *)
 
