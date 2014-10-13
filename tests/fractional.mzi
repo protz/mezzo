@@ -24,7 +24,7 @@ val share: [a] (consumes x: ref a) -> permission x a
 val fork: [x : value, a] (consumes permission x a) -> (p: permission x a | p @ permission x a)
 
 (* [join] is roughly the converse of [fork], although the two fractions
-   need to be equal. [join] can be thought of as addition of fractions. *)
+   need not be equal. [join] can be thought of as addition of fractions. *)
 
 val join: [x : value, a] (consumes permission x a, consumes permission x a) -> permission x a
 
