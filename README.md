@@ -14,7 +14,7 @@ Mezzo is now in OPAM, just run `opam install mezzo`.
 Learning Mezzo
 --------------
 
-There's a [sample projet](https://github.com/protz/mezzo-sample-project/) for
+There's a [sample project](https://github.com/protz/mezzo-sample-project/) for
 you to get started, and a [tutorial](http://protz.github.io/mezzo/tutorial/)
 that's nowhere near finished. We have a [website](http://protz.github.io/mezzo/)
 with more research-y material.
