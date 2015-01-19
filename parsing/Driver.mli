@@ -46,8 +46,5 @@ val print_signature: Buffer.t -> TypeCore.env -> unit
     an appropriate order. *)
 val interpret: string -> unit
 
-val lex_and_parse_raw: Ulexing.lexbuf ->
-  string -> (Grammar.token, 'a) MenhirLib.Convert.traditional -> 'a
-
 val check_implementation: Module.name -> SurfaceSyntax.implementation ->
   SurfaceSyntax.interface option -> TypeCore.env
