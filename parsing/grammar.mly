@@ -355,7 +355,7 @@ raw_tight_type:
 | ty = tlocated(raw_normal_type)
     { ty }
 
-raw_normal_type_no_adopts_rec(X):
+%inline raw_normal_type_no_adopts_rec(X):
 | ty = raw_tight_type
     { ty }
 (* The syntax of function types is [t -> t], as usual. *)
@@ -725,7 +725,7 @@ raw_loose_pattern:
 (* Sometimes a variable is viewed as a term binding. This is a degenerate
    case of a pattern. *)
 
-variable_as_term_binding:
+%inline variable_as_term_binding:
   x = variable
     { x, KValue, ($startpos(x), $endpos) }
 
@@ -914,7 +914,7 @@ raw_reasonable_expression:
   DO e2 = reasonable_expression
     { EWhile (p, e1, e2) }
 | p = optional_preserving
-  FOR x = variable_as_term_binding EQUAL e1 = expression f = for_flag e2 = expression
+  FOR x = variable_as_term_binding EQUAL e1 = expression f = direction e2 = expression
   DO e = reasonable_expression
     { EFor (p, x, e1, f, e2, e) }
   (* We cannot allow "let" on the right-hand side of an assignment, because
@@ -1002,7 +1002,7 @@ rec_flag:
 |
     { Nonrecursive }
 
-for_flag:
+direction:
 | TO
     { To }
 | DOWNTO
@@ -1102,7 +1102,7 @@ value_declaration:
 
 (* This is a toplevel item; it appears in interfaces and implementations. *)
 
-open_directive:
+%inline open_directive:
 | OPEN m = module_name
     { OpenDirective m }
 
