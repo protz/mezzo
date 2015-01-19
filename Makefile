@@ -12,9 +12,14 @@
 ML_DIRS    := lib parsing typing utils interpreter compiler tests/unit ocamlbuild
 MZ_DIRS    := mezzolib corelib stdlib
 
+# TEMPORARY
+ifndef MENHIR
+  MENHIR   := $(HOME)/dev/menhir/src/_stage1/menhir.native
+endif
+
 # Our tools are ocamlbuild and ocamlfind
 OCAMLBUILD := ocamlbuild -j 4 -use-ocamlfind -use-menhir \
-	      -menhir "menhir --explain --infer -la 1 --table" \
+	      -menhir "$(MENHIR) --explain --infer -la 1 --table --inspection" \
 	      -classic-display \
 	      $(addprefix -I ,$(ML_DIRS)) \
 	      $(addprefix -I ,$(MZ_DIRS))
