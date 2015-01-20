@@ -12,9 +12,14 @@
 ML_DIRS    := lib parsing typing utils interpreter compiler tests/unit ocamlbuild
 MZ_DIRS    := mezzolib corelib stdlib
 
+# Allow an override for Menhir.
+ifndef MENHIR
+  MENHIR := menhir
+endif
+
 # Our tools are ocamlbuild and ocamlfind
 OCAMLBUILD := ocamlbuild -j 4 -use-ocamlfind -use-menhir \
-	      -menhir "menhir --explain --infer -la 1 --table" \
+	      -menhir "$(MENHIR) --explain --infer -la 1 --table" \
 	      -classic-display \
 	      $(addprefix -I ,$(ML_DIRS)) \
 	      $(addprefix -I ,$(MZ_DIRS))

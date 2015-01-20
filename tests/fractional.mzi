@@ -8,33 +8,33 @@ abstract permission (x : value) a
    as a fixed-precision or arbitrary-precision dyadic number. *)
 
 (* If [x] has type [ref a], then the call [share x] produces a fresh
-   fractional permission, whose value_ is 1, for [x]. The static
+   fractional permission, whose value is 1, for [x]. The static
    permission [x @ ref a] is consumed, so [x] can no longer be
    directly read or written. *)
 
 val share: [a] (consumes x: ref a) -> permission x a
 
 (* [fork p] splits the fractional permission [p] into two halves of equal
-   value_. *)
+   value. *)
 
 (* We could have [fork] return a pair of fractional permissions, but it
-   seems more interesting/efficient to have it return a single value_ [p],
+   seems more interesting/efficient to have it return a single value [p],
    together with two static permissions to use [p]! Mind-boggling. *)
 
 val fork: [x : value, a] (consumes permission x a) -> (p: permission x a | p @ permission x a)
 
 (* [join] is roughly the converse of [fork], although the two fractions
-   need to be equal. [join] can be thought of as addition of fractions. *)
+   need not be equal. [join] can be thought of as addition of fractions. *)
 
 val join: [x : value, a] (consumes permission x a, consumes permission x a) -> permission x a
 
 (* [claim] is the converse of [share]. The call [claim p] checks, at runtime,
-   that the value_ of [p] is 1. If so, the call succeeds and a static
+   that the value of [p] is 1. If so, the call succeeds and a static
    permission [x @ ref a] is produced. Otherwise, the call fails at
    runtime. *)
 
 (* One could also provide an operation that allows testing dynamically whether
-   the value_ of a fractional permission [p] is 1. *)
+   the value of a fractional permission [p] is 1. *)
 
 val claim: [x : value, a] (consumes permission x a) -> (| x @ ref a) (* failure is fatal *)
 

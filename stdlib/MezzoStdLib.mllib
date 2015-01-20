@@ -8,6 +8,7 @@ mz_doublylinked
 mz_either
 mz_fix
 mz_focused
+mz_future
 mz_hashtable
 mz_hide
 mz_iterator
