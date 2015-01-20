@@ -19,6 +19,7 @@
 
 open Lexer
 open Types
+module H = HtmlOutput (* TEMPORARY *)
 
 (* -------------------------------------------------------------------------- *)
 
