@@ -12,9 +12,11 @@
 ML_DIRS    := lib parsing typing utils interpreter compiler tests/unit ocamlbuild
 MZ_DIRS    := mezzolib corelib stdlib
 
-# TEMPORARY
+# Allow an override for Menhir.
 ifndef MENHIR
-  MENHIR   := $(HOME)/dev/menhir/src/_stage1/menhir.native
+# TEMPORARY
+  MENHIR := $(HOME)/dev/menhir/src/_stage1/menhir.native
+# MENHIR := menhir
 endif
 
 # Our tools are ocamlbuild and ocamlfind
