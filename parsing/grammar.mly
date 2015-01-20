@@ -162,21 +162,44 @@ maybe_qualified(X):
 
 (* ---------------------------------------------------------------------------- *)
 
-(* Flexible lists. *)
+(* In a right-flexible list, the last delimiter is optional, i.e., [delim]
+   can be viewed as a terminator or a separator, as desired. *)
 
-separated_or_terminated_list(sep, X):
+(* There are several ways of expressing this. One could say it is either a
+   separated list or a terminated list; this works if one uses right
+   recursive lists. Or, one could say that it is separated list followed
+   with an optional delimiter; this works if one uses a left-recursive
+   list. The following formulation is direct and seems most natural. It
+   should lead to the smallest possible automaton. *)
+
+right_flexible_list(delim, X):
 | (* nothing *)
     { [] }
-| xs = terminated(X, sep)+
-| xs = separated_nonempty_list(sep, X)
-    { xs }
+| x = X
+    { [x] }
+| x = X delim xs = right_flexible_list(delim, X)
+    { x :: xs }
 
-separated_or_preceded_list(sep, X):
+(* In a left-flexible list, the first delimiter is optional, i.e., [delim]
+   can be viewed as an opening or as a separator, as desired. *)
+
+(* Again, there are several ways of expressing this, and again, I suppose
+   the following formulation is simplest. It is the mirror image of the
+   above definition, so it is naturally left-recursive, this time. *)
+
+reverse_left_flexible_list(delim, X):
 | (* nothing *)
     { [] }
-| xs = preceded(sep, X)+
-| xs = separated_nonempty_list(sep, X)
-    { xs }
+| x = X
+    { [x] }
+| xs = reverse_left_flexible_list(delim, X) delim x = X
+    { x :: xs }
+
+%inline left_flexible_list(delim, X):
+  xs = reverse_left_flexible_list(delim, X)
+    { List.rev xs }
+
+(* A separated list of at least two elements. *)
 
 %inline separated_list_of_at_least_two(sep, X):
 | x1 = X sep x2 = separated_nonempty_list(sep, X)
@@ -206,13 +229,13 @@ separated_or_preceded_list(sep, X):
 (* Syntax for type abstraction and universal quantification. *)
 
 type_parameters:
-| LBRACKET bs = separated_or_terminated_list(COMMA, type_binding) RBRACKET
+| LBRACKET bs = right_flexible_list(COMMA, type_binding) RBRACKET
     { bs }
 
 (* Syntax for existential quantification. *)
 
 existential_quantifiers:
-| LBRACE bs = separated_or_terminated_list(COMMA, type_binding) RBRACE
+| LBRACE bs = right_flexible_list(COMMA, type_binding) RBRACE
     { bs }
 
 (* ---------------------------------------------------------------------------- *)
@@ -508,7 +531,7 @@ generic_bare_datacon_application(Y):
    separated (or -terminated) list of things. *)
 
 %inline datacon_application(Y):
-| xys = generic_datacon_application(separated_or_terminated_list(SEMI, Y))
+| xys = generic_datacon_application(right_flexible_list(SEMI, Y))
     { xys }
 
 (* ---------------------------------------------------------------------------- *)
@@ -548,7 +571,7 @@ data_field_def:
 (* Field definitions are semicolon-separated or -terminated. *)
 
 %inline data_fields_def:
-  fss = separated_or_terminated_list(SEMI, data_field_def)
+  fss = right_flexible_list(SEMI, data_field_def)
     { List.flatten fss }
 
 (* A list of field definitions is optionally followed with BAR and a
@@ -594,7 +617,7 @@ data_type_def_branch_content:
     }
 
 %inline data_type_def_rhs:
-  bs = separated_or_preceded_list(BAR, data_type_def_branch)
+  bs = left_flexible_list(BAR, data_type_def_branch)
     { bs }
 
 %inline optional_kind_annotation:
@@ -775,7 +798,7 @@ raw_atomic_expression:
   b = explain
   e = expression
   WITH
-  bs = separated_or_preceded_list(BAR, match_branch)
+  bs = left_flexible_list(BAR, match_branch)
   END
     { EMatch (b, e, bs) }
 (* The unit value. *)
