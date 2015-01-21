@@ -123,3 +123,36 @@ We perform:
   and building up a css table on the side, mapping div ids to lists of spans that should change color on mouseover
 *)
 
+(* [array_search] implements logarithmic-time search in a sorted array. [cmp]
+   is the ordering function. [a] is the array, which must be sorted, and may
+   contain duplicate elements. [lo] and [hi] determine the semi-open interval
+   within which we are searching. [v] is the value we are looking for; it must
+   appear in the search interval. The function returns an index at which [v]
+   is found. *)
+
+let rec array_search cmp a lo hi v =
+  (* Because [v] appears in the array, the interval between [lo]
+     and [hi] cannot be empty. *)
+  assert (lo < hi);
+  (* If this interval has just one element, then it must be [v],
+     and we are done. *)
+  if lo + 1 = hi then begin
+    assert (cmp a.(lo) v = 0);
+    lo
+  end
+  (* Otherwise, split it in the middle, and look for [v] on the
+     appropriate side. *)
+  else
+    let mid = lo + (hi - lo) / 2 in
+    assert (lo < mid && mid < hi);
+    let c = cmp a.(mid) v in
+    if c = 0 then
+      mid
+    else if c < 0 then
+      array_search cmp a mid hi v
+    else
+      array_search cmp a lo mid v
+
+let array_search cmp a v =
+  array_search cmp a 0 (Array.length a) v
+
