@@ -71,19 +71,21 @@ let ctag tag =
 
 (* Opening and closing <span> tags. *)
 
-let ospan c =
-  otag "span" [ "class", c ]
+let span id f =
+  otag "span" [ "id", id ]; f(); ctag "span"
 
-let cspan () =
-  ctag "span"
+(* <div> tags, causing another element to by highlighted. *)
 
-let span c f =
-  ospan c; f(); cspan()
+let chbg target color =
+  sprintf "chbg('%s', '%s')" target color
 
-(* <div> tags. *)
-
-let div id f =
-  otag "div" [ "id", id ]; f(); ctag "div"
+let div target color f =
+  otag "div" [
+    "onmouseover", chbg target color;
+    "onmouseout", chbg target "white"
+  ];
+  f();
+  ctag "div"
 
 (* <pre> tags. *)
 
@@ -99,7 +101,7 @@ let line_number b i =
 
 (* Printing a document header and footer. *)
 
-let document_header title style =
+let document_header title style script =
   bprintf b "\
     <!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.01//EN\" \
     \"http://www.w3.org/TR/html4/strict.dtd\">\n\
@@ -108,10 +110,11 @@ let document_header title style =
       <meta http-equiv=\"content-type\" content=\"text/html; charset=us-ascii\">\n  \
       <title>%s</title>\n  \
       <style type=\"text/css\">\n%s</style>\n\
+      <script>\n%s</script>\n\
     </head>\n\
     <body>\n\
     "
-    title style
+    title style script
 
 let document_footer () =
   bprintf b "</body>\n</html>\n"
@@ -247,12 +250,22 @@ and run2 input_filename positions =
         done
       )
     done
+  );
+  (* Print the explanations. *)
+  div "100" "red" (fun () ->
+    escape_string "Essai"
   )
 
 (* TEMPORARY *)
 
 let essai =
-  document_header "Essai" "";
+  let script = "\n\
+    function chbg (target, color) { \n\
+      document.getElementById(target).style.backgroundColor = color;\n\
+    }\n\
+  " in
+  let style = "" in
+  document_header "Essai" style script;
   run2 "/Users/fpottier/dev/menhir/src/IO.ml" [| 0; 100; 200; 300 |];
   document_footer();
   let output_filename = "essai.html" in
