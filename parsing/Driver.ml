@@ -19,7 +19,6 @@
 
 open Lexer
 open Types
-module H = HtmlOutput (* TEMPORARY *)
 
 (* -------------------------------------------------------------------------- *)
 
@@ -346,10 +345,11 @@ let lex_and_parse_raw lexbuf file_path (entry : unit -> 'a Grammar.MenhirInterpr
         Printf.eprintf
           "Invalid code var %i at offset %i\n" i (Ulexing.lexeme_end lexbuf);
         exit 254
-    | E.Error explanations ->
+    | E.Error (_, explanations) ->
         MzString.beprintf "%a\nError: Syntax error\n"
           print_position lexbuf;
-        List.iter P.print_item explanations;
+        List.iter (fun e -> P.print_item e.MenhirLib.ErrorReporting.item) explanations;
+        HtmlOutput.run PS.print_symbol file_path explanations "report.html";
         let start_pos = Lexer.start_pos lexbuf in
         let end_pos = Lexer.end_pos lexbuf in
         JsGlue.highlight_range start_pos end_pos;

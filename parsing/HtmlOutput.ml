@@ -1,43 +1,14 @@
 open Printf
 open Buffer
 open Lexing
+open MenhirLib.ErrorReporting
 
-(* --------------------------------------------------------------------------- *)
-
-(* The syntax error messages that we wish to render have the following
-   structure. *)
-
-type message = {
-  (* A file name. For simplicity, we currently re-read the file. *)
-  msg_filename: string;
-  (* A list of explanations. *)
-  msg_explanations: explanation list
-}
-
-and explanation = {
-  (* A past. This is a list of words (terminal and non-terminal symbols,
-     really), each of which is linked to a range of the input file.
-     They represent what we have understood so far. *)
-  past: (word * position * position) list;
-  (* A future. This is a list of words (symbols, really). They represent
-     what we expect to read next. *)
-  future: word list;
-  (* A goal (a non-terminal symbol). It represents the reduction that we
-     will perform if we read this future. *)
-  goal: word
-}
-
-and word =
-    string
-
-(* --------------------------------------------------------------------------- *)
-
-(* Parameters. *)
+(* For convenience, we use a global buffer. *)
 
 let b =
-  Buffer.create 1024 (* TEMPORARY *)
+  Buffer.create 4096
 
-(* Escaping characters within <pre> or <code>. *)
+(* Escaping characters within <pre>, etc. *)
 
 let escape_char c =
   match c with
@@ -59,38 +30,56 @@ let utf8 (cp : int) =
 
 (* Opening and closing tags. *)
 
-let otag tag attributes =
+let raw_tag tag attributes content =
   bprintf b "<%s" tag;
-  List.iter (fun (attribute, value) ->
-    bprintf b " %s=\"%s\"" attribute value
-  ) attributes;
-  bprintf b ">"
-
-let ctag tag =
+  attributes();
+  bprintf b ">";
+  content();
   bprintf b "</%s>" tag
 
-(* Opening and closing <span> tags. *)
+let tag tag attributes content =
+  raw_tag tag (fun () ->
+    List.iter (fun (attribute, value) ->
+      bprintf b " %s=\"%s\"" attribute value
+    ) attributes
+  ) content
+
+(* <span>. *)
 
 let span id f =
-  otag "span" [ "id", id ]; f(); ctag "span"
+  tag "span" [ "id", id ] f
 
-(* <div> tags, causing another element to by highlighted. *)
+(* <div>, causing another element to by highlighted. *)
 
 let chbg target color =
-  sprintf "chbg('%s', '%s')" target color
+  bprintf b "chbg('%s', '%s');" target color
 
-let div target color f =
-  otag "div" [
-    "onmouseover", chbg target color;
-    "onmouseout", chbg target "white"
-  ];
-  f();
-  ctag "div"
+let div targets color content =
+  raw_tag "span" (fun () ->
+    bprintf b " onmouseover=\"";
+    targets (fun target -> chbg target color);
+    bprintf b "\"";
+    bprintf b " onmouseout=\"";
+    targets (fun target -> chbg target "white");
+    bprintf b "\"";
+  ) content
 
-(* <pre> tags. *)
+(* <table> *)
 
-let pre f =
-  otag "pre" []; f(); ctag "pre"
+let th classe content =
+  tag "th" [ "class", classe ] content
+
+let td classe content =
+  tag "td" [ "class", classe ] content
+
+let tr content =
+  tag "tr" [] content
+
+let table head body =
+  tag "table" [] (fun () ->
+    tag "thead" [] head;
+    tag "tbody" [] body
+  )
 
 (* Printing a line number. *)
 
@@ -119,26 +108,6 @@ let document_header title style script =
 let document_footer () =
   bprintf b "</body>\n</html>\n"
 
-(*
-
-We expect:
-  a source file name (or directly its contents)
-  a bunch of positions of interest
-We perform:
-  sort the positions by cnum, place them in a sorted array
-  deduce the source code interval that we need to display (extending it to the beginning of the first line)
-  print this interval within <pre>, inserting </span><span class="i"> at every position i of interest
-    plus one <span> at the beginning and one </span> at the end
-  set up a function that converts a pair of positions of interest to a list of span names
-    logarithmic search in the array should do
-We expect:
-  a table containing text fragments plus indications that some fragments are associated with a pair of positions
-We perform:
-  convert to HTML table
-  emitting div with fresh ids for the fragments
-  and building up a css table on the side, mapping div ids to lists of spans that should change color on mouseover
-*)
-
 (* [array_search] implements logarithmic-time search in a sorted array. [cmp]
    is the ordering function. [a] is the array, which must be sorted, and may
    contain duplicate elements. [lo] and [hi] determine the semi-open interval
@@ -166,6 +135,13 @@ let rec array_search cmp a lo hi v =
 
 let array_search cmp a v =
   array_search cmp a 0 (Array.length a) v
+
+let success o =
+  match o with
+  | None ->
+      assert false
+  | Some x ->
+      x
 
 (* Copied from Menhir's IO. *)
 
@@ -211,8 +187,23 @@ let compare_positions pos1 pos2 =
 let pos2span =
   string_of_int
 
-let rec run (input_filename : string) (positions : position list) =
+let run print_symbol filename explanations =
+  assert (explanations <> []);
+  (* Gather all positions. *)
+  let positions : position list =
+    List.fold_left (fun accu { past; _ } ->
+      assert (past <> []);
+      List.fold_left (fun accu (_, pos1, pos2) ->
+        pos1 :: pos2 :: accu
+      ) accu past
+    ) [] explanations
+  in
+  (* Make sure the positions seem reasonable. *)
   assert (positions <> []);
+  List.iter (fun pos ->
+    assert (pos.pos_bol >= 0);
+    assert (pos.pos_cnum >= 0)
+  ) positions;
   (* Sort the list of positions and remove duplicate elements. *)
   let positions = MenhirLib.General.weed compare_positions positions in
   (* Extract the first position of the list, which tells us how far back
@@ -229,18 +220,30 @@ let rec run (input_filename : string) (positions : position list) =
   (* Turn the list of positions into an array of integers. *)
   let positions = Array.of_list positions in
   let positions = Array.map (fun pos -> pos.pos_cnum) positions in
-  run2 input_filename positions
-
-and run2 input_filename positions =
   let n = Array.length positions in
+  (* Define a function that allows iterating on the spans comprised
+     between [pos1] and [pos2]. *)
+  let between pos1 pos2 f =
+    let pos1 = pos1.pos_cnum
+    and pos2 = pos2.pos_cnum in
+    assert (pos1 <= pos2);
+    let i1 = success (array_search compare positions pos1)
+    and i2 = success (array_search compare positions pos2) in
+    assert (i1 <= i2);
+    for i = i1 to i2-1 do
+      f (pos2span positions.(i))
+    done
+  in
   (* Read the whole file again. Reading the file segment comprised between
      the start and end positions would suffice, but that is not so easy,
      considering the file is UTF-8 encoded and CRLF conversion might be
      taking place. *)
-  let data : int array = decode_utf8 (read_whole_file input_filename) in
+  let data : int array = decode_utf8 (read_whole_file filename) in
+  (* Check that all positions exist in the file. *)
+  assert (positions.(n) < Array.length data);
   (* Open a <pre> tag. Within it, print the file segment of interest, adding
      <span> and </span> tags at appropriate locations. *)
-  pre (fun () ->
+  tag "pre" [] (fun () ->
     (* We have [n] locations of interest, hence [n-1] spans. *)
     for i = 0 to n-2 do
       span (pos2span positions.(i)) (fun () ->
@@ -252,24 +255,61 @@ and run2 input_filename positions =
     done
   );
   (* Print the explanations. *)
-  div "100" "red" (fun () ->
-    escape_string "Essai"
+  table (fun () ->
+    tr (fun () ->
+      th "past" (fun () ->
+        escape_string "We have recognized this:"
+      );
+      th "future" (fun () ->
+        escape_string "We expect this:"
+      );
+      th "goal" (fun () ->
+        escape_string "So as to obtain this:"
+      );
+    )
+  ) (fun () ->
+    List.iter (fun { past; future; goal; _ } ->
+      tr (fun () ->
+        td "past" (fun () ->
+          List.iter (fun (symbol, pos1, pos2) ->
+            div (between pos1 pos2) "#90EE90" (fun () ->
+              escape_string (print_symbol symbol);
+              escape_char ' '
+            )
+          ) past
+        );
+        td "future" (fun () ->
+          List.iter (fun symbol ->
+            escape_string (print_symbol symbol);
+            escape_char ' '
+          ) future
+        );
+        td "goal" (fun () ->
+          escape_string (print_symbol goal)
+        )
+      )
+    ) explanations
   )
 
-(* TEMPORARY *)
-
-let essai =
-  let script = "\n\
+let run print_symbol filename explanations output_filename =
+  let script = "\
     function chbg (target, color) { \n\
       document.getElementById(target).style.backgroundColor = color;\n\
     }\n\
   " in
-  let style = "" in
-  document_header "Essai" style script;
-  run2 "/Users/fpottier/dev/menhir/src/IO.ml" [| 0; 100; 200; 300 |];
+  let style = "\
+    pre { background-color: #f0f0f0 }\n\
+    table { display: block; overflow-y: scroll; table-layout: fixed; width: 100%; height: 640px; border-spacing: 50px 10px; }\n\
+    .past { width: 40%; text-align: right; background-color: #fff0ff; }\n\
+    .future { width: 40%; text-align: left; background-color: #f0ffff; }\n\
+    .goal { width: 20%; text-align: left; background-color: #fffff0; }\n\
+  " in
+  Buffer.clear b;
+  document_header "Syntax error" style script;
+  run print_symbol filename explanations;
   document_footer();
-  let output_filename = "essai.html" in
   let c = open_out output_filename in
   output_string c (Buffer.contents b);
-  close_out c
+  close_out c;
+  Buffer.clear b
 
