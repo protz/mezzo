@@ -2,32 +2,49 @@ open Printf
 open Buffer
 open Lexing
 
+(* --------------------------------------------------------------------------- *)
+
+(* The syntax error messages that we wish to render have the following
+   structure. *)
+
+type message = {
+  (* A file name. For simplicity, we currently re-read the file. *)
+  msg_filename: string;
+  (* A list of explanations. *)
+  msg_explanations: explanation list
+}
+
+and explanation = {
+  (* A past. This is a list of words (terminal and non-terminal symbols,
+     really), each of which is linked to a range of the input file.
+     They represent what we have understood so far. *)
+  past: (word * position * position) list;
+  (* A future. This is a list of words (symbols, really). They represent
+     what we expect to read next. *)
+  future: word list;
+  (* A goal (a non-terminal symbol). It represents the reduction that we
+     will perform if we read this future. *)
+  goal: word
+}
+
+and word =
+    string
+
+(* --------------------------------------------------------------------------- *)
+
 (* Parameters. *)
 
 let b =
   Buffer.create 1024 (* TEMPORARY *)
 
-let nbsp =
-  false (* TEMPORARY *)
-
-let charset =
-  "iso-8859-1"
-
-let generator =
-  "Menhir"
-
-let output_filename =
-  "essai.html"
-
 (* Escaping characters within <pre> or <code>. *)
 
 let escape_char c =
   match c with
-  | '<'           -> add_string b "&lt;"
-  | '>'           -> add_string b "&gt;"
-  | '&'           -> add_string b "&amp;"
-  | ' ' when nbsp -> add_string b "&nbsp;"
-  | c             -> add_char   b c
+  | '<' -> add_string b "&lt;"
+  | '>' -> add_string b "&gt;"
+  | '&' -> add_string b "&amp;"
+  | c   -> add_char   b c
 
 let escape_string s =
   String.iter escape_char s
@@ -35,9 +52,10 @@ let escape_string s =
 (* Printing a Unicode code point. *)
 
 let utf8 (cp : int) =
-  bprintf b "&#%d;" cp
-    (* TEMPORARY we should print it as an (escaped) ASCII character if
-       it is in the ASCII range *)
+  if cp <= 0x7f then
+    escape_char (Char.chr cp)
+  else
+    bprintf b "&#%d;" cp
 
 (* Opening and closing tags. *)
 
@@ -87,14 +105,13 @@ let document_header title style =
     \"http://www.w3.org/TR/html4/strict.dtd\">\n\
     <html>\n\
     <head>\n  \
-      <meta http-equiv=\"content-type\" content=\"text/html; charset=%s\">\n  \
+      <meta http-equiv=\"content-type\" content=\"text/html; charset=us-ascii\">\n  \
       <title>%s</title>\n  \
-      <meta name=\"GENERATOR\" content=\"%s\">\n  \
       <style type=\"text/css\">\n%s</style>\n\
     </head>\n\
     <body>\n\
     "
-    charset title generator style
+    title style
 
 let document_footer () =
   bprintf b "</body>\n</html>\n"
@@ -213,31 +230,23 @@ let rec run (input_filename : string) (positions : position list) =
 
 and run2 input_filename positions =
   let n = Array.length positions in
-  (* Extract the first and last positions of the array. *)
-  let start : int = positions.(0) in
-  let finish : int = positions.(n-1) in
-  (* Read the file segment comprised between [start] and [finish]. We
-     do this inefficiently by reading the entire file again. We assume
-     the file is UTF8-encoded. *)
+  (* Read the whole file again. Reading the file segment comprised between
+     the start and end positions would suffice, but that is not so easy,
+     considering the file is UTF-8 encoded and CRLF conversion might be
+     taking place. *)
   let data : int array = decode_utf8 (read_whole_file input_filename) in
-  (* Open a <pre> tag. Within it, print every character. Add </span><span>
-     tags at interesting locations. *)
+  (* Open a <pre> tag. Within it, print the file segment of interest, adding
+     <span> and </span> tags at appropriate locations. *)
   pre (fun () ->
-    assert (array_search compare positions start = Some 0);
-    (* For each location that precedes a character... *)
-    for i = start to finish - 1 do
-      (* If this is an interesting location, close the previous span
-         (if one was opened) and open a new one. *)
-      if array_search compare positions i <> None then begin
-        if i > start then cspan();
-        ospan (pos2span i)
-      end;
-      (* Print the character at position [i]. *)
-      utf8 data.(i)
-    done;
-    (* There remains to deal with the location [finish]. Close the
-       previous span (if one was opened). *)
-    if finish > start then cspan()
+    (* We have [n] locations of interest, hence [n-1] spans. *)
+    for i = 0 to n-2 do
+      span (pos2span positions.(i)) (fun () ->
+        (* Within each span, print raw characters. *)
+        for j = positions.(i) to positions.(i+1)-1 do
+          utf8 data.(j)
+        done
+      )
+    done
   )
 
 (* TEMPORARY *)
@@ -246,6 +255,7 @@ let essai =
   document_header "Essai" "";
   run2 "/Users/fpottier/dev/menhir/src/IO.ml" [| 0; 100; 200; 300 |];
   document_footer();
+  let output_filename = "essai.html" in
   let c = open_out output_filename in
   output_string c (Buffer.contents b);
   close_out c
