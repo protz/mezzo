@@ -221,6 +221,7 @@ let run print_symbol filename explanations =
   let positions = Array.of_list positions in
   let positions = Array.map (fun pos -> pos.pos_cnum) positions in
   let n = Array.length positions in
+  assert (n > 0);
   (* Define a function that allows iterating on the spans comprised
      between [pos1] and [pos2]. *)
   let between pos1 pos2 f =
@@ -240,7 +241,7 @@ let run print_symbol filename explanations =
      taking place. *)
   let data : int array = decode_utf8 (read_whole_file filename) in
   (* Check that all positions exist in the file. *)
-  assert (positions.(n) < Array.length data);
+  assert (positions.(n - 1) < Array.length data);
   (* Open a <pre> tag. Within it, print the file segment of interest, adding
      <span> and </span> tags at appropriate locations. *)
   tag "pre" [] (fun () ->
