@@ -2,21 +2,16 @@ open thread
 open lock
 open osf
 
+(* A result is a reference that has been frozen. *)
 
-(* The suspension of a future is either:
-     - a computation awaiting its (one shot) evaluation, or
-     - the memoized result of that computation *)
-
-data suspension a = 
-       | mutable Init { k: osf () a }
-       | Res { r: a }
+data result a =
+  R { result: a }
 
 (* The future itself is the pair of:
-     - a suspension [s]
-     - a lock asserting that [s] is fully-evaluated *)
+     - a reference [s];
+     - a lock asserting that [s] has been frozen. *)
 
-alias future a = (s: unknown, lock (s @ Res { r: a }))
-
+alias future a = (s: unknown, lock (s @ result a))
 
 (* To create a future, the key idea (due to François) is to create the
    lock in [locked] state: the [compute] thread we spawn is
@@ -25,17 +20,15 @@ alias future a = (s: unknown, lock (s @ Res { r: a }))
    invariant, which holds forever after. *)
 
 val new [a] duplicable a => (consumes k: osf () a) : future a
-    = let susp = Init { k = k } in
-      let l : (l: lock (susp @ Res { r: a }) | l @ locked)  = new_locked () in
-      let compute (| consumes (susp @ Init { k: osf () a } * 
-                                  l @ locked)) : () = 
-        (* Turn susp.Init { k = k } into susp.Res { r = susp.k () }: *)
-	susp.k <- susp.k (); 
-        tag of susp <- Res;
+    = let s = newref () in
+      let l : (l: lock (s @ result a) | l @ locked)  = new_locked () in
+      let compute (| consumes (k @ osf () a * s @ ref () * l @ locked)) : () = 
+	s := k(); 
+        tag of s <- R;
 	release l
       in
       (* Concurrently compute and return the future: *)
-      spawn compute; (susp, l)
+      spawn compute; (s, l)
 
 (* By this design, forcing a future consists simply in waiting for
    [compute] to terminate, ie. wait for [l] to be released. *)
@@ -43,5 +36,6 @@ val new [a] duplicable a => (consumes k: osf () a) : future a
 val force [a] duplicable a => (f: future a) : a 
   = let s, l = f in
     acquire l; release l;
-    s.r
+    assert s @ result a;
+    s.result
 
