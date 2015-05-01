@@ -33,24 +33,16 @@ val g: graph int =
   g
 
 val dfs [a] (g: graph a, f: a -> ()): () =
-  let work_list = newref nil in
-  let rec dfs (n: nested_node g a | g @ graph a * work_list @ ref (list (nested_node g a))): () =
+  let s = stack::new [nested_node g a] g.roots in
+  stack::work (s, fun (n: nested_node g a | g @ graph a * s @ stack::stack (nested_node g a)): () =
     focus [g, (n @ node g a)] ();
     if not n.seen then begin
       f n.contents;
-      work_list := append (n.neighbors, !work_list);
+      stack::push (n.neighbors, s);
       n.seen <- true;
     end;
     defocus [g] ();
-    match !work_list with
-    | Cons { head; tail } ->
-        work_list := tail;
-        dfs head
-    | Nil ->
-        ()
-    end
-  in
-  iter (g.roots, dfs)
+  )
 
 val _ =
   dfs (g, print)
