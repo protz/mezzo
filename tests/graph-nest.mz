@@ -1,29 +1,56 @@
 open list
 open nest
 
-data mutable graph =
+data mutable graph a =
   (g: Graph {
-    roots: list (node g)
+    roots: list (nested_node g a)
   })
 
-and alias node (g: value) =
-  (n: unknown | nests g (n @ node_ g))
+and alias nested_node (g: value) a =
+  (n: unknown | nests g (n @ node g a))
 
-and mutable node_ (g: value) =
+and mutable node (g: value) a =
   Node {
-    neighbors: list (node g)
+    seen: bool;
+    contents: a;
+    neighbors: list (nested_node g a)
   }
 
-val _: graph =
+val g: graph int =
   let g = Graph {
     roots = nil
   } in
   let n = Node {
+    seen = false;
+    contents = 10;
     neighbors = nil;
   } in
-  nest [g, (n @ node_ g)] ();
-  consult (fun (| n @ node_ g): () =
-    n.neighbors <- cons [node g] (n, nil);
+  nest [g, (n @ node g int)] ();
+  consult (fun (| n @ node g int): () =
+    n.neighbors <- cons [nested_node g int] (n, nil);
   );
   g.roots <- cons (n, nil);
   g
+
+val dfs [a] (g: graph a, f: a -> ()): () =
+  let work_list = newref nil in
+  let rec dfs (n: nested_node g a | g @ graph a * work_list @ ref (list (nested_node g a))): () =
+    focus [g, (n @ node g a)] ();
+    if not n.seen then begin
+      f n.contents;
+      work_list := append (n.neighbors, !work_list);
+      n.seen <- true;
+    end;
+    defocus [g] ();
+    match !work_list with
+    | Cons { head; tail } ->
+        work_list := tail;
+        dfs head
+    | Nil ->
+        ()
+    end
+  in
+  iter (g.roots, dfs)
+
+val _ =
+  dfs (g, print)
