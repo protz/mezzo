@@ -2,7 +2,7 @@
    of a nonzero fractional permission for the reference cell [x],
    whose ``real'' type is [ref a]. *)
 
-abstract permission (x : term) a
+abstract permission (x : value) a
 
 (* [permission x a] is a non-duplicable type. It could be implemented
    as a fixed-precision or arbitrary-precision dyadic number. *)
@@ -21,12 +21,12 @@ val share: [a] (consumes x: ref a) -> permission x a
    seems more interesting/efficient to have it return a single value [p],
    together with two static permissions to use [p]! Mind-boggling. *)
 
-val fork: [x : term, a] (consumes permission x a) -> (p: permission x a | p @ permission x a)
+val fork: [x : value, a] (consumes permission x a) -> (p: permission x a | p @ permission x a)
 
 (* [join] is roughly the converse of [fork], although the two fractions
-   need to be equal. [join] can be thought of as addition of fractions. *)
+   need not be equal. [join] can be thought of as addition of fractions. *)
 
-val join: [x : term, a] (consumes permission x a, consumes permission x a) -> permission x a
+val join: [x : value, a] (consumes permission x a, consumes permission x a) -> permission x a
 
 (* [claim] is the converse of [share]. The call [claim p] checks, at runtime,
    that the value of [p] is 1. If so, the call succeeds and a static
@@ -36,7 +36,7 @@ val join: [x : term, a] (consumes permission x a, consumes permission x a) -> pe
 (* One could also provide an operation that allows testing dynamically whether
    the value of a fractional permission [p] is 1. *)
 
-val claim: [x : term, a] (consumes permission x a) -> (| x @ ref a) (* failure is fatal *)
+val claim: [x : value, a] (consumes permission x a) -> (| x @ ref a) (* failure is fatal *)
 
 (* The call [read x] allows reading the reference [x], provided a fractional
    permission for [x] is available. It is interesting to note that the call
@@ -53,7 +53,7 @@ val claim: [x : term, a] (consumes permission x a) -> (| x @ ref a) (* failure i
    of read operation we would then provide. For soundness, [read] requires the
    type [a] to be duplicable. *)
 
-val read: [a, p : term] duplicable a => (x: unknown | p @ permission x a) -> a
+val read: [a, p : value] duplicable a => (x: unknown | p @ permission x a) -> a
 
 (* If [read] is the only operation that allows using an object [x] for which
    only a fractional permission is available, then Mezzo programs remain
@@ -69,5 +69,5 @@ val read: [a, p : term] duplicable a => (x: unknown | p @ permission x a) -> a
    memory fence. (Or perhaps no fence at all, but in that case, we must be
    prepared to prove type soundness with respect to a relaxed memory model!) *)
 
-val swap: [a, p : term] (x: unknown, consumes v: a | p @ permission x a) -> a
+val swap: [a, p : value] (x: unknown, consumes v: a | p @ permission x a) -> a
 

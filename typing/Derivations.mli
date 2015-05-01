@@ -53,6 +53,9 @@ and judgement =
   | JAdd of typ
   | JDebug of typ * typ
 
+val is_bad_derivation: derivation -> bool
+val is_good_derivation: derivation -> bool
+
 (** {1 The type of primitive functions} *)
 
 (** Primitive operations return a result. A result is a lazy list of either a

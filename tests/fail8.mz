@@ -1,15 +1,15 @@
 
 data mutable tree k a =
   | Empty
-  | Node { left: tree k a; key: k; value: a; right: tree k a; height: int }
+  | Node { left: tree k a; key: k; value_: a; right: tree k a; height: int }
 
-val bal [k, a] (consumes t: Node { left: tree k a; key: k; value: a; right: tree k a; height: int }) : tree k a =
+val bal [k, a] (consumes t: Node { left: tree k a; key: k; value_: a; right: tree k a; height: int }) : tree k a =
   fail
 
 val rec extract_min_binding
   [k, a]
-  (consumes t : Node { left: tree k a; key: k; value: a; right: tree k a; height: int })
-  : (Node { left: Empty; key: k; value: a; right: unknown; height: int },
+  (consumes t : Node { left: tree k a; key: k; value_: a; right: tree k a; height: int })
+  : (Node { left: Empty; key: k; value_: a; right: unknown; height: int },
     tree k a)
   =
   match t.left with

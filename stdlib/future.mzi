@@ -1,0 +1,16 @@
+open thread
+open lock
+open osf
+
+
+abstract future a
+
+(* Creation *)
+
+(* Create a future while running it concurrently. *)
+val new : [a] duplicable a => (consumes k: osf () a) -> future a
+
+(* Execution *)
+
+(* Acquire the value computed by the future. *)
+val force : [a]  duplicable a => (f: future a) -> a

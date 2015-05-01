@@ -108,8 +108,6 @@ type expression =
   | EIfThenElse of bool * expression * expression * expression
   | ELocated of expression * location
   | EInt of int
-  (* Explanations *)
-  | EExplained of expression
   (* Adoption/abandon *)
   | EGive of expression * expression
   | ETake of expression * expression

@@ -14,6 +14,6 @@ val f [p : perm] (consumes c: channel (| p)) : () =
 
 (* The following assertion fails. *)
 
-val f [x: term, a] (consumes c: channel (| x @ a)) : () =
-  assert {y: term} (c @ channel (| y @ a))
+val f [x: value, a] (consumes c: channel (| x @ a)) : () =
+  assert {y: value} (c @ channel (| y @ a))
 

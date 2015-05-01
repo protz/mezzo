@@ -22,6 +22,8 @@ open TypeCore
 open Types
 open Either
 
+type t = (env * var) * (var list * var list * var list)
+
 type outcome = MergeWith of var | Proceed | Abort
 
 (* The logic is the same on both sides, but I'm writing this with
@@ -61,7 +63,7 @@ module Lifo = struct
   ;;
 end
 
-let actually_merge_envs (top: env) ?(annot: typ option) (left: env * var) (right: env * var): env * var =
+let actually_merge_envs (top: env) ?(annot: typ option) (left: env * var) (right: env * var): t =
   (* We use a work list (a LIFO) to schedule vars for merging. This implements
    * a depth-first traversal of the graph, which is indeed what we want (for the
    * moment). *)
@@ -111,6 +113,9 @@ let actually_merge_envs (top: env) ?(annot: typ option) (left: env * var) (right
         false
   in
 
+  let left_conflicts: var list ref = ref [] in
+  let right_conflicts: var list ref = ref [] in
+  let dest_conflicts: var list ref = ref [] in
 
   (* This oracle decides what to do with a given job. There are three outcomes:
     - we've already mapped the left and right vars to a certain var in the
@@ -153,19 +158,46 @@ let actually_merge_envs (top: env) ?(annot: typ option) (left: env * var) (right
          * non-duplicable permission), then we're in a case of exclusive
          * resource allocation conflict: we're trying to use, say, the same
          * left_var for a different right_var. *)
-        if List.exists (fun (l, _, _) ->
-          same left_env left_var l && is_marked left_env l
-        ) !known_triples then begin
-          let open TypeErrors in
-          let error = ResourceAllocationConflict left_var in
-          may_raise_error left_env error
+        begin match MzList.find_opt (fun (l, _, _) ->
+          if same left_env left_var l && is_marked left_env l then
+            Some l
+          else
+            None
+        ) !known_triples with
+        | Some l ->
+            let open TypeErrors in
+            let error = ResourceAllocationConflict left_var in
+            may_raise_error left_env error;
+            (* Highlight all the variables involved in the conflict. *)
+            left_conflicts := l :: !left_conflicts;
+            right_conflicts := right_var :: (MzList.map_some (fun (l', r, _) ->
+              if same left_env l l' then Some r else None
+            ) !known_triples) @ !right_conflicts;
+            dest_conflicts := dest_var :: (MzList.map_some (fun (l', _, d) ->
+              if same left_env l l' then Some d else None
+            ) !known_triples) @ !dest_conflicts;
+        | None ->
+            ()
         end;
-        if List.exists (fun (_, r, _) ->
-          same right_env right_var r && is_marked right_env r
-        ) !known_triples then begin
-          let open TypeErrors in
-          let error = ResourceAllocationConflict right_var in
-          may_raise_error right_env error
+        begin match MzList.find_opt (fun (_, r, _) ->
+          if same right_env right_var r && is_marked right_env r then
+            Some r
+          else
+            None
+        ) !known_triples with
+        | Some r ->
+            let open TypeErrors in
+            let error = ResourceAllocationConflict right_var in
+            may_raise_error right_env error;
+            right_conflicts := r :: !right_conflicts;
+            left_conflicts := left_var :: (MzList.map_some (fun (l, r', _) ->
+              if same left_env r r' then Some l else None
+            ) !known_triples) @ !left_conflicts;
+            dest_conflicts := dest_var :: (MzList.map_some (fun (_, r', d) ->
+              if same right_env r r' then Some d else None
+            ) !known_triples) @ !dest_conflicts;
+        | None ->
+            ()
         end;
 
 
@@ -256,7 +288,7 @@ let actually_merge_envs (top: env) ?(annot: typ option) (left: env * var) (right
     let left_env, left_root = left in
     let right_env, right_root = right in
     let root_name = fresh_auto_name "merge_root" in
-    let dest_env, dest_root = bind_rigid dest_env (root_name, KTerm, location dest_env) in
+    let dest_env, dest_root = bind_rigid dest_env (root_name, KValue, location dest_env) in
     push_job (left_root, right_root, dest_root);
 
     (* All bound types are kept, so remember that we know how these are mapped. *)
@@ -298,6 +330,7 @@ let actually_merge_envs (top: env) ?(annot: typ option) (left: env * var) (right
     (* In order to properly detect exclusive resource allocation conflicts, we
      * mark those vars that have non-duplicable permissions. *)
     let mark_duplicable_vars env =
+      let env = refresh_mark env in
       fold_terms env (fun env var permissions ->
         if List.exists (fun x -> not (FactInference.is_duplicable env x)) permissions then
           mark env var
@@ -473,7 +506,7 @@ let actually_merge_envs (top: env) ?(annot: typ option) (left: env * var) (right
           dest_env, dest_p
       | None ->
           let name = fresh_auto_name "merge_var" in
-          let dest_env, dest_p = bind_rigid dest_env (name, KTerm, location left_env) in
+          let dest_env, dest_p = bind_rigid dest_env (name, KValue, location left_env) in
           let dest_env = add_location dest_env dest_p (location right_env) in
           push_job (left_p, right_p, dest_p);
           Log.debug ~level:4
@@ -653,7 +686,7 @@ let actually_merge_envs (top: env) ?(annot: typ option) (left: env * var) (right
                 | Some dest_p ->
                     Some (left_env, right_env, dest_env, TyOpen dest_p)
                 | None ->
-                    Log.check (k <> KTerm) "Remove this when we have a testcase, \
+                    Log.check (k <> KValue) "Remove this when we have a testcase, \
                       and try to understand what's happening, and whether it's \
                       correct!";
 
@@ -1012,9 +1045,12 @@ let actually_merge_envs (top: env) ?(annot: typ option) (left: env * var) (right
         if simple t then
           env, t
         else
-          let env, point = bind_rigid env (fresh_auto_name "mtwu", KTerm, location env) in
+          let env, point = bind_rigid env (fresh_auto_name "mtwu", KValue, location env) in
           let env = Permissions.add env point t in
-          let t = List.find (fun x -> not (simple x)) (get_permissions env point) in
+          let t =
+            try List.find (fun x -> not (simple x)) (get_permissions env point)
+            with Not_found -> TyUnknown
+          in
           env, t
       in
       let left_env, left_perm = expand left_env left_perm in
@@ -1075,15 +1111,15 @@ let actually_merge_envs (top: env) ?(annot: typ option) (left: env * var) (right
   Permissions.safety_check dest_env;
 
   (* So return it. *)
-  dest_env, dest_root
+  (dest_env, dest_root), (!left_conflicts, !right_conflicts, !dest_conflicts)
 ;;
 
 
-let merge_envs (top: env) ?(annot: typ option) (left: env * var) (right: env * var): env * var =
+let merge_envs (top: env) ?(annot: typ option) (left: env * var) (right: env * var): t =
   if is_inconsistent (fst left) then
-    right
+    right, ([], [], [])
   else if is_inconsistent (fst right) then
-    left
+    left, ([], [], [])
   else
     actually_merge_envs top ?annot left right
 ;;

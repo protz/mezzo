@@ -164,3 +164,48 @@ let _mz_array_append_prim (r1, r2) =
 let _mz_array_unsafe_blit (r1, ofs1, r2, ofs2, len) =
   unsafe_blit r1 (1 + ofs1) r2 (1 + ofs2) len
 
+(* -------------------------------------------------------------------------- *)
+
+(* Threads *)
+
+let __mz_thread_spawn _ =
+  failwith "__mz_thread_spawn not implemented"
+
+(* -------------------------------------------------------------------------- *)
+
+(* Control operators *)
+
+let _mz_shift _ =
+  failwith "_mz_shift not implemented"
+
+let _mz_reify _ _ =
+  failwith "_mz_reify not implemented"
+
+(* -------------------------------------------------------------------------- *)
+
+(* Conditions *)
+
+let _mz_condition_new _ =
+  failwith "_mz_condition_new not implemented"
+
+let _mz_condition_wait _ =
+  failwith "_mz_condition_wait not implemented"
+
+let _mz_condition_signal _ =
+  failwith "_mz_condition_signal not implemented"
+
+(* -------------------------------------------------------------------------- *)
+
+(* Tubes *)
+
+let _mz_tube_new _ =
+  failwith "_mz_tube_new not implemented"
+
+let _mz_tube_setup _ =
+  failwith "_mz_tube_setup not implemented"
+
+let _mz_tube_send _ =
+  failwith "_mz_tube_send not implemented"
+
+let _mz_tube_receive _ =
+  failwith "_mz_tube_receive not implemented"

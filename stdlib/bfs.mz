@@ -38,7 +38,7 @@ val traverse
     p
   ) : () =
     (* Perform a dynamic ownership test. *)
-    if nodes owns node then begin
+    if nodes adopts node then begin
       (* This node has not been reached yet. *)
       take node from nodes;
       (* Change its state to [visiting]. *)

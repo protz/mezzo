@@ -7,7 +7,7 @@
 
 data bucket k a =
   | BNil
-  | mutable BCons { key: k; value: a; tail: bucket k a }
+  | mutable BCons { key: k; value_: a; tail: bucket k a }
 
 (* -------------------------------------------------------------------------- *)
 
@@ -81,7 +81,7 @@ val fold : [k, a, b] (
 
 val iter_bucket_down : [k, a, p : perm] (
   consumes b: bucket k a,
-  f: (consumes b: BCons { key: k; value: a; tail: unknown } | p) -> ()
+  f: (consumes b: BCons { key: k; value_: a; tail: unknown } | p) -> ()
   | p
 ) -> ()
 

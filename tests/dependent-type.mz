@@ -3,9 +3,9 @@
    d_fun [t] x
 *)
 
-abstract d_type (t: term)
+abstract d_type (t: value)
 
-val d_fun [t: term] (x: d_type t): () = ()
+val d_fun [t: value] (x: d_type t): () = ()
 
-val apply_d_fun [t: term] (x: d_type t): () =
+val apply_d_fun [t: value] (x: d_type t): () =
   d_fun x

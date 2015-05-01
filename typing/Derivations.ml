@@ -39,11 +39,13 @@ type derivation =
     (** We found a rule to apply. *)
   | Bad of env * judgement * rule list
     (** We found either no rule to apply, or we tried several rules, and none of
-     * them worked. In that case, we stop recording derivations as soon as we hit
-     * a rule that doesn't work; that rule will be the tail of the list. *)
+     * them worked. *)
 
 and rule =
   rule_instance * derivation list
+  (** A rule has premises. In the case where this is a failed application of a
+   * rule, we stop recording derivations as soon as we hit a premise that
+   * doesn't work; that premise will be the tail of the list. *)
 
 and rule_instance = string
 

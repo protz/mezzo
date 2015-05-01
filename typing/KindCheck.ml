@@ -58,12 +58,12 @@ module D =
 
 (* A variable bound by little-lambda is viewed both as a term variable (i.e. it
    can occur within an expression) and as a type variable (i.e. it can occur
-   within a type, and has kind [KTerm]). On the other hand, a variable bound by
+   within a type, and has kind [KValue]). On the other hand, a variable bound by
    capital-Lambda is only a type variable -- it cannot be used at an [EVar] node.
    This ensures that types can be erased. In order to impose this restriction,
    we map each variable to a ``variety''. Note that we could perhaps instead
    encode this distinction into the kinds, by distinguishing [KRealTerm] and
-   [KTerm]. The former would be a sub-kind of the latter. *)
+   [KValue]. The former would be a sub-kind of the latter. *)
 
 type variety =
   | Real      (* can be used at an [EVar] node *)
@@ -104,14 +104,14 @@ module P = struct
 
   (* For debugging only. *)
 
-  let print_var (v : 'v var) : string =
+  let print_name (v : 'v var) : string =
     match v with
     | Local level ->
        Printf.sprintf "level = %d" level
     | NonLocal _ ->
        "external point"
 
-  let print_variety = function
+  let print_nameiety = function
     | Real ->
         "real"
     | Fictional ->
@@ -120,9 +120,9 @@ module P = struct
   let print_env (env : 'v env) : document =
     (* We print just [env.variables]. *)
     V.print_global_env (fun (v, kind, variety) ->
-      string (print_var v) ^^ string ", " ^^
+      string (print_name v) ^^ string ", " ^^
       string "kind = " ^^ print_kind kind ^^ string ", " ^^
-      string "variety = " ^^ string (print_variety variety)
+      string "variety = " ^^ string (print_nameiety variety)
     ) env.variables
 
   let penv buf env =
@@ -163,6 +163,7 @@ type error =
   | ImplicationOnlyOnArrow
   | MissingExport of Variable.name
   | TwiceMutable of (* data constructor: *) Datacon.name
+  | MalformedBranch of typ
 
 (* The [KindError] exception. *)
 
@@ -272,6 +273,10 @@ let print_error env error buf () =
         "This type is declared mutable, so there is no need to declare\n\
          the data constructor %s mutable."
         (Datacon.print dc)
+  | MalformedBranch t ->
+      bprintf
+        "The following is not a valid branch definition: %a"
+        SurfaceSyntaxPrinter.p t
   end;
   if Log.debug_level () > 4 then begin
     Printf.bprintf buf "\n";
@@ -355,11 +360,14 @@ let level2index env = function
   | NonLocal _ as v ->
       v
 
+let find_datacon_raw env (datacon : Datacon.name maybe_qualified) : 'v var * datacon_info =
+  let v, info = D.lookup_maybe_qualified datacon env.datacons in
+  level2index env v, info
+
 (* This function is for public use; it returns a de-Bruijn-index [var]. *)
 let find_datacon env (datacon : Datacon.name maybe_qualified) : 'v var * datacon_info =
   try
-    let v, info = D.lookup_maybe_qualified datacon env.datacons in
-    level2index env v, info
+    find_datacon_raw env datacon
   with Not_found ->
     unbound "data constructor" Datacon.print env datacon
 
@@ -376,7 +384,6 @@ let resolve_datacon env (dref : datacon_reference) : 'v var * Datacon.name * Dat
   v, unqualify datacon, info.datacon_flavor
 
 
-
 (* ---------------------------------------------------------------------------- *)
 
 (* Checking for duplicate definitions. *)
@@ -386,20 +393,18 @@ let check_for_duplicate_bindings env (xs : type_binding list) : type_binding lis
     (fun (x, _, loc) -> bound_twice "variable" Variable.print { env with loc } x)
 
 (* TEMPORARY this function also does not produce a good error location *)
-let check_for_duplicate_datacons env (branches: (_ * Datacon.name * _ * _) list) : unit =
+let check_for_duplicate_datacons env (branches: (_ * typ) list) : unit =
+  let branches = List.map (fun (_, ty) ->
+    let dc, _, _ = find_branch ty in
+    datacon_name_assert_unqualified dc
+  ) branches in
   ignore (
-    MzList.exit_if_duplicates Datacon.compare (fun (_, x, _, _) -> x) branches
-      (fun (_, x, _, _) -> bound_twice "data constructor" Datacon.print env x)
+    MzList.exit_if_duplicates Datacon.compare (fun x -> x) branches
+      (fun x -> bound_twice "data constructor" Datacon.print env x)
   )
 
 let check_for_duplicate_fields env fields : unit =
-  (* Extract the named fields. *)
-  let fields = MzList.map_some (function
-    | FieldValue (f, _) ->
-        Some f
-    | FieldPermission _ ->
-        None
-  ) fields in
+  let fields = List.map fst fields in
   (* Check that no field name appears twice. *)
   ignore (
     MzList.exit_if_duplicates Field.compare (fun f -> f) fields
@@ -483,13 +488,13 @@ let dissolve env m =
 (* ---------------------------------------------------------------------------- *)
 
 (* [bv loc accu p] adds to [accu] the names bound by the pattern [p]. For each
-   name, we add a triple of the name, its kind (which is always [KTerm]), and
+   name, we add a triple of the name, its kind (which is always [KValue]), and
    a location. *)
 
 let rec bv loc (accu : type_binding list) (p : pattern) : type_binding list =
   match p with
   | PVar x ->
-      (x, KTerm, loc) :: accu
+      (x, KValue, loc) :: accu
   | PTuple ps ->
       List.fold_left (bv loc) accu ps
   | PConstruct (_, fps) ->
@@ -501,7 +506,7 @@ let rec bv loc (accu : type_binding list) (p : pattern) : type_binding list =
   | PConstraint (p, _) ->
       bv loc accu p
   | PAs (p, x) ->
-      (x, KTerm, loc) :: bv loc accu p
+      (x, KValue, loc) :: bv loc accu p
   | PAny ->
       accu
 
@@ -556,11 +561,14 @@ let bind_data_group_datacons env (group : data_type_def list) : 'v env =
     | Concrete (global_flavor, branches, _) ->
         let (x, _, _), _ = def.lhs in
         let v = find_var env (Unqualified x) in
-        MzList.fold_lefti (fun i env (branch_flavor, dc, _bindings, fields) ->
-          let fields = MzList.map_some (function
-            | FieldValue (f, _) -> Some f
-            | FieldPermission _ -> None
-          ) fields in
+        MzList.fold_lefti (fun i env (branch_flavor, t) ->
+          let dc, fields, _ =
+            try find_branch t
+            with Not_found ->
+              raise_error env (MalformedBranch t)
+          in
+          let fields = List.map fst fields in
+          let dc = datacon_name_assert_unqualified dc in
 	  (* If the whole data type is declared [mutable], then the branch
 	     should not be declared [mutable]. That would be redundant, and
 	     a hint of a possible confusion. *)
@@ -639,7 +647,7 @@ let check_facts env name bindings facts =
    this assumption; they extend the environment before invoking [check] or
    [infer]. In principle, the [_reset] variant is used whenever we switch from
    some kind other than [KType] to kind [KType]. As a result, when checking a
-   type of kind [KTerm] or [KPerm], it is irrelevant which variant one uses. *)
+   type of kind [KValue] or [KPerm], it is irrelevant which variant one uses. *)
 
 (* In this code, the varieties are not relevant, as we will never encounter
    an [EVar] node anyway. We use [Fictional] everywhere. *)
@@ -705,7 +713,7 @@ and infer env s (ty : typ) : kind =
   | TyVar x ->
       find_kind env x
 
-  | TyConcrete ((dref, fields), clause) ->
+  | TyConcrete (dref, fields, clause) ->
       (* TEMPORARY find the flavor of this data constructor (either
         by looking up the definition of its type, or by extending
         the [datacon_info] record with this information?) and check
@@ -724,7 +732,7 @@ and infer env s (ty : typ) : kind =
       KType
 
   | TySingleton ty ->
-      check_reset env ty KTerm;
+      check_reset env ty KValue;
       KType
 
   | TyApp (ty1, ty2s) ->
@@ -751,7 +759,7 @@ and infer env s (ty : typ) : kind =
       infer_reset env ty
 
   | TyAnchoredPermission (ty1, ty2) ->
-      check_reset env ty1 KTerm;
+      check_reset env ty1 KValue;
       check_reset env ty2 KType;
       KPerm
 
@@ -763,7 +771,7 @@ and infer env s (ty : typ) : kind =
   | TyNameIntro (x, ty) ->
       (* In principle, this name has already been bound in the
          environment, via a previous call to [reset]. *)
-      assert (find_kind env (Unqualified x) = KTerm);
+      assert (find_kind env (Unqualified x) = KValue);
       check env s ty KType;
       KType
 
@@ -796,12 +804,9 @@ and check_branch env s fields =
   List.iter (check_field env s) fields
 
 and check_field env s (field : data_field_def) =
-  match field with
-  | FieldValue (_, ty) ->
-      (* No [reset] here. *)
-      check env s ty KType
-  | FieldPermission t ->
-      check env s t KPerm
+  let _, ty = field in
+  (* No [reset] here. *)
+  check env s ty KType
 
 (* Check that exactly the correct fields are provided (no more, no less). *)
 and check_exact_fields env (dref : datacon_reference) (fields : data_field_def list) =
@@ -809,10 +814,7 @@ and check_exact_fields env (dref : datacon_reference) (fields : data_field_def l
   let module FieldSet = Field.Map.Domain in
   let required_fields = Field.Map.domain info.datacon_fields in
   let provided_fields =
-    List.fold_left (fun accu -> function
-      | FieldValue (field, _) -> FieldSet.add field accu
-      | FieldPermission _ -> accu
-    ) FieldSet.empty fields
+    List.fold_left (fun accu (field, _) -> FieldSet.add field accu) FieldSet.empty fields
   in
   let ok = FieldSet.equal required_fields provided_fields in
   if not ok then
@@ -859,20 +861,12 @@ let check_unresolved_branch env (datacon, fields) =
 
 *)
 
-let check_field_reset env (field : data_field_def) =
-  match field with
-  | FieldValue (_, ty) ->
-      check_reset env ty KType
-  | FieldPermission ty ->
-      check_reset env ty KPerm
-
-let check_unresolved_branch env (_branch_flavor, _dc, bindings, fields) =
-  (* Introduce the names bound above the pattern. *)
-  let env = extend_check Fictional env bindings in
+let check_unresolved_branch env (_branch_flavor, typ) =
+  let _dc, fields, _adopts = find_branch typ in
   (* Check that no field name appears twice. *)
   check_for_duplicate_fields env fields;
-  (* Check that every field is well-kinded. *)
-  List.iter (check_field_reset env) fields
+  (* Check the entire type, thus automatically opening any binders. *)
+  check_reset env typ KType
 
 (* Checking a type definition. For abstract types, we just check that the
    fact is well-formed. For concrete types, we check that the branches are
@@ -937,7 +931,7 @@ let rec check_pattern env (p : pattern) : unit =
       check_pattern env p;
       check_reset env ty KType
   | PVar x ->
-      assert (find_kind env (Unqualified x) = KTerm)
+      assert (find_kind env (Unqualified x) = KValue)
   | PTuple ps ->
       List.iter (check_pattern env) ps
   | PConstruct (_, fps) ->
@@ -1001,10 +995,10 @@ and check_expression env (expr : expression) : unit =
       ignore (infer_reset env t')
 
   | EVar x ->
-      (* [x] must have kind [KTerm]. *)
+      (* [x] must have kind [KValue]. *)
       let k = find_kind env x in
-      if k <> KTerm then
-        mismatch env KTerm k;
+      if k <> KValue then
+        mismatch env KValue k;
       (* [x] must have variety [Real]. This is the only place where
          varieties matter. *)
       if find_variety env x <> Real then
@@ -1108,9 +1102,6 @@ and check_expression env (expr : expression) : unit =
 
   | EInt _ ->
       ()
-
-  | EExplained e ->
-      check_expression env e
 
   | EFail ->
       ()

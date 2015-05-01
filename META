@@ -1,0 +1,30 @@
+description = "The Mezzo programming language"
+requires = ""
+
+package "rtlib" (
+  requires = "mezzo"
+  description = "The Mezzo runtime support library"
+  archive(byte) = "MezzoLib.cma"
+  archive(native) = "MezzoLib.cmxa"
+)
+
+package "corelib" (
+  requires = "mezzo.rtlib"
+  description = "The Mezzo core library"
+  archive(byte) = "MezzoCoreLib.cma"
+  archive(native) = "MezzoCoreLib.cmxa"
+)
+
+package "stdlib" (
+  requires = "mezzo.corelib"
+  description = "The Mezzo standard library"
+  archive(byte) = "MezzoStdLib.cma"
+  archive(native) = "MezzoStdLib.cmxa"
+)
+
+package "build" (
+  requires = "mezzo"
+  description = "The Mezzo Ocamlbuild plugin"
+  archive(byte) = "ocamlbuild_mezzo.cma"
+  archive(native) = "ocamlbuild_mezzo.cmxa"
+)

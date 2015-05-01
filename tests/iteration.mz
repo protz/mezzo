@@ -456,7 +456,7 @@ alias capsule a (s : perm) b1 b2 =
 data mutable scratch =
   | Scratch { c: () }
 
-data mutable cps_iterator_state (self : term) a (post : perm) =
+data mutable cps_iterator_state (self : value) a (post : perm) =
   | NotYetStarted { c: () | post }
   | Paused {
       c: capsule a (self @ scratch)

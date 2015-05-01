@@ -1,0 +1,60 @@
+(* post/wait axiomatization *)
+(* TEMPORARY this is just spawn/join; it could be implemented using spawn and a channel *)
+
+abstract task a
+
+val post: [p: perm, a] (
+  f: (| consumes p) -> a
+| consumes p
+) -> task a =
+  builtin __mz_post
+
+val wait: [a] (consumes task a) -> a =
+  builtin __mz_wait
+
+(* stream and buffer axiomatization *)
+
+abstract buffer
+val new_buffer: () -> buffer =
+  builtin __mz_new_buffer
+abstract stream
+val eof: stream -> bool =
+  builtin __mz_eof
+val writeb: (stream, buffer) -> () =
+  builtin __mz_writeb
+val readb: (stream, buffer) -> () =
+  builtin __mz_readb
+
+(* example: double-buffered stream copy *)
+
+val copy2 (ins: stream, outs: stream) : () =
+  let rec loop (bufr: buffer, bufw: buffer | ins @ stream * outs @ stream) : () =
+    let alias readp : perm = ins @ stream * bufr @ buffer in
+    let alias writep : perm = outs @ stream * bufw @ buffer in
+    let drain_bufw = post [writep, (| writep)] (fun (| writep) : () =
+      writeb(outs, bufw)
+    ) in
+    if eof ins then
+      wait [(| writep)] drain_bufw
+    else begin
+      let fill_bufr = post [readp, (| readp)] (fun (| readp) : () =
+        readb(ins, bufr)
+      ) in
+      wait [(| writep)] drain_bufw;
+      wait [(| readp)] fill_bufr;
+      loop(bufw, bufr)
+    end
+  in
+  let bufr = new_buffer() in
+  let alias readp : perm = ins @ stream * bufr @ buffer in
+  wait [(| readp)] (post [readp, (| readp)] (fun (| readp) : () =
+    readb(ins, bufr)
+  ));
+  let bufw = new_buffer() in
+  loop(bufw, bufr)
+
+(*
+Local Variables:
+compile-command: "../mezzo copy2.mz"
+End:
+*)

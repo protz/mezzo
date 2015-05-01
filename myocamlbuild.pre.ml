@@ -17,12 +17,18 @@
 (*                                                                           *)
 (*****************************************************************************)
 
+(** Some customizations: a custom "my_warnings" tag. *)
+
 open Ocamlbuild_plugin;;
 open Command;;
 
-dispatch begin function
-| After_rules ->
-    flag ["ocaml"; "compile"; "my_warnings"]
-      (S[A "-w"; A "@1..3@8..12@14..21@23..39"]);
-| _ -> ()
-end;;
+let _ =
+  dispatch (fun event ->
+    Ocamlbuild_mezzo.apply_rules_and_flags ~boot:true event;
+    match event with
+    | After_rules ->
+        flag ["ocaml"; "compile"; "my_warnings"]
+          (S[A "-w"; A "@1-2+3@8..12@14..21@23..40-41@43"]);
+    | _ -> ()
+  );
+;;

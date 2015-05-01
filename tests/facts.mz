@@ -13,7 +13,7 @@ fact duplicable a => duplicable (copycat a)
 fact exclusive a => exclusive (copycat a)
 
 data duplicable_thing a =
-  Dup { thing: (duplicable a | a) }
+  Dup { thing: (a | duplicable a) }
 
 val () =
   d [int] ();
@@ -23,28 +23,28 @@ val () =
   (* no more implications:
   d [[a] duplicable a => (a, a)] ();
   d [{a} duplicable a => a] ();
-  d [{a,b} (duplicable a => (duplicable b | b))] ();
+  d [{a,b} (duplicable a => (b | duplicable b))] ();
   d [duplicable (ref int) => ref int] ();
   *)
-  d [{a} duplicable a | a] ();
-  d [{a} (a, (duplicable a | a))] ();
-  d [{a,b} (a, (duplicable b | duplicable a | a))] ();
-  x [{a} (exclusive a | a)] ();
+  d [{a} (a | duplicable a)] ();
+  d [{a} (a, (a | duplicable a))] ();
+  d [{a,b} (a, (a | duplicable b | duplicable a))] ();
+  x [{a} (a | exclusive a)] ();
   d [[a] (a, a)] ();
   d [list int] ();
   d [list (int, int)] ();
   d [{a} list (int, wref a)] ();
   x [marray int] ();
   x [{a} ref a] ();
-  d [{x:term} (=x)] ();
+  d [{x:value} (=x)] ();
   x [ref int] ();
   d [( | empty)] ();
   x [(ref int | empty)] ();
-  x [{y:term} (ref int | y @ (int, int))] ();
-  d [{x:term} lock (x @ ref int)] ();
+  x [{y:value} (ref int | y @ (int, int))] ();
+  d [{x:value} lock (x @ ref int)] ();
   (* d [(x: unknown, y: unknown | x @ int * y @ (int, int))] (); BUG *)
-  d [{x:term,y:term} (=x, =y | x @ int * y @ (int, int))] ();
-  d [{y:term} (int | y @ (int, int))] ();
+  d [{x:value,y:value} (=x, =y | x @ int * y @ (int, int))] ();
+  d [{y:value} (int | y @ (int, int))] ();
   d [copycat int] ();
   x [copycat (ref int)] ();
   d [copycat (copycat int, copycat int)] ();

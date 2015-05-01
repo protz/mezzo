@@ -25,7 +25,7 @@ type datacon_exports = (T.var * Datacon.name * SurfaceSyntax.datacon_info) list
 let bind_implementation_values (env: T.env) (exports: value_exports): T.env =
   T.modify_kenv env (fun kenv k ->
     let kenv = List.fold_left (fun kenv (name, var) ->
-      KindCheck.bind_nonlocal kenv (name, Kind.KTerm, var)
+      KindCheck.bind_nonlocal kenv (name, Kind.KValue, var)
     ) kenv exports in
     k kenv (fun env -> env)
   )
@@ -58,7 +58,7 @@ let bind_interface_value
   (p: T.var): T.env
 =
   T.modify_kenv env (fun kenv k ->
-    let kenv = KindCheck.bind_external_name kenv mname name Kind.KTerm p in
+    let kenv = KindCheck.bind_external_name kenv mname name Kind.KValue p in
     k kenv (fun env -> env)
   )
 

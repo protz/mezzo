@@ -18,14 +18,22 @@
 (*****************************************************************************)
 
 open Lexer
+open Types
 
 (* -------------------------------------------------------------------------- *)
 
+let chop_mz_or_mzi f =
+  if Filename.check_suffix f ".mz" then
+    Filename.chop_suffix f ".mz"
+  else if Filename.check_suffix f ".mzi" then
+    Filename.chop_suffix f ".mzi"
+  else
+    invalid_arg "chop_mz_or_mzi"
+;;
+
 (* Lexing and parsing, built on top of [grammar]. *)
 
-let lex_and_parse file_path entry_var =
-  Utils.with_open_in file_path (fun file_desc ->
-  let lexbuf = Ulexing.from_utf8_channel file_desc in
+let lex_and_parse_raw lexbuf file_path entry_var =
   let the_parser = MenhirLib.Convert.Simplified.traditional2revised entry_var in
   try
     Lexer.init file_path;
@@ -42,24 +50,57 @@ let lex_and_parse file_path entry_var =
     | Grammar.Error ->
         MzString.beprintf "%a\nError: Syntax error\n"
           print_position lexbuf;
+        let start_pos = Lexer.start_pos lexbuf in
+        let end_pos = Lexer.end_pos lexbuf in
+        JsGlue.highlight_range start_pos end_pos;
         exit 253
     | Lexer.LexingError e ->
         MzString.beprintf "%a\n"
           Lexer.print_error (lexbuf, e);
         exit 252
+    | e ->
+      Format.eprintf "Exception during lexing/parsing: %s@." (Printexc.to_string e);
+      exit 251
+
+;;
+
+let lex_and_parse file_path entry_var =
+  Utils.with_open_in file_path (fun file_desc ->
+  let lexbuf = Ulexing.from_utf8_channel file_desc in
+  lex_and_parse_raw lexbuf file_path entry_var
   )
 ;;
+
+(* The [mkprefix] function is called for every interface we depend on + one more
+ * time for the actual implementation we're type-checking, so we're trying to
+ * avoid doing the same computations every time. *)
+let corelib_dirs = lazy begin
+  (* So it's the [lib_dir] that we want here, unless we're in the process of
+   * pre-compiling the Mezzo core library, meaning that [lib_dir] isn't ready. *)
+  if !Options.js then
+    "corelib", ""
+  else if !Options.boot || Configure.local then
+    Filename.concat Configure.src_dir "corelib",
+    Filename.concat (Filename.concat Configure.src_dir "_build") "corelib"
+  else
+    (* ocamlfind requires us to have a flat directory structure, d'oh... *)
+    Configure.lib_dir,
+    ""
+end;;
+
+let autoload_modules = lazy begin
+  let corelib_dir, _ = !*corelib_dirs in
+  let autoload_path = Filename.concat corelib_dir "autoload" in
+  let autoload_modules = MzString.split (Utils.file_get_contents autoload_path) '\n' in
+  let autoload_modules = List.filter (fun s -> String.length s > 0 && s.[0] <> '#') autoload_modules in
+  autoload_modules
+end;;
 
 let mkprefix path =
   if !Options.no_auto_include && path = !Options.filename then
     []
   else
-    let corelib_dir =
-      Filename.concat Configure.root_dir "corelib"
-    in
-    let autoload_path = Filename.concat corelib_dir "autoload" in
-    let autoload_modules = MzString.split (Utils.file_get_contents autoload_path) '\n' in
-    let autoload_modules = List.filter (fun s -> String.length s > 0 && s.[0] <> '#') autoload_modules in
+    let corelib_dir, corelib_build_dir = !*corelib_dirs in
     let me = Filename.basename path in
     let my_dir = Filename.dirname path in
     let chop l =
@@ -74,20 +115,35 @@ let mkprefix path =
       in
       chop [] l
     in
+    (* So. In the case of a packaged mezzo, me_in_core_directory will return
+     * true even for stdlib modules, because findlib mandates a flat directory
+     * structure ($@#!!), however, it's mostly harmless, since [chop] will just
+     * run through the whole list without finding a match. *)
     let me_in_core_directory =
-         Utils.same_absolute_path  corelib_dir              my_dir
-      || Utils.same_absolute_path (corelib_dir ^ "/_build") my_dir
+      Utils.same_absolute_path corelib_dir my_dir ||
+      Utils.same_absolute_path corelib_build_dir my_dir
     in
     Log.debug "In core directory? %b" me_in_core_directory;
+    (* If we're processing an .mz file (meaning, the actual .mz file we want to
+     * operate on, not an .mzi that we depend on), and we're _not_ in the
+     * core directory, and we have the same name as a legit module that's
+     * auto-loaded, bail now rather than complain about a cryptic dependency
+     * error. *)
+    let me_noext = chop_mz_or_mzi me in
+    if Filename.check_suffix me ".mz" &&
+       not me_in_core_directory &&
+       List.exists ((=) me_noext) !*autoload_modules
+    then
+      TypeErrors.(raise_error TypeCore.empty_env (OverrideAutoload me_noext));
     let modules =
       if me_in_core_directory then
-        chop autoload_modules
+        chop !*autoload_modules
       else
-        autoload_modules
+        !*autoload_modules
     in
     List.map (fun x ->
       SurfaceSyntax.OpenDirective (Module.register x)
-    ) modules 
+    ) modules
 ;;
 
 let lex_and_parse_implementation path : SurfaceSyntax.implementation =
@@ -107,20 +163,17 @@ let include_dirs: string list ref =
   ref []
 ;;
 
+let print_include_dirs () =
+  String.concat "\n  " !include_dirs
+;;
+
 let add_include_dir dir =
   include_dirs := dir :: !include_dirs
 ;;
 
 let module_name_for_file_path (f: string): Module.name =
   let f = Filename.basename f in
-  let f =
-    if Filename.check_suffix f ".mz" then
-      Filename.chop_suffix f ".mz"
-    else if Filename.check_suffix f ".mzi" then
-      Filename.chop_suffix f ".mzi"
-    else
-      Log.error "This is unexpected"
-  in
+  let f = chop_mz_or_mzi f in
   Module.register f
 ;;
 
@@ -144,18 +197,38 @@ let find_in_include_dirs (filename: string): string =
     s
 ;;
 
-let find_and_lex_interface : Module.name -> SurfaceSyntax.interface =
-  Module.memoize (fun mname ->
+let js_special_mname = Module.register "::toplevel"
+
+let find_and_lex_interface m =
+  let find_and_lex_interface_raw (mname: Module.name): SurfaceSyntax.interface =
     let filename = Module.print mname ^ ".mzi" in
     lex_and_parse_interface (find_in_include_dirs filename)
-  )
+  in
+
+  let find_and_lex_interface_memoized : Module.name -> SurfaceSyntax.interface =
+    Module.memoize find_and_lex_interface_raw
+  in
+
+  if Module.equal m js_special_mname then
+    find_and_lex_interface_raw m
+  else
+    find_and_lex_interface_memoized m
 ;;
 
-let find_and_lex_implementation : Module.name -> SurfaceSyntax.implementation =
-  Module.memoize (fun mname ->
+let find_and_lex_implementation m =
+  let find_and_lex_implementation_raw (mname: Module.name): SurfaceSyntax.implementation =
     let filename = Module.print mname ^ ".mz" in
     lex_and_parse_implementation (find_in_include_dirs filename)
-  )
+  in
+
+  let find_and_lex_implementation_memoized : Module.name -> SurfaceSyntax.implementation =
+    Module.memoize find_and_lex_implementation_raw
+  in
+
+  if Module.equal m js_special_mname then
+    find_and_lex_implementation_raw m
+  else
+    find_and_lex_implementation_memoized m
 ;;
 
 
@@ -381,7 +454,7 @@ let print_signature (buf: Buffer.t) (env: TypeCore.env): unit =
   let open Kind in
   let exports = KindCheck.get_exports (TypeCore.kenv env) in
   List.iter (fun (name, var) ->
-    if get_kind env var = KTerm then
+    if get_kind env var = KValue then
       let perms = get_permissions env var in
       let perms =
         List.filter (function TyUnknown | TySingleton _ -> false | _ -> true) perms
@@ -389,7 +462,7 @@ let print_signature (buf: Buffer.t) (env: TypeCore.env): unit =
       List.iter (fun t ->
         let open MzPprint in
         (* First try to fold the type (e.g. turn "(=x, =y)" into "(int, int)"). *)
-        let t = Option.map_none t (TypeErrors.fold_type env t) in
+        let t = ResugarFold.fold_type env t in
         (* And then try to convert it to the surface syntax. *)
         let t = SurfaceSyntaxPrinter.print (Resugar.resugar env t) in
         (* Print it! *)
@@ -419,7 +492,7 @@ let interpret (file_path : string) : unit =
   (* Determine the module name [m]. *)
 
   let m = module_name_for_file_path file_path in
-  
+
   (* Find the modules that [m] depends upon. *)
 
   (* There is a fine var here. We are interested in the dependencies
@@ -437,7 +510,7 @@ let interpret (file_path : string) : unit =
 
   let env : Interpreter.env =
     List.fold_left (fun env m ->
-    
+
       (* We assume that each module consists of an interface file
         and an implementation file. The interface file serves a
          role as a filter (not all definitions are exported), so
@@ -458,4 +531,3 @@ let interpret (file_path : string) : unit =
   Interpreter.eval_lone_implementation
     env
     (find_and_lex_implementation m)
-

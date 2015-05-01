@@ -1,2 +1,2 @@
-val f [x : term] (| x @ int) : int =
+val f [x : value] (| x @ int) : int =
   x

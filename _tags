@@ -7,15 +7,16 @@
 
 # - We don't use [use_unix] because it plays badly with ocamlfind and leads to
 #   the infamous "unix.cma is linked twice" problem.
-true: debug, \
-  use_menhir, use_ocamlbuild, use_str, \
+not (<corelib/*> or <stdlib/*>): debug, \
+  menhir, \
   annot, bin_annot, strict_sequence, \
   package(yojson), package(menhirLib), package(ulex), package(pprint), \
-  package(fix), package(unix), package(functory)
+  package(fix), package(unix), package(functory), package(str), package(ocamlbuild), \
+  package(unix)
 
 # Enable the "nazi warnings". A few files really trigger too many warnings: the
 # generated parser and lexer files, as well as the imported [patricia.ml].
-not <parsing/Lexer.*> and not <lib/patricia.*> and not <parsing/grammar.*>: my_warnings
+not (<parsing/Lexer.*> or <lib/patricia.*> or <parsing/grammar.*> or <corelib/*> or <stdlib/*>): my_warnings
 
 # Our lexer generator is ulex.
 "parsing/Lexer.ml": syntax(camlp4o), syntax(pa_ulex)
@@ -24,3 +25,4 @@ not <parsing/Lexer.*> and not <lib/patricia.*> and not <parsing/grammar.*>: my_w
 # available in OPAM).
 #not <parsing/Lexer.*> and not <parsing/grammar.*>: package(bisect), syntax(camlp4o), syntax(bisect_pp)
 
+<corelib/*> or <stdlib/*>: mezzo

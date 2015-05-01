@@ -19,7 +19,7 @@ val () =
 
 (* failure (BUG) *)
 val () =
-  x [{r: term} (=r | r @ ref int)] ()
+  x [{r: value} (=r | r @ ref int)] ()
 
 (* The problem is, the singleton type =r should be recognized
    as exclusive when accompanied by r @ some exclusive type.

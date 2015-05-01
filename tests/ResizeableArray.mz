@@ -1,0 +1,45 @@
+(* From Filliâtre & Conchon (p.143): ResizeableArray module *)
+
+data mutable t a 
+    = RArray { default: a 
+         ; size: int
+         ; content: array mut a }
+
+val length [a] (xs: t a): int 
+  = xs.size (* BUG?: !xs.size parses as (!xs).size *)
+
+val make [a] duplicable a => (n: int, d: a): t a
+  = RArray { default = d
+       ; size = n
+       ; content = array::create (n, d) }
+
+val get [a] duplicable a => (xs: t a, i: int): a
+  = if i < 0 || i >= xs.size then
+      fail
+    else
+      array::get(xs.content, i)
+      (* BUG?: unsafe_get from [corelib/array.mz] is not accessible *)
+
+val set [a] duplicable a => (xs: t a, i: int, consumes x: a): ()
+  = if i < 0 || i >= xs.size then 
+      fail
+    else 
+      array::set(xs.content, i, x)
+
+val resize [a] duplicable a => (xs: t a, s: int): ()
+  = if s <= xs.size then begin
+      fail
+    end else begin
+      let n = array::length xs.content in
+      if explain not (s <= n) then begin
+        let n' = max (2 * n, s) in
+        let a' = array::create(n', xs.default) in
+        array::blit(xs.content, 0, a', 0, xs.size);
+        xs.content <- a';
+      end
+    end;
+    xs.size <- s
+    (* BUG?: cannot factorize 'xs.size <- s' *)
+ 
+
+

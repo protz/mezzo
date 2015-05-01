@@ -1,0 +1,55 @@
+(* A region is an abstract object that can adopt (i.e., take the ownership
+   of) a heterogeneous set of objects. A region itself has a unique owner. *)
+
+abstract region
+
+(* [newregion] creates a new region. *)
+
+val newregion: () -> region
+
+(* [inhabitant rho a] is the type of an object of type [a] that inhabits
+   (i.e., has been adopted by) the region [rho]. It is duplicable, which
+   means that the inhabitants of a region can be shared. *)
+
+abstract inhabitant (rho : value) a
+fact duplicable (inhabitant rho a)
+
+(* If [rho] is a region and [x] is a value of type [a], then [x] can be
+   adopted by the region [rho]. The type of [x] changes from [a] to
+   [inhabitant rho a]. *)
+
+val adopt: [x : value, a, rho : value] (| rho @ region * consumes x @ a) -> (| x @ inhabitant rho a)
+
+(* If [x] is an inhabitant of region [rho] at type [a], and if one owns
+   the region [rho], then one can obtain temporary access to [x @ a].
+   For simplicity, we offer only the well-parenthesized form, [consult]. *)
+
+val consult: [x : value, a, rho : value, pre : perm, b] (
+  f: (| x @ a * consumes pre) -> b
+| x @ inhabitant rho a * rho @ region *
+  consumes pre
+) -> b
+
+(* The type [rref rho a] is a convenient abbreviation for an inhabitant
+   of region [rho] at type [ref a]. *)
+
+alias rref (rho : value) a =
+  inhabitant rho (ref a)
+
+(* The standard three operations on references are available for the type
+   [rref]. Unfortunately, the [get] operation is restricted to the case
+   where [a] is duplicable. If [a] is not duplicable, then [consult] must
+   be used instead of [get]. This is the same problem that we have with
+   arrays. *)
+
+val newrref: [rho : value, a] (consumes x: a | rho @ region) -> rref rho a
+
+val get: [rho : value, a] duplicable a => (r: rref rho a | rho @ region) -> a
+
+val set: [rho : value, a] (r: rref rho a, consumes x: a | rho @ region) -> ()
+
+(*
+Local Variables:
+compile-command: "../mezzo region.mz"
+End:
+*)

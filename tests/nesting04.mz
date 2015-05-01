@@ -1,0 +1,11 @@
+open region
+
+val create (x: int) : () =
+  adopt [x] ()
+  (* BUG: Mezzo internal error: [assert_point] failed (region::rho* is not a point) *)
+
+(*
+Local Variables:
+compile-command: "../mezzo nesting04.mz"
+End:
+*)

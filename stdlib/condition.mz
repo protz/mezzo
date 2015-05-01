@@ -1,0 +1,39 @@
+open lock
+
+(* A condition variable is associated with a lock [l]. It is
+   duplicable: multiple threads may simultaneously attempt to
+   send or receive a signal via this condition variable. *)
+
+abstract condition (l: value)
+fact duplicable (condition l)
+
+(* Creation. *)
+
+(* Creation does not require holding the lock. *)
+
+val new: [p : perm] (l: lock p) -> condition l =
+  builtin _mz_condition_new
+
+(* Waiting for a signal to be sent via a condition variable. *)
+
+(* The call [wait c] requires the lock [l] to be held. The call
+   atomically suspends the current thread and releases the lock.
+   The thread can be awakened at any time (hopefully, this occurs
+   when a signal is received). Then, [wait] re-acquires the lock,
+   and returns, so that, from the point of view of the current
+   thread, the lock is still held when [wait] returns. *)
+
+val wait: [l: value] (condition l | l @ locked) -> () =
+  builtin _mz_condition_wait
+
+(* Sending a signal via a condition variable. *)
+
+(* This call does not require that the lock be held. *)
+
+data signal_whom =
+  | SignalOne  (* try to awaken just one waiting thread *)
+  | SignalMany (* try to awaken all waiting threads *)
+
+val signal: [l: value] (condition l, signal_whom) -> () =
+  builtin _mz_condition_signal
+

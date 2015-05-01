@@ -703,9 +703,6 @@ let rec eval (env : env) (loc : location) (e : expression) : value =
   | EInt i ->
       VInt i
 
-  | EExplained e ->
-      eval env loc e
-
   | EGive (e1, e2) ->
       let b1 = asBlock (eval env loc e1) in
       let b2 = asBlock (eval env loc e2) in
@@ -823,16 +820,14 @@ let evaluate_data_type_def
     (env : env) (global_flavor: DataTypeFlavor.flavor) (branches : data_type_def_branch list) : env =
   snd (
     (* For each data constructor, *)
-    List.fold_left (fun (index, env) (branch_flavor, datacon, _bindings, defs) ->
+    List.fold_left (fun (index, env) (branch_flavor, branch) ->
+      let datacon, defs, _ = find_branch branch in
+      let datacon = datacon_name_assert_unqualified datacon in
       (* Compute the number of fields, and create a mapping of field names
         to field indices. *)
       let arity, fields =
-      List.fold_left (fun (arity, fields) def ->
-        match def with
-        | FieldValue (f, _) ->
-            arity + 1, Variable.Map.add f arity fields
-        | FieldPermission _ ->
-            arity, fields
+      List.fold_left (fun (arity, fields) (f, _) ->
+        arity + 1, Variable.Map.add f arity fields
       ) (0, Variable.Map.empty) defs in
       (* Generate a new data constructor information record. *)
       let info = {
@@ -913,11 +908,13 @@ let export_interface_item (m : Module.name) (env : env) (item : toplevel_item) :
       List.fold_left (fun env def ->
         match def.rhs with
         | Concrete (_, branches, _) ->
-           (* For each data constructor, *)
-           List.fold_left (fun env (_, datacon, _, _) ->
-             (* Export this data constructor. *)
+            (* For each data constructor, *)
+            List.fold_left (fun env (_, branch) ->
+              let datacon, _, _ = find_branch branch in
+              let datacon = datacon_name_assert_unqualified datacon in
+              (* Export this data constructor. *)
               { env with datacons = D.qualify m datacon env.datacons }
-           ) env branches
+            ) env branches
         | Abstract _
         | Abbrev _ ->
             env

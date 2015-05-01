@@ -147,47 +147,6 @@ type data_type_group = {
 
 (* ---------------------------------------------------------------------------- *)
 
-(* Data type branches. *)
-
-(* Low-level wrapper that assumes [perms] is non-nil. *)
-let fold_star perms =
-  MzList.reduce (fun acc x -> TyStar (acc, x)) perms
-
-let construct_branch (names: type_binding list) (branch: branch) (ps: typ list): typ =
-  let t = 
-    if List.length ps > 0 then
-      TyBar (TyConcrete branch, fold_star ps)
-    else
-      TyConcrete branch
-  in
-  List.fold_right (fun binding t ->
-    TyQ (Exists, binding, UserIntroduced, t)
-  ) names t
-
-let rec find_branch (t: typ): branch =
-  match t with
-  | TyBar (t, _) ->
-      find_branch t
-  | TyConcrete b ->
-      b
-  | TyQ (Exists, _, UserIntroduced, t) ->
-      find_branch t
-  | _ ->
-      assert false
-
-let rec touch_branch (t: typ) (f: branch -> branch): typ =
-  match t with
-  | TyBar (t, ps) ->
-      TyBar (touch_branch t f, ps)
-  | TyConcrete b ->
-      TyConcrete (f b)
-  | TyQ (Exists, binding, UserIntroduced, t) ->
-      TyQ (Exists, binding, UserIntroduced, touch_branch t f)
-  | _ ->
-      assert false
-
-(* ---------------------------------------------------------------------------- *)
-
 (* Program-wide environment. *)
 
 type binding_type = Rigid | Flexible
@@ -196,10 +155,18 @@ type permissions = typ list
 
 type level = int
 
+type inconsistency = 
+  | Consistent
+  | FailAnnot
+  | ExclusivePerms of typ
+  | DistinctDatacon of branch * branch
+  | TupleArity of typ list * typ list
+
 module IntMap = Map.Make(struct
   type t = int
   let compare = Pervasives.compare
 end)
+
 
 (** This is the environment that we use throughout. *)
 type env = {
@@ -216,7 +183,7 @@ type env = {
    * a point acquired two exclusive permissions, or maybe because the user wrote
    * "fail" at some point. This is by no means exhaustive: we only detect a few
    * inconsistencies when we're lucky. *)
-  inconsistent: bool;
+  inconsistent: inconsistency;
 
   (* This is a list of abstract permissions available in the environment. It can
    * either be a type application, i.e. "p x", where "p" is abstract, or a type
@@ -251,11 +218,10 @@ type env = {
 and flex_descr = {
   (* If a flexible variable is not instantiated, it has a descriptor. When it
    * becomes instantiated, it loses its descriptor and gains the information
-   * from another type. We have the invariant that importants properties about
+   * from another type. We have the invariant that important properties about
    * the variable (fact, level, kind) are "better" after it lost its descriptor
    * (more precise fact, lower level, equal kind). *)
   structure: structure;
-  
   original_level: level;
 }
 
@@ -269,7 +235,7 @@ and var_descr = {
   names: name list;
   locations: location list;
 
-  (* The kind of this variable. If kind is KTerm, then the [raw_binding] is a
+  (* The kind of this variable. If kind is KValue, then the [raw_binding] is a
    * [term_binder]. *)
   kind: kind;
 
@@ -314,7 +280,7 @@ let empty_env = {
   state = PersistentUnionFind.init ();
   mark = Mark.create ();
   location = Lexing.dummy_pos, Lexing.dummy_pos;
-  inconsistent = false;
+  inconsistent = Consistent;
   floating_permissions = [];
   last_binding = Rigid;
   current_level = 0;
@@ -328,9 +294,15 @@ let locate env location =
 
 let location { location; _ } = location;;
 
-let is_inconsistent { inconsistent; _ } = inconsistent;;
+let get_inconsistent { inconsistent; _ } = inconsistent;;
 
-let mark_inconsistent env = { env with inconsistent = true };;
+let is_inconsistent { inconsistent; _ } = 
+  match inconsistent with
+  | Consistent -> false
+  | _ -> true
+;;
+
+let mark_inconsistent env err = { env with inconsistent = err };;
 
 let module_name { kenv; _ } = KindCheck.(module_name kenv);;
 
@@ -349,6 +321,60 @@ let enter_module env module_name = {
 let find env p =
   PersistentUnionFind.find p env.state
 ;;
+
+(* ---------------------------------------------------------------------------- *)
+
+(* Data type branches. *)
+
+(* These two functions should be kept in sync with [touch_branch] in
+  * [SurfaceSyntax]. *)
+
+let rec touch_branch (t: typ) (f: branch -> branch): typ =
+  Log.debug "%a" !internal_ptype (empty_env, t);
+  match t with
+  | TyBar (t, p) ->
+      (* This is tricky, and only makes sense if one compares this function to
+       * its counterpart [find_branch] from [SurfaceSyntax]. The function allows
+       * [TyNameIntro]'s which contain [TyConcrete]'s; these are desugared as:
+       *
+       *     TyBar (TySingleton _, TyAnchoredPermission (_, TyConcrete _))    (1)
+       *
+       * The function also allows a [TyBar] which wraps around a [TyConcrete]:
+       *
+       *     TyBar (TyConcrete _, _)                                          (2)
+       *
+       * To make sure that we don't go off the rails in the evil case where the
+       * user wrote:
+       *
+       *    TyBar (TyConcrete _, TyAnchoredPermission (_, TyConcrete _))      (3)
+       *
+       * We first check for case (2) which, if it fails, means we were in case
+       * (1). That way, we pick the right [TyConcrete] in case (3).
+       *)
+      try TyBar (touch_branch t f, p)
+      with Not_found -> TyBar (t, touch_branch p f); ;
+  | TyAnchoredPermission (x, t) ->
+      TyAnchoredPermission (x, touch_branch t f)
+  | TyConcrete b ->
+      TyConcrete (f b)
+  | TyQ (Exists, binding, flavor, t) ->
+      (* An existential binding may be user-introduced above a branch, since the
+       * surface syntax allows it. The surface syntax also allows name
+       * introductions to stand for data type branches; this results in an
+       * existential quantifier which is auto-introduced. *)
+      TyQ (Exists, binding, flavor, touch_branch t f)
+  | _ ->
+      Log.debug "Not a branch: %a" Utils.ptag t;
+      raise Not_found
+
+(* An ugly exception to make sure we don't implement the logic twice. *)
+let find_branch (t: typ): branch =
+  let module M = struct exception Found of branch end in
+  try
+    ignore (touch_branch t (fun branch -> raise (M.Found branch)));
+    raise Not_found
+  with M.Found branch ->
+    branch
 
 (* ---------------------------------------------------------------------------- *)
 
@@ -933,6 +959,9 @@ let clean (top : env) (sub : env) : typ -> typ =
 (* Instantiate a flexible variable with a given type. *)
 let instantiate_flexible_raw (env: env) (v: var) (t: typ): env option =
   Log.check (is_flexible env v) "[instantiate_flex] wants flexible";
+
+  (* I feel like we may want this:
+  let t = modulo_flex env t in *)
   
   (* Rework [t] so that this instantiation is legal. *)
   let l = (get_var_descr env v).level in
@@ -1065,7 +1094,7 @@ let merge_left env v1 v2 =
 (* ---------------------------------------------------------------------------- *)
 
 let internal_pflex buf (env, i, f) =
-  Printf.bprintf buf "Flexible #%d is " i;
+  Printf.bprintf buf "Flexible #%d (original level=%d) is " i f.original_level;
   match f.structure with
   | Instantiated t ->
       Printf.bprintf buf "instantiated with %a\n"
@@ -1083,9 +1112,6 @@ let internal_pflexlist buf env =
 
 
 let import_flex_instanciations_raw env sub_env =
-  Log.debug ~level:6 "env: %a" internal_pflexlist env;
-  Log.debug ~level:6 "sub_env: %a" internal_pflexlist sub_env;
-
   let max_level = IntMap.fold (fun _ { original_level; _ } acc ->
     max original_level acc
   ) env.flexible (-1) in
@@ -1093,13 +1119,35 @@ let import_flex_instanciations_raw env sub_env =
     original_level <= max_level
   ) sub_env.flexible in
 
+  Log.debug ~level:6 "env (max_level = %d): %a" max_level internal_pflexlist env;
+  Log.debug ~level:6 "sub_env: %a" internal_pflexlist sub_env;
+  Log.debug ~level:6 "kept %d flexible" (IntMap.cardinal flexible);
   Log.check (IntMap.cardinal flexible >= IntMap.cardinal env.flexible)
-    "We are dropping some flexible variables!";
+    "we are dropping some flexible variables!";
 
   (* And put them into [env], which is now equipped with everything it needs. *)
   let env = { env with flexible } in
 
-  Log.debug ~level:6 "Kept %d flexible" (IntMap.cardinal flexible);
+  (* This is to eliminate roundtrips. The following scenario can happen.
+   * level(α) = 1
+   * level(β) = 2
+   * β instantiates to τ (level = 1)
+   * unify α β ; checking: level(α) = 1, level(β) = level(τ) = 1
+   * result: α → β → τ
+   * cutoff at 1
+   * α → !! ☠ !!
+   *)
+  let flexible = IntMap.map (fun descr ->
+    match descr.structure with
+    | Instantiated t ->
+        let t = clean env sub_env t in
+        { descr with structure = Instantiated t }
+    | NotInstantiated _ ->
+        descr
+  ) flexible in
+
+  (* Put the cleaned up versions in [env]. *)
+  let env = { env with flexible } in
 
   (* The only dangerous case is when [max_level = l], and sub_env contains a
    * flexible at level [l] instantiated to a rigid that does not exist in
@@ -1216,7 +1264,7 @@ let top_fact =
 
 let mkfact k =
   match k with
-  | KTerm ->
+  | KValue ->
       None
   | _ ->
       top_fact
@@ -1241,7 +1289,7 @@ let bind_rigid env (name, kind, location) =
   let point, state = PersistentUnionFind.create descr env.state in
   let extra_descr =
     match kind with
-    | KTerm ->
+    | KValue ->
         DTerm { permissions = initial_permissions_for_point point }
     | _ ->
         DNone

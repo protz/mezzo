@@ -1,0 +1,7 @@
+data t a =
+  | A { x:: a; f: (| x @ a) -> int }
+
+val _: t int = 
+  let x = 2 in
+  let f (): int = x in
+  A { x; f }

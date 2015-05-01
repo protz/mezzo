@@ -1,4 +1,4 @@
-(* (!) is declared with this type: [y : term] (x: ref (=y)) -> =y *)
+(* (!) is declared with this type: [y : value] (x: ref (=y)) -> =y *)
 
 (* With an eta-expansion, this works: *)
 val deref2 [a] duplicable a => (x: ref a) : a =

@@ -1,7 +1,7 @@
 val f [a] (id: a -> a) : () =
   fail
 
-val g [a] (id: duplicable a => (duplicable a | a -> a)) : () =
+val g [a] (id: duplicable a => (a -> a | duplicable a)) : () =
   f id
 
 (* this should fail because the actual argument passed to [f]

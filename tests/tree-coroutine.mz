@@ -122,10 +122,10 @@ alias ack_inlet (p : perm) =
 alias ack_outlet (p : perm) =
   outlet (bool | p)
 
-alias packet a (ack : term) =
+alias packet a (ack : value) =
   (x: a | ack @ ack_outlet (x @ a))
 
-alias pipe_t a (ack : term) =
+alias pipe_t a (ack : value) =
   channel (packet a ack)
 
 (* In this variant of [send_and_wait], we do not create the [ack]

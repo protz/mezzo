@@ -1,4 +1,18 @@
-val succ (x: int) : int =
-  x + 1
-val add (x: int, y: int) : int =
-  x + y
+data mutable node =
+  Node {
+    visited  : bool;
+  }
+
+data mutable graph =
+  Graph
+
+val rec visit (n: dynamic, g: graph) : () =
+  take n from g;
+  if n.visited then
+    give n to g
+
+(*
+Local Variables:
+compile-command: "mezzo resugar.mz"
+End:
+*)

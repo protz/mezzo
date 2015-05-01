@@ -5,7 +5,7 @@ data cell a =
 | Cons { head: a; tail: thunk (cell a) }
 
 alias stream a =
-  (duplicable a | thunk (cell a))
+  (thunk (cell a) | duplicable a)
 
 val _cons (head: unknown, tail: unknown) : Cons { head; tail } =
   Cons { head; tail }

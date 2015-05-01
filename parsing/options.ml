@@ -32,6 +32,20 @@ let filename =
 (* [false] : just type-check. [true] : type-check and compile down to OCaml. *)
 let please_compile =
   ref false
+;;
 
 let warn_error =
-  ref "-1+2..4-5+6"
+  ref "-1+2..4-5+6+7"
+;;
+
+let boot =
+  ref false
+;;
+
+let print_interface =
+  ref false
+;;
+
+let js =
+  ref false
+;;

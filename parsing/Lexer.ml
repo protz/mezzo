@@ -84,6 +84,69 @@ let print_position buf lexbuf =
   let end_pos = end_pos lexbuf in
   p buf (start_pos, end_pos)
 
+let prange buf_final (pos_start, pos_end) =
+  let open Lexing in
+  let ic = open_in pos_start.pos_fname in
+  seek_in ic pos_start.pos_bol;
+  let buf_code = Buffer.create 256 in
+  let buf_hl = Buffer.create 256 in
+  let cnum = ref pos_start.pos_bol in
+  begin try
+    while !cnum < pos_end.pos_cnum do
+      let c = input_char ic in
+      if c = '\n' then begin
+        Buffer.add_char buf_code c;
+        Buffer.add_char buf_hl c;
+        Buffer.add_buffer buf_final buf_code;
+        Buffer.add_buffer buf_final buf_hl;
+        Buffer.clear buf_code;
+        Buffer.clear buf_hl;
+      end else begin
+        Buffer.add_char buf_code c;
+        if !cnum >= pos_start.pos_cnum then
+          Buffer.add_char buf_hl '^'
+        else
+          Buffer.add_char buf_hl ' ';
+      end;
+      incr cnum;
+    done;
+    Buffer.add_string buf_code (input_line ic);
+  with End_of_file ->
+    close_in ic;
+  end;
+  let c = '\n' in
+  Buffer.add_char buf_code c;
+  Buffer.add_char buf_hl c;
+  Buffer.add_buffer buf_final buf_code;
+  Buffer.add_buffer buf_final buf_hl
+
+let highlight_range pos_start pos_end =
+  let buf = Buffer.create 256 in
+  prange buf (pos_start, pos_end);
+  Buffer.contents buf
+
+(* Is loc1 contained in loc2? *)
+let loc_lt l1 l2 =
+  let open Lexing in
+  l1.pos_fname = l2.pos_fname &&
+  l1.pos_cnum <= l2.pos_cnum
+
+let loc_included (start1, end1) (start2, end2) =
+  loc_lt start2 start1 && loc_lt end1 end2
+
+let compare_locs loc1 loc2 =
+  if loc_included loc1 loc2 then
+    -1
+  else if loc_included loc2 loc1 then
+    1
+  else if fst loc1 = fst loc2 then
+    0
+  else if loc_lt (fst loc1) (fst loc2) then
+    -1
+  else
+    1
+
+
 (* ---------------------------------------------------------------------------- *)
 
 (* Error handling. *)

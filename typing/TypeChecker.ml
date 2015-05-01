@@ -32,6 +32,12 @@ let add_hint =
   Permissions.add_hint
 ;;
 
+let merge_and_pack_conflicts env ?annot left right =
+  let dest, conflicts = Merge.merge_envs env ?annot left right in
+  let left_conflicts, right_conflicts, dest_conflicts = conflicts in
+  (dest, dest_conflicts), [left, left_conflicts; right, right_conflicts]
+;;
+
 
 (* The condition of an if-then-else statement is well-typed if it is a
  * data type with two branches. *)
@@ -468,22 +474,24 @@ let refine_perms_in_place_for_pattern env var pat =
 
 let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (expr: expression): env * var =
 
-  let find_qualified_type m x =
+  let find_qualified m x =
     (* lazy because we need to typecheck the core modules too! *)
     lazy begin
       let x = Exports.find_qualified_var env (Module.register m) (Variable.register x) in
       TyOpen x
     end
   in
-  let t_int = find_qualified_type "int" "int" in
-  let t_bool = find_qualified_type "bool" "bool" in
+  let t_int = find_qualified "int" "int" in
+  let t_bool = find_qualified "bool" "bool" in
+  let f_info = find_qualified "info" "info" in
 
   (* [return t] creates a new var with type [t] available for it, and returns
    * the environment as well as the var *)
+  let env0 = env in
   let return env t =
     (* Not the most clever function, but will do for now on *)
     let hint = Option.map_none (fresh_auto_name "/x_") hint in
-    let env, x = bind_rigid env (hint, KTerm, location env) in
+    let env, x = bind_rigid env (hint, KValue, location env0) in
     let env = Permissions.add env x t in
     match annot with
     | None ->
@@ -618,7 +626,9 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
       let sub_env = Permissions.keep_only_duplicable env in
 
       (* Introduce a variable [x] that stands for the function argument. *)
-      let sub_env, { subst_expr; vars; _ } = bind_evars sub_env [ fresh_auto_name "arg", KTerm, location sub_env ] in
+      let sub_env, { subst_expr; vars; _ } =
+        bind_evars sub_env [ fresh_auto_name "arg", KValue, location sub_env ]
+      in
       (* Its scope is just the function body. *)
       let x = match vars with [ x ] -> x | _ -> assert false in
       let body = subst_expr body in
@@ -741,6 +751,11 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
       let hint2 = add_hint hint "arg" in
       let env, x1 = check_expression env ?hint:hint1 e1 in
       let env, x2 = check_expression env ?hint:hint2 e2 in
+      (* Print debug information now (check_function_call consumes permissions,
+       * and only [return env ...] puts them back, so we would be printing
+       * inaccurate information. *)
+      if same env x1 !!(!*f_info) then
+        Debug.explain env ~x:x2;
       (* Give an error message that mentions the entire function call. We should
        * probably have a function called nearest_loc that returns the location
        * of [e2] so that we can be even more precise in the error message. *)
@@ -803,7 +818,7 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
         | _ as x ->
             x
       in
-      let env, x = bind_rigid env (name, KTerm, get_location env x) in
+      let env, x = bind_rigid env (name, KValue, get_location env x) in
       Permissions.add env x t, x
 
   | ETuple exprs ->
@@ -974,12 +989,12 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
       let hint_else = add_hint hint "else" in
       let result_else = check_expression false_env ?hint:hint_else ?annot e3 in
 
-      let dest = Merge.merge_envs env ?annot result_then result_else in
+      let dest, sub_envs = merge_and_pack_conflicts env ?annot result_then result_else in
 
       if explain then
-        Debug.explain_merge dest [result_then; result_else];
+        Debug.explain_merge dest sub_envs;
 
-      dest
+      fst dest
 
   | EMatch (explain, e, patexprs) ->
       let hint = add_hint hint "match" in 
@@ -998,12 +1013,19 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
 
       (* Combine all of these left-to-right to obtain a single return
        * environment *)
-      let dest = MzList.reduce (Merge.merge_envs env ?annot) sub_envs in
-
-      if explain then
-        Debug.explain_merge dest sub_envs;
-
-      dest
+      begin match sub_envs with
+      | e1 :: e2 :: [] ->
+          let dest, sub_envs = merge_and_pack_conflicts env ?annot e1 e2 in
+          if explain then
+            Debug.explain_merge dest sub_envs;
+          fst dest
+      | _ ->
+        let merge_no_conflicts e1 e2 =
+          Merge.merge_envs env ?annot e1 e2
+          |> fst
+        in
+        MzList.reduce merge_no_conflicts sub_envs
+      end
 
   | EGive (x, e) ->
       (* Small helper function. *)
@@ -1105,17 +1127,10 @@ let rec check_expression (env: env) ?(hint: name option) ?(annot: typ option) (e
         raise_error env (NoAdoptsClause y);
       return env !*t_bool
 
-  | EExplained e ->
-      let env, x = check_expression env ?hint e in
-      Debug.explain env ~x;
-      (* Log.debug "%a" TypePrinter.penv env;
-      if true then failwith "Explanation above"; *)
-      env, x
-
   | EFail ->
       let name = Auto (Variable.register "/inconsistent") in
-      let env, x = bind_rigid env (name, KTerm, location env) in
-      let env = mark_inconsistent env in
+      let env, x = bind_rigid env (name, KValue, location env) in
+      let env = mark_inconsistent env FailAnnot in
       env, x
 
   | EBuiltin _ ->
@@ -1135,6 +1150,7 @@ and check_bindings
   (rec_flag: rec_flag)
   (patexprs: (pattern * expression) list): env * substitution_kit
   =
+    let was_inconsistent = is_inconsistent env in
     let env, patexprs, subst_kit = bind_patexprs env rec_flag patexprs in
     let { subst_expr; subst_pat; _ } = subst_kit in
     let patterns, expressions = List.split patexprs in
@@ -1165,6 +1181,8 @@ and check_bindings
       let env = unify_pattern env pat var in
       env) env patterns expressions
     in
+    if (not was_inconsistent) && is_inconsistent env then
+      TypeErrors.(may_raise_error env InconsistentEnv);
     env, subst_kit
 ;;
 

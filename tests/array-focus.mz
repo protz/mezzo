@@ -1,4 +1,4 @@
-val f [y : term] (x: marray (=y)) : () =
+val f [y : value] (x: marray (=y)) : () =
   ()
 
 val () =

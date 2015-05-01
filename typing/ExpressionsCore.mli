@@ -68,7 +68,6 @@ type expression =
   | EIfThenElse of bool * expression * expression * expression
   | ELocated of expression * location
   | EInt of int
-  | EExplained of expression
   | EGive of expression * expression
   | ETake of expression * expression
   | EOwns of expression * expression

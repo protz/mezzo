@@ -103,8 +103,7 @@ let collect_dependencies (items: S.toplevel_item list): Module.name list =
     | ESequence (e1, e2) ->
         collect_expr e1 @ collect_expr e2
     | ELocated (expr, _)
-    | EAccess (expr, _)
-    | EExplained expr ->
+    | EAccess (expr, _) ->
         collect_expr expr
     | EAssignTag (expr, dref, _) ->
         collect_expr expr @
@@ -157,23 +156,17 @@ let collect_dependencies (items: S.toplevel_item list): Module.name list =
         MzList.flatten_map collect_type ts
     | TyApp (t, ts) ->
         MzList.flatten_map collect_type (t :: ts)
-    | TyConcrete (branch, clause) ->
-        collect_concrete_branch branch @
-        collect_maybe_qualified (fst branch).datacon_unresolved @
+    | TyConcrete (dref, fields, clause) ->
+        collect_fields fields @
+        collect_maybe_qualified dref.datacon_unresolved @
         MzList.flatten_map collect_type (Option.to_list clause)
 
-  and collect_concrete_branch: 'a. 'a * data_field_def list -> Module.name list =
-  fun (_, fields)  ->
-    let ts = List.map (function
-      | FieldValue (_, t) ->
-          t
-      | FieldPermission t ->
-          t
-    ) fields in
+  and collect_fields (fields: data_field_def list): Module.name list =
+    let ts = List.map snd fields in
     MzList.flatten_map collect_type ts
 
-  and collect_data_type_def_branch (_, _, _, fields) =
-    collect_concrete_branch ((), fields)
+  and collect_data_type_def_branch (_, t) =
+    collect_type t
 
   and collect_maybe_qualified: 'a. 'a maybe_qualified -> Module.name list =
   function

@@ -1,0 +1,15 @@
+abstract foo: perm
+
+data mutable t a =
+  | A { a: a }
+  | B
+  | C
+
+val _ =
+  if true then
+    (B: t (unknown | foo))
+  else
+    (C: t ( | foo))
+
+val _ =
+  assert foo

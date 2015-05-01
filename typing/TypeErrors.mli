@@ -24,6 +24,7 @@ open TypeCore
 
 (** Clients of this module will want to use the various errors offered. *)
 type raw_error =
+  | OverrideAutoload of string
   | CyclicDependency of Module.name
   | NotAFunction of var
   | ExpectedType of typ * var * Derivations.derivation
@@ -61,6 +62,7 @@ type raw_error =
   | Instantiated of Variable.name * typ
   | PackWithExists
   | SeveralWorkingFunctionTypes of var
+  | InconsistentEnv 
 
 (** Set up the module to take into account the warn / error / silent settings
  * specified on the command-line. *)
@@ -87,9 +89,6 @@ val print_error : Buffer.t -> error -> unit
 
 (** ... or displayed as an HTML error. *)
 val html_error: error -> unit
-
-(** This is only for display purposes. *)
-val fold_type : env -> typ -> typ option
 
 (**/**)
 

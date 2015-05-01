@@ -5,6 +5,6 @@ and mutable u = U
 data foo = Foo
 
 val f (x: t, y: foo) : bool =
-  x owns y
+  x adopts y
 
 

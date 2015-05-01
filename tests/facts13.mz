@@ -1,8 +1,8 @@
 abstract t +a
-abstract u +(x: term)
+abstract u +(x: value)
 
-val f (): {x: term} () -> (u x) = fail
-val g (): ({x: term} (u x)) = fail
+val f (): {x: value} () -> (u x) = fail
+val g (): ({x: value} (u x)) = fail
 
 val z = 
   if true then begin

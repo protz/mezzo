@@ -1,4 +1,0 @@
-requires = "mezzolib"
-description = "The Mezzo core library"
-archive(byte) = "MezzoCoreLib.cma"
-archive(native) = "MezzoCoreLib.cmxa"

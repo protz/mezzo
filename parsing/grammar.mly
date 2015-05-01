@@ -44,7 +44,7 @@
 (* Other tokens. *)
 
 %token          OPEN BUILTIN
-%token          TERM TYPE PERM
+%token          VALUE TYPE PERM
 %token          UNKNOWN DYNAMIC EXCLUSIVE MUTABLE
 %token          DATA ALIAS BAR UNDERSCORE
 %token          LBRACKET RBRACKET LBRACE RBRACE LPAREN RPAREN
@@ -55,7 +55,7 @@
 %token          FLEX PACK WITNESS
 %token          VAL LET REC AND IN DOT WITH BEGIN END MATCH FOR ABOVE BELOW DOWNTO
 %token          IF THEN ELSE PRESERVING WHILE DO
-%token          TAKE FROM GIVE TO ADOPTS OWNS TAKING
+%token          TAKE FROM GIVE TO ADOPTS TAKING
 %token<int>     INT
 %token<string>  OPPREFIX OPINFIX0a OPINFIX0b OPINFIX0c OPINFIX0d OPINFIX1 OPINFIX2 OPINFIX3 OPINFIX4
 %token<string>  EQUAL STAR PLUS MINUS COLONEQUAL (* special cases of operators *)
@@ -64,7 +64,7 @@
 %nonassoc THEN
 %nonassoc ELSE
 
-%nonassoc OWNS
+%nonassoc ADOPTS
 %nonassoc COLONEQUAL
 %left     OPINFIX0a
 %left     OPINFIX0b
@@ -124,6 +124,7 @@ variable:
     (* A identifier that begins with a lowercase letter is a variable. *)
   | x = LIDENT
     (* As per the OCaml convention, a parenthesized operator is a variable. *)
+    (* TEMPORARY maybe this could be recognized by the lexer, saving about 30 states in the LR automaton? *)
   | LPAREN x = OPPREFIX RPAREN
   | LPAREN x = infix_operator RPAREN
       { Variable.register x }
@@ -161,21 +162,44 @@ maybe_qualified(X):
 
 (* ---------------------------------------------------------------------------- *)
 
-(* Flexible lists. *)
+(* In a right-flexible list, the last delimiter is optional, i.e., [delim]
+   can be viewed as a terminator or a separator, as desired. *)
 
-separated_or_terminated_list(sep, X):
+(* There are several ways of expressing this. One could say it is either a
+   separated list or a terminated list; this works if one uses right
+   recursive lists. Or, one could say that it is separated list followed
+   with an optional delimiter; this works if one uses a left-recursive
+   list. The following formulation is direct and seems most natural. It
+   should lead to the smallest possible automaton. *)
+
+right_flexible_list(delim, X):
 | (* nothing *)
     { [] }
-| xs = terminated(X, sep)+
-| xs = separated_nonempty_list(sep, X)
-    { xs }
+| x = X
+    { [x] }
+| x = X delim xs = right_flexible_list(delim, X)
+    { x :: xs }
 
-separated_or_preceded_list(sep, X):
+(* In a left-flexible list, the first delimiter is optional, i.e., [delim]
+   can be viewed as an opening or as a separator, as desired. *)
+
+(* Again, there are several ways of expressing this, and again, I suppose
+   the following formulation is simplest. It is the mirror image of the
+   above definition, so it is naturally left-recursive, this time. *)
+
+reverse_left_flexible_list(delim, X):
 | (* nothing *)
     { [] }
-| xs = preceded(sep, X)+
-| xs = separated_nonempty_list(sep, X)
-    { xs }
+| x = X
+    { [x] }
+| xs = reverse_left_flexible_list(delim, X) delim x = X
+    { x :: xs }
+
+%inline left_flexible_list(delim, X):
+  xs = reverse_left_flexible_list(delim, X)
+    { List.rev xs }
+
+(* A separated list of at least two elements. *)
 
 %inline separated_list_of_at_least_two(sep, X):
 | x1 = X sep x2 = separated_nonempty_list(sep, X)
@@ -205,13 +229,13 @@ separated_or_preceded_list(sep, X):
 (* Syntax for type abstraction and universal quantification. *)
 
 type_parameters:
-| LBRACKET bs = separated_or_terminated_list(COMMA, type_binding) RBRACKET
+| LBRACKET bs = right_flexible_list(COMMA, type_binding) RBRACKET
     { bs }
 
 (* Syntax for existential quantification. *)
 
 existential_quantifiers:
-| LBRACE bs = separated_or_terminated_list(COMMA, type_binding) RBRACE
+| LBRACE bs = right_flexible_list(COMMA, type_binding) RBRACE
     { bs }
 
 (* ---------------------------------------------------------------------------- *)
@@ -252,8 +276,8 @@ type_binding:
 atomic_kind:
 | LPAREN kind = kind RPAREN
     { kind }
-| TERM
-    { KTerm }
+| VALUE
+    { KValue }
 | TYPE
     { KType }
 | PERM
@@ -334,7 +358,7 @@ raw_atomic_type:
 (* A structural type without an [adopts] clause (which is the usual case)
    is an atomic type. *)
 | b = data_type_branch
-    { TyConcrete (b, None) }
+    { mk_concrete ($startpos(b), $endpos) b None }
 
 %inline tight_type:
 | ty = tlocated(raw_tight_type)
@@ -354,28 +378,33 @@ raw_tight_type:
 | ty = tlocated(raw_normal_type)
     { ty }
 
-raw_normal_type:
+%inline raw_normal_type_no_adopts_rec(X):
 | ty = raw_tight_type
     { ty }
 (* The syntax of function types is [t -> t], as usual. *)
-| ty1 = tight_type ARROW ty2 = normal_type
+| ty1 = tight_type ARROW ty2 = X
     { TyArrow (ty1, ty2) }
 (* A polymorphic type. *)
-| bs = type_parameters ty = normal_type
+| bs = type_parameters ty = X
     { List.fold_right (fun b ty -> TyForall (b, ty)) bs ty }
 (* An existential type. *)
-| bs = existential_quantifiers ty = normal_type
+| bs = existential_quantifiers ty = X
     { List.fold_right (fun b ty -> TyExists (b, ty)) bs ty }
 (* A type that carries a mode constraint (implication). *)
-| c = mode_constraint DBLARROW ty = normal_type
+| c = mode_constraint DBLARROW ty = X
     { TyImply (c, ty) }
-(* A type that carries a mode constraint (conjunction). *)
-| c = mode_constraint BAR ty = normal_type
-    { TyAnd (c, ty) }
+
+raw_normal_type_no_adopts:
+| x = raw_normal_type_no_adopts_rec(raw_normal_type_no_adopts)
+    { x }
+
+raw_normal_type:
+| t = raw_normal_type_no_adopts_rec(raw_normal_type)
+    { t }
 (* A structural type with an [adopts] clause is a considered a normal type.
    This allows the type in the [adopts] clause to be itself a normal type. *)
-| b = data_type_branch ADOPTS t = normal_type
-    { TyConcrete (b, Some t) }
+| b = data_type_branch ADOPTS t = raw_normal_type
+    { mk_concrete ($startpos(b), $endpos) b (Some t) }
 
 %inline loose_type:
 | ty = tlocated(raw_loose_type)
@@ -449,6 +478,9 @@ raw_fat_type:
     { TyBar (ty1, ty2) }
 | BAR ty2 = very_loose_type
     { TyBar (TyTuple [], ty2) }
+(* A type that carries a mode constraint (conjunction). *)
+| ty = fat_type BAR c = mode_constraint
+    { TyAnd (c, ty) }
 
 %inline arbitrary_type:
   ty = fat_type
@@ -499,36 +531,47 @@ generic_bare_datacon_application(Y):
    separated (or -terminated) list of things. *)
 
 %inline datacon_application(Y):
-| xys = generic_datacon_application(separated_or_terminated_list(SEMI, Y))
+| xys = generic_datacon_application(right_flexible_list(SEMI, Y))
     { xys }
 
 (* ---------------------------------------------------------------------------- *)
 
 (* Data type definitions. *)
 
+(* Please note that the distinction between value fields and permission fields
+ * only exists temporarily (hence, the anonymous variant type); these variants
+ * disappear as soon as the user of [data_type_branch] calls
+ * [ParserUtils.mk_concrete]. The reason why we group [`FieldValue]'s and
+ * [`FieldPermission]'s in a common list is that [curly_brace] hardcodes the
+ * empty list as a default value. *)
+
 data_field_def:
 (* A field definition normally mentions a field name and a field type. Multiple
    field names, separated with commas, can be specified: this means that they
    share a common type. *)
 | fs = separated_nonempty_list(COMMA, variable) COLON ty = normal_type
-    { List.map (fun f -> FieldValue (f, ty)) fs }
+    { List.map (fun f -> `FieldValue (f, ty)) fs }
+(* The double-colon stands for a binding field name whose scope is the entire
+ * concrete type. *)
+| fs = separated_nonempty_list(COMMA, variable) COLONCOLON ty = normal_type
+    { List.map (fun f -> `FieldBindingValue (f, ty)) fs }
 (* We also allow a field definition to take the form of an equality between
    a field name [f] and a term variable [y]. This is understood as sugar for
    a definition of the field [f] at the singleton type [=y]. In this case,
    only one field name is allowed. This short-hand is useful in the syntax
    of structural permissions. *)
 | f = variable EQUAL y = maybe_qualified_type_variable
-    { [ FieldValue (f, TySingleton y) ] }
+    { [ `FieldValue (f, TySingleton y) ] }
 (* Going one step further, we allow a field definition to consist of just
    a field name [f]. This is a pun: it means [f = f], or in other words,
    [f: =f]. *)
 | f = variable
-    { [ FieldValue (f, TySingleton (TyVar (Unqualified f))) ] }
+    { [ `FieldValue (f, TySingleton (TyVar (Unqualified f))) ] }
 
 (* Field definitions are semicolon-separated or -terminated. *)
 
 %inline data_fields_def:
-  fss = separated_or_terminated_list(SEMI, data_field_def)
+  fss = right_flexible_list(SEMI, data_field_def)
     { List.flatten fss }
 
 (* A list of field definitions is optionally followed with BAR and a
@@ -538,7 +581,7 @@ data_type_def_branch_content:
   fs = data_fields_def
     { fs }
 | fs = data_fields_def BAR perm = very_loose_type
-    { fs @ [ FieldPermission perm ] }
+    { fs @ [ `FieldPermission perm ] }
 
 (* A branch in a data type definition is a constructor application,
    where, within the braces, we have the above content. This is also
@@ -560,12 +603,9 @@ data_type_def_branch_content:
 
 %inline data_type_def_branch:
   flavor = data_type_flavor
-  bs = existential_quantifiers? (* TEMPORARY allow more *)
-  dfs = generic_bare_datacon_application(data_type_def_branch_content)
-    { 
-      let dc, fields = dfs in
-      let bs = Option.map_none [] bs in
-      flavor, dc, bs, fields
+  t = tlocated(raw_normal_type_no_adopts)
+    {
+      flavor, t
     }
 
 %inline data_type_def_lhs:
@@ -577,7 +617,7 @@ data_type_def_branch_content:
     }
 
 %inline data_type_def_rhs:
-  bs = separated_or_preceded_list(BAR, data_type_def_branch)
+  bs = left_flexible_list(BAR, data_type_def_branch)
     { bs }
 
 %inline optional_kind_annotation:
@@ -708,9 +748,9 @@ raw_loose_pattern:
 (* Sometimes a variable is viewed as a term binding. This is a degenerate
    case of a pattern. *)
 
-variable_as_term_binding:
+%inline variable_as_term_binding:
   x = variable
-    { x, KTerm, ($startpos(x), $endpos) }
+    { x, KValue, ($startpos(x), $endpos) }
 
 (* ---------------------------------------------------------------------------- *)
 
@@ -758,7 +798,7 @@ raw_atomic_expression:
   b = explain
   e = expression
   WITH
-  bs = separated_or_preceded_list(BAR, match_branch)
+  bs = left_flexible_list(BAR, match_branch)
   END
     { EMatch (b, e, bs) }
 (* The unit value. *)
@@ -857,7 +897,7 @@ raw_algebraic_expression:
     (* TEMPORARY here, unary minus is treated as a non-hygienic macro for
        binary minus; do we want this? does OCaml allow redefining unary
        minus? *)
-| e1 = algebraic_expression OWNS e2 = algebraic_expression
+| e1 = algebraic_expression ADOPTS e2 = algebraic_expression
     { EOwns (e1, e2) }
 | e = raw_application_expression
     { e }
@@ -897,7 +937,7 @@ raw_reasonable_expression:
   DO e2 = reasonable_expression
     { EWhile (p, e1, e2) }
 | p = optional_preserving
-  FOR x = variable_as_term_binding EQUAL e1 = expression f = for_flag e2 = expression
+  FOR x = variable_as_term_binding EQUAL e1 = expression f = direction e2 = expression
   DO e = reasonable_expression
     { EFor (p, x, e1, f, e2, e) }
   (* We cannot allow "let" on the right-hand side of an assignment, because
@@ -934,8 +974,6 @@ raw_reasonable_expression:
     { EAssert t }
 | PACK t1 = very_loose_type WITNESS t2 = very_loose_type
     { EPack (t1, t2) }
-| e = algebraic_expression EXPLAIN
-    { EExplained e }
 (* An expression that carries a type constraint. We cannot allow a fat type
    here because they have BARs in them and that would create an ambiguity
    when used inside a match construct! *)
@@ -987,7 +1025,7 @@ rec_flag:
 |
     { Nonrecursive }
 
-for_flag:
+direction:
 | TO
     { To }
 | DOWNTO
@@ -1050,6 +1088,7 @@ anonymous_function:
   (* Function body: = (x, x) *)
   EQUAL body = expression
     { let formal = List.fold_right (fun c ty -> TyAnd (c, ty)) cs formal in
+      let formal = TyLocated (formal, ($startpos(formal), $endpos(formal))) in
       EFun (type_parameters, formal, result, body) }
 
 (* ---------------------------------------------------------------------------- *)
@@ -1086,7 +1125,7 @@ value_declaration:
 
 (* This is a toplevel item; it appears in interfaces and implementations. *)
 
-open_directive:
+%inline open_directive:
 | OPEN m = module_name
     { OpenDirective m }
 

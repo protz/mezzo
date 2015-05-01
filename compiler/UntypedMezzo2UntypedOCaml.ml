@@ -30,7 +30,7 @@ let identifier (x : string) =
 (* The Mezzo module name [array] becomes the OCaml module name [Mzarray]. *)
 
 let translate_module_name m =
-  "Mz" ^ Module.print m
+  "Mz_" ^ Module.print m
 
 (* ---------------------------------------------------------------------------- *)
 
@@ -74,6 +74,14 @@ let extract_field_index (f : field) : int =
 (* In principle, this reference to a data constructor should be resolved in the
    same way at the OCaml level and at the Mezzo level, so we can print it exactly
    as it appeared in the Mezzo program. *) (* TEMPORARY think about this *)
+
+let print_maybe_qualified f = function
+  | Unqualified x ->
+      identifier (f x)
+  | Qualified (m, x) ->
+      Printf.sprintf "%s.%s"
+        (translate_module_name m)
+        (identifier (f x))
 
 let print_datacon_reference dref =
   print_maybe_qualified Datacon.print dref.datacon_unresolved
@@ -202,14 +210,8 @@ and complete i arity ips =
 
 let rec transl (e : expression) : O.expression =
   match e with
-  | EVar (Unqualified x) ->
-      O.EVar (identifier (Variable.print x))
-  | EVar (Qualified (m, x)) ->
-      O.EVar (
-       Printf.sprintf "%s.%s"
-         (translate_module_name m)
-         (identifier (Variable.print x))
-      )
+  | EVar x ->
+      O.EVar (print_maybe_qualified Variable.print x)
   | EBuiltin b ->
       (* The builtin operations are defined in the OCaml library module
         [MezzoLib]. *)
@@ -262,8 +264,8 @@ let rec transl (e : expression) : O.expression =
       )
   | EWhile (e1, e2) ->
       O.EWhile (
-  gtz (O.EGetTag (transl e1)),
-  transl e2
+        gtz (O.EGetTag (transl e1)),
+        transl e2
       )
   | EFor (x, e1, f, e2, e) ->
       let mkop s = EVar (Unqualified (Variable.register s)) in

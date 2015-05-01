@@ -39,7 +39,7 @@ val preorder
     p
   ) : () =
     (* Perform a dynamic ownership test. *)
-    if nodes owns node then begin
+    if nodes adopts node then begin
       (* This node has not been visited yet. *)
       take node from nodes;
       (* Visit it, and obtain a list of its successors. *)
@@ -112,7 +112,7 @@ val prepostorder
     p
   ) : bool =
     (* Perform a dynamic ownership test. *)
-    if nodes owns node then begin
+    if nodes adopts node then begin
       (* This node has not been reached yet. *)
       take node from nodes;
       (* Change its state to [visiting] and obtain its successors. *)
@@ -136,7 +136,7 @@ val prepostorder
       (* In either case, propagate the result. *)
       ok
     end
-    else if completed owns node then
+    else if completed adopts node then
       (* There is nothing to do. *)
       true
     else

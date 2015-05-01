@@ -3,7 +3,7 @@
 
 data mutable tree k a =
   | Empty
-  | Node { left: tree k a; key: k; value: a; right: tree k a; height: int }
+  | Node { left: tree k a; key: k; value_: a; right: tree k a; height: int }
 
 (* OCaml's [Map] library uses iterators in order to implement the comparison
    of two trees. It implements an iterator as a list of trees. Unfortunately,
@@ -19,8 +19,8 @@ data mutable tree k a =
 
 data mutable zipper k a =
   | ZEmpty
-  | ZLeft  { father: zipper k a; key: k; value: a; right: tree k a;    height: int }
-  | ZRight { left: tree k a;     key: k; value: a; father: zipper k a; height: int }
+  | ZLeft  { father: zipper k a; key: k; value_: a; right: tree k a;    height: int }
+  | ZRight { left: tree k a;     key: k; value_: a; father: zipper k a; height: int }
 
 (* In this approach, an iterator is a pair of a zipper and a tree, together
    with a tag that indicates whether we are arriving at this node, currently
@@ -29,7 +29,7 @@ data mutable zipper k a =
 
 data mutable iterator k a =
   | IArriving { context: zipper k a; focus: tree k a }
-  | IAt       { context: zipper k a; focus: Node { left: tree k a; key: k; value: a; right: tree k a; height: int }}
+  | IAt       { context: zipper k a; focus: Node { left: tree k a; key: k; value_: a; right: tree k a; height: int }}
   | ILeaving  { context: zipper k a; focus: tree k a }
 
 (* The function [advance] advances an iterator until either it reaches a new
@@ -163,7 +163,7 @@ val compare [k, a] (
     | IAt { focus = m1 }, IAt { focus = m2 } ->
        let c = cmpk (m1.key, m2.key) in
        if c <> 0 then c else begin
-         let c = cmpa (m1.value, m2.value) in
+         let c = cmpa (m1.value_, m2.value_) in
          if c <> 0 then c else begin
            advance i1;
            advance i2;
@@ -208,7 +208,7 @@ val iter_variant [k, a, p : perm] (
   let rec loop (| i @ iterator k a * p) : bool =
     match i with
     | IAt { focus = m } ->
-        f (m.key, m.value) && loop()
+        f (m.key, m.value_) && loop()
     | _ ->
         True
     end
@@ -232,7 +232,7 @@ val iter_variant [k, a, p : perm] (
 data bandits k a =
   | End
   | More {
-      head: Node { left: dynamic; key: k; value: a; right: tree k a; height: int };
+      head: Node { left: dynamic; key: k; value_: a; right: tree k a; height: int };
       tail: bandits k a
     }
 
@@ -251,7 +251,7 @@ data mutable enumeration k a =
 
 and mutable visited k a =
   | VisitedEmpty
-  | VisitedNode { left: dynamic; key: k; value: a; right: dynamic; height: int }
+  | VisitedNode { left: dynamic; key: k; value_: a; right: dynamic; height: int }
 
 (* This smart constructor [cons]es a tree in front of a list of bandits. The
    left spine of the tree is walked down all the way, so that the nodes that
@@ -344,7 +344,7 @@ val compare_variant [k, a] (
     | More { head = m1 }, More { head = m2 } ->
        let c = cmpk (m1.key, m2.key) in
        if c <> 0 then c else begin
-         let c = cmpa (m1.value, m2.value) in
+         let c = cmpa (m1.value_, m2.value_) in
          if c <> 0 then c else begin
            consume_enum e1;
            consume_enum e2;

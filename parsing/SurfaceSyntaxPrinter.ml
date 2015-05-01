@@ -11,6 +11,8 @@ open MzPprint
 
 let rec parenthetic_type ty =
   match ty with
+  | TyLocated (ty, _) ->
+      parenthetic_type ty
   | TyTuple [] ->
       string "()"
   | _ ->
@@ -26,7 +28,7 @@ and atomic_type ty =
       string "empty"
   | TyVar x ->
       variable x
-  | TyConcrete (_, None) ->
+  | TyConcrete (_, _, None) ->
       concrete ty
   | _ ->
       parenthetic_type ty
@@ -60,10 +62,6 @@ and normal_type ty =
       prefix 0 1
        (braces (commas binding bs))
        (normal_type ty)
-  | TyAnd (c, ty) ->
-        prefix 0 1
-          (mode_constraint c ^^ string " |")
-          (normal_type ty)
   | TyConcrete _ ->
       concrete ty
   | _ ->
@@ -105,7 +103,7 @@ and very_loose_type ty =
   | TyTuple ((_ :: _ :: _) as tys) ->
       (* I do not insert parentheses by default. They will be inserted
         if required. *)
-      separate_map commabreak consumes_type tys
+      group (separate_map commabreak consumes_type tys)
   | TyTuple [ _ ] ->
       assert false (* unexpected *)
   | _ ->
@@ -127,6 +125,12 @@ and fat_type ty =
        nest 2 (break 0 ^^ fat_type ty1) ^/^
        string "| " ^^ nest 2 (very_loose_type ty2)
       )
+  | TyAnd (c, ty) ->
+      (* Same appearance as above. *)
+      group (
+        nest 2 (break 0 ^^ fat_type ty) ^/^
+        string "| " ^^ nest 2 (mode_constraint c)
+      )
   | _ ->
       very_loose_type ty
 
@@ -147,7 +151,7 @@ and binding (x, kind, _) =
   match kind with
   | KType ->
       unqualified_variable x
-  | KTerm
+  | KValue
   | KPerm ->
       unqualified_variable x ^^ ccolon ^^ print_kind kind
   | KArrow _ ->
@@ -155,7 +159,7 @@ and binding (x, kind, _) =
 
 and concrete ty =
   match ty with
-  | TyConcrete ((dref, fs), clause) ->
+  | TyConcrete (dref, fs, clause) ->
       datacon_reference dref ^^
       (
        if List.length fs > 0 then
@@ -174,15 +178,13 @@ and concrete ty =
     assert false (* cannot happen *)
 
 and field = function
-  | FieldValue (f, TySingleton (TyVar y)) ->
+  | f, TySingleton (TyVar y) ->
       (* A special case: syntactic sugar for equations. *)
       utf8string (Field.print f) ^^ string " = " ^^ variable y
-  | FieldValue (f, ty) ->
+  | f, ty ->
       prefix 2 1
        (utf8string (Field.print f) ^^ colon)
        (normal_type ty)
-  | FieldPermission ty ->
-      string "| " ^^ very_loose_type ty
 
 and mode_constraint (mode, ty) =
   string (Mode.print mode) ^^ space ^^ atomic_type ty
@@ -197,3 +199,5 @@ and datacon_reference dref =
 let print =
   arbitrary_type
 
+let p buf t =
+  pdoc buf (arbitrary_type, t)

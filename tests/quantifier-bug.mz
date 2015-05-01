@@ -1,4 +1,4 @@
 (* BUG This code shouldn't be accepted, because the name x
  * doesn't exist in the function scope *)
 
-val f [x: term] (|x @ int) : int = x 
+val f [x: value] (|x @ int) : int = x

@@ -8,7 +8,7 @@ data state a (post: perm) = State {
   )
 }
 
-val f [ a, post: perm, l: term, p: perm ] (| consumes (p * convertible (p * l @ a) post)): () =
+val f [ a, post: perm, l: value, p: perm ] (| consumes (p * convertible (p * l @ a) post)): () =
   fail
 
 val get [a, post: perm] (consumes s: state a post): () =

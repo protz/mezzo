@@ -16,7 +16,7 @@ data outcome =
 (* ------------------------------------------------------------------------------ *)
 
 (* Concretely, an iterator is either: *)
-data mutable iterator (i : term) a (post : perm) =
+data mutable iterator (i : value) a (post : perm) =
 
     (* finished, in which case the permission [post] is available, and the field
        [outcome] indicates whether the iteration was stopped or finished by iti; *)
@@ -37,22 +37,22 @@ data mutable iterator (i : term) a (post : perm) =
       | pre
     )}
 
-alias finished (i : term) (post : perm) : perm =
+alias finished (i : value) (post : perm) : perm =
   i @ IFinished { outcome: outcome | post }
 
-alias scratch (i : term) : perm =
+alias scratch (i : value) : perm =
   i @ IAvailable { content: unknown }
 
-alias active (i : term) a (post : perm) : perm =
+alias active (i : value) a (post : perm) : perm =
   i @ iterator i a post
 
-alias stop_ty (i : term) (x : term) a (pre : perm) (post : perm) =
+alias stop_ty (i : value) (x : value) a (pre : perm) (post : perm) =
   (| consumes (x @ a * pre * scratch i)) -> (| finished i post)
 
-alias next_ty (i : term) (x : term) a (pre : perm) (post : perm) =
+alias next_ty (i : value) (x : value) a (pre : perm) (post : perm) =
   (| consumes (x @ a * pre * scratch i)) -> (| active i a post)
 
-alias available (i : term) (x : term) a (post : perm) : perm =
+alias available (i : value) (x : value) a (post : perm) : perm =
   i @ IAvailable { content: { pre : perm } (
     =x,
     stop: stop_ty i x a pre post,
@@ -64,7 +64,7 @@ alias available (i : term) (x : term) a (post : perm) : perm =
 
 (* An iterator API. *)
 
-data offer (i : term) a (post : perm) =
+data offer (i : value) a (post : perm) =
     None {| finished i post }
   | Some { x: (x: a | available i x a post) }
 
@@ -79,13 +79,13 @@ val query [a, post : perm]
       Some { x }
   end
 
-val stop [x : term, a, post : perm]
+val stop [x : value, a, post : perm]
   (i: unknown | consumes (x @ a * available i x a post))
 : (| finished i post) =
   let _, stop, _ = i.content in
   stop()
 
-val next [x : term, a, post : perm]
+val next [x : value, a, post : perm]
   (i: unknown | consumes (x @ a * available i x a post))
 : (| active i a post) =
   let _, _, next = i.content in

@@ -8,13 +8,13 @@ data mutable state =
   UnionFind
 
 (** An element in the union-find is either a [link] or a [root]. *)
-data mutable content (s: term) a =
+data mutable content (s: value) a =
   | Link { link: element s a }
   | Root { descr: a }
 
 (** And this is the interface that we expose to the client. I wish I had type
  * abbreviations... *)
-and element (s: term) a =
+and element (s: value) a =
   | Element { element: (element: unknown | nests s (element @ content s a)) }
 
 
@@ -25,7 +25,7 @@ val new (): state =
 (* Create a new element that is meant to go in the union-find. *)
 val create [a] duplicable a => (s: state, x: a): element s a =
   let e = Root { descr = x } in
-  nest [(e @ content s a)] s;
+  nest [s, (e @ content s a)] ();
   Element { element = e }
 
 (* Find the root of an equivalence class. The reason why some instantiations are
@@ -35,14 +35,14 @@ val rec repr [a] duplicable a => (s: state, e: element s a): element s a =
    * permissions (WISH). *)
   let elt = e.element in
   (* We're about to examine [elt], so focus it. *)
-  focus s;
+  focus [s] ();
   match elt with
   | Link { link } ->
       (* It's a link! We want to perform path compression, so we need to call
        * [repr] recursively; however, [repr] expects "s @ state", not "s @
        * punched state (elt @ content s a)". So we perform a defocus
        * operation... *)
-      defocus (* [(elt @ content s a)] *) s;
+      defocus [s] (* [(elt @ content s a)] *) ();
       (* Interestingly enough, one can *not* write [elt.link] here, because this
        * comes *after* the call to [defocus]. Conversely, because [link] is
        * bound earlier, the type checker saves a copy of [link @ element s a].
@@ -50,7 +50,7 @@ val rec repr [a] duplicable a => (s: state, e: element s a): element s a =
       let r = repr (s, link) in
       (* Let's focus again, because we need to perform a write in order to
        * perform path-compression. *)
-      focus [(elt @ content s a)] s;
+      focus [s, (elt @ content s a)] ();
       (* But look! We no longer know that [elt] was in the [Link] state, so we
        * need to match again... *)
       match elt with
@@ -58,7 +58,7 @@ val rec repr [a] duplicable a => (s: state, e: element s a): element s a =
           (* Perform the write. *)
           elt.link <- r;
           (* "Give back" [elt] to [s]. *)
-          defocus (* [(elt @ content s a)] *) s;
+          defocus [s] (* [(elt @ content s a)] *) ();
           (* And return [r] which is the actual root. *)
           r
       | Root ->
@@ -68,17 +68,17 @@ val rec repr [a] duplicable a => (s: state, e: element s a): element s a =
       end
   | Root ->
       (* It's a root! Nothing to do here, just [defocus] and return. *)
-      defocus (* [(elt @ content s a)] *) s;
+      defocus [s] (* [(elt @ content s a)] *) ();
       e
   end
 
 val unify [a] duplicable a => (s: state, x: element s a, y: element s a): () =
+  (* First of all, find the roots. *)
+  let x = repr (s, x) in
+  let y = repr (s, y) in
   if x == y then
     ()
   else begin
-    (* First of all, find the roots. *)
-    let x = repr (s, x) in
-    let y = repr (s, y) in
     (* Then, give names to the elements. *)
     let elt_x = x.element in
     (* And get their representants. Here, we wish we could defocus both [elt_x]
@@ -86,7 +86,7 @@ val unify [a] duplicable a => (s: state, x: element s a, y: element s a): () =
      * allow us to perform such an operation: this is the reason why [repr]
      * returns an [element s a] with the additional, not statically enforced
      * promise that the element in question is a root. *)
-    focus [(elt_x @ content s a)] s;
+    focus [s, (elt_x @ content s a)] ();
     (* I WISH we could just overwrite the tag without having to match first...
      * *)
     match elt_x with
@@ -96,7 +96,7 @@ val unify [a] duplicable a => (s: state, x: element s a, y: element s a): () =
         tag of elt_x <- Link;
         elt_x.link <- y
     end;
-    defocus (* [(elt_x @ content s a)] *) s;
+    defocus [s] (* [(elt_x @ content s a)] *) ();
   end
 
 val find [a] duplicable a => (s: state, x: element s a): a =
@@ -105,8 +105,8 @@ val find [a] duplicable a => (s: state, x: element s a): a =
   (* Give a name to the element *)
   let elt = r.element in
   (* Now we need to access the contents of [elt]. Focus it. *)
-  focus [(elt @ content s a)] s;
-  let value =
+  focus [s, (elt @ content s a)] ();
+  let value_ =
     (* Again, we assert dynamically that [repr] returns a [Root], not a [Link]. *)
     match elt with
     | Root ->
@@ -116,9 +116,15 @@ val find [a] duplicable a => (s: state, x: element s a): a =
     end
   in
   (* And once we're done looking up [elt], we give it back to [s]. *)
-  defocus (* [(elt @ content s a)] *) s;
-  (* [value] has type [a] which is duplicable, so we still have "value @ a" at
+  defocus [s] (* [(elt @ content s a)] *) ();
+  (* [value_] has type [a] which is duplicable, so we still have "value_ @ a" at
    * that stage. As far as I know, this is the only place where we use the
    * "duplicable a"  hypothesis; I left it as a precondition on all other
    * functions to catch client code errors as early as possible. *)
-  value
+  value_
+
+(*
+Local Variables:
+compile-command: "../mezzo union-find-nesting.mz"
+End:
+*)

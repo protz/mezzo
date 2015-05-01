@@ -1,0 +1,41 @@
+open thread
+open lock
+open osf
+
+(* A result is a reference that has been frozen. *)
+
+data result a =
+  R { result: a }
+
+(* The future itself is the pair of:
+     - a reference [s];
+     - a lock asserting that [s] has been frozen. *)
+
+alias future a = (s: unknown, lock (s @ result a))
+
+(* To create a future, the key idea (due to François) is to create the
+   lock in [locked] state: the [compute] thread we spawn is
+   responsible for evaluating the suspension and release the lock
+   afterward. [compute] is thus responsible for enforcing the
+   invariant, which holds forever after. *)
+
+val new [a] duplicable a => (consumes k: osf () a) : future a
+    = let s = newref () in
+      let l : (l: lock (s @ result a) | l @ locked)  = new_locked () in
+      let compute (| consumes (k @ osf () a * s @ ref () * l @ locked)) : () = 
+	s := k(); 
+        tag of s <- R;
+	release l
+      in
+      (* Concurrently compute and return the future: *)
+      spawn compute; (s, l)
+
+(* By this design, forcing a future consists simply in waiting for
+   [compute] to terminate, ie. wait for [l] to be released. *)
+
+val force [a] duplicable a => (f: future a) : a 
+  = let s, l = f in
+    acquire l; release l;
+    assert s @ result a;
+    s.result
+

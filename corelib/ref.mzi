@@ -2,8 +2,8 @@ data mutable ref a =
     Ref { contents: a }
 
 val newref  : [a] (consumes a) -> ref a
-val (!)     : [y : term] (ref (=y)) -> =y
-val (:=)    : [y1: term, y2: term] (consumes x: ref (=y1), =y2)
+val (!)     : [y : value] (ref (=y)) -> =y
+val (:=)    : [y1: value, y2: value] (consumes x: ref (=y1), =y2)
   -> (| x @ ref (=y2))
 
 val incr    : ref int -> ()

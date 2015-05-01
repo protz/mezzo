@@ -4,27 +4,27 @@
    in a one-field record. *)
 
 data id a =
-  Id { value: a }
+  Id { value_: a }
 
 val return [a] (consumes x: a) : id a =
-  Id { value = x }
+  Id { value_ = x }
 
 val bind [a, b] (m: id a, k: a -> id b) : id b =
-  k m.value
+  k m.value_
 
 (* The error monad. *)
 
 data option a =
 | None
-| Some { value: a }
+| Some { value_: a }
 
 val return [a] (consumes x: a) : option a =
-  Some { value = x }
+  Some { value_ = x }
 
 val bind [a, b] (m: option a, k: a -> option b) : option b =
   match m with
   | Some ->
-      k m.value
+      k m.value_
   | None ->
       None
   end
@@ -33,17 +33,17 @@ val bind [a, b] (m: option a, k: a -> option b) : option b =
 
 data result e a =
 | Error { err : e }
-| Ok { value : a }
+| Ok { value_ : a }
 
 val return [e, a] (consumes x: a) : result e a =
-  Ok { value = x }
+  Ok { value_ = x }
 
 val bind [e, a, b] (consumes m: result e a, k: a -> result e b) : result e b =
   match m with
   | Error ->
       m
   | Ok ->
-      k m.value
+      k m.value_
   end
 
 val raise [e, a] (consumes err : e) : result e a =
@@ -54,7 +54,7 @@ val trywith [e, a] (consumes m: result e a, handle: e -> a) : a =
   | Error ->
       handle m.err
   | Ok ->
-      m.value
+      m.value_
   end
 
 (* The state-passing monad. *)

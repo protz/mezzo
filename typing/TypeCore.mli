@@ -163,7 +163,7 @@ module DataconMap: MzMap.S with type key = Module.name * Datacon.name
 (** This module provides a clean way to map a variable to any given piece of
  * data. Beware, however, that this module only works with rigid variables (it's
  * unclear what it should do for flexible variables), so it's up to the client
- * to properly run {!is_flexible} beforehand. *)
+ * to properly run {!is_flexible} and {!modulo_flex} beforehand. *)
 module VarMap: MzMap.S with type key = var
 
 (** This is an imperative version of [VarMap], in the form expected by [Fix]. *)
@@ -194,11 +194,22 @@ val module_name: env -> Module.name
 (** Enter another toplevel unit (implementation, interface). *)
 val enter_module: env -> Module.name -> env
 
+
+type inconsistency = 
+  | Consistent
+  | FailAnnot
+  | ExclusivePerms of typ
+  | DistinctDatacon of branch * branch
+  | TupleArity of typ list * typ list
+
+(** Getter for inconsistent *)
+val get_inconsistent: env -> inconsistency
+
 (** Is the current environment inconsistent? *)
 val is_inconsistent: env -> bool
 
 (** Mark the environment as being inconsistent. *)
-val mark_inconsistent: env -> env
+val mark_inconsistent: env -> inconsistency -> env
 
 (** An environment contains a kind-checking environment that contains mapping
  * for all the current module's _dependencies_. *)
@@ -265,6 +276,9 @@ val set_floating_permissions: env -> typ list -> env
 
 (** Get the names associated to a variable. *)
 val get_names : env -> var -> name list
+
+(** This function returns the user-provided name, if any. The auto-generated
+ * name, otherwise. *)
 val get_name : env -> var -> name
 
 (** Get the kind of any given variable. *)
@@ -347,10 +361,6 @@ val resolved_datacons_equal: env -> resolved_datacon -> resolved_datacon -> bool
  * branch contains permissions, there will be a [TyBar]. There may be other type
  * constructors above the [TyConcrete]. Thus, we provide a set of wrappers to
  * peek at / modify the [branch] found below other type constructors. *)
-
-(** Need to translate a branch definition [b] with nested permissions [ps] into
- * a type? Use [construct_branch b ps]. *)
-val construct_branch: type_binding list -> branch -> typ list -> typ
 
 (** Need to see the branch hidden beneath a type? Use this helper. This will
  * _not_ open quantifiers. *)

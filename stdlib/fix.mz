@@ -82,7 +82,7 @@ val predecessors [info] (g: graph info, n: node info) : list dynamic (* node *) 
      that they are no longer adopted by [es]. *)
   let predecessors : list dynamic (* edge *) =
     list::filter (n.incoming, fun (e: dynamic (* edge *) | g @ graph info) : bool =
-      g.edges owns e
+      g.edges adopts e
     )
   in
   n.incoming <- predecessors;

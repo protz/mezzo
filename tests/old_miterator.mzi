@@ -10,13 +10,13 @@ data outcome =
 
 (* ------------------------------------------------------------------------------ *)
 
-abstract scratch (i : term) : perm
+abstract scratch (i : value) : perm
 
-abstract finished (i : term) (post : perm) : perm
+abstract finished (i : value) (post : perm) : perm
 
-abstract active (i : term) a (post : perm) : perm
+abstract active (i : value) a (post : perm) : perm
 
-abstract available (i : term) (x : term) a (post : perm) : perm
+abstract available (i : value) (x : value) a (post : perm) : perm
 
 (* TEMPORARY remarque de Cyprien: il manque des coercions
       de finished i post              vers active i a post
@@ -31,7 +31,7 @@ abstract available (i : term) (x : term) a (post : perm) : perm
 
 (* An iterator API. *)
 
-data offer (i : term) a (post : perm) =
+data offer (i : value) a (post : perm) =
     None {| finished i post }
   | Some { x: (x: a | available i x a post) }
 
@@ -41,12 +41,12 @@ val query:
     offer i a post
 
 val stop:
-   [x : term, a, post : perm]
+   [x : value, a, post : perm]
      (i: unknown | consumes (x @ a * available i x a post)) ->
      (| finished i post)
 
 val next:
-  [x : term, a, post : perm]
+  [x : value, a, post : perm]
     (i: unknown | consumes (x @ a * available i x a post)) ->
     (| active i a post)
 

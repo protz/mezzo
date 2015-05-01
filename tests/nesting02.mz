@@ -1,0 +1,19 @@
+open nest
+
+data mutable region = Region
+
+alias inhabitant (rho : value) a =
+  (x: unknown | nests rho (x @ a))
+
+val consult [x : value, a, rho : value] (
+  f: (| x @ a) -> ()
+| x @ inhabitant rho a * rho @ region
+) : () =
+  nest::consult f
+  (* inferred type application: [rho, (x @ a), region, empty, ()] *)
+
+(*
+Local Variables:
+compile-command: "../mezzo nesting02.mz"
+End:
+*)

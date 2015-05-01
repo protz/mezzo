@@ -6,7 +6,7 @@
 
 data duplicability a =
   | NonDuplicable
-  | Duplicable { content: (duplicable a | ()) }
+  | Duplicable { content: (() | duplicable a) }
 
 (* A test. *)
 

@@ -55,7 +55,7 @@ val create [k, a] (capacity: int, hash: k -> int, equal: (k, k) -> bool) : table
 
 (* TEMPORARY a "const" permission would be useful here *)
 
-val key_index [k, a, buckets : term] (
+val key_index [k, a, buckets : value] (
   t: Table { cardinal: int; buckets = buckets; hash: k -> int; equal: (k, k) -> bool },
   x: k
   | buckets @ marray (bucket k a)
@@ -67,11 +67,11 @@ val key_index [k, a, buckets : term] (
 
 val push [k, a] (
   t: table k a,
-  consumes entry: BCons { key: k; value: a; tail: unknown }
+  consumes entry: BCons { key: k; value_: a; tail: unknown }
 ) : () =
   let i = key_index (t, entry.key) in
   array::update (t.buckets, i,
-    fun (consumes b: bucket k a | consumes entry @ BCons { key: k; value: a; tail: unknown }) : bucket k a =
+    fun (consumes b: bucket k a | consumes entry @ BCons { key: k; value_: a; tail: unknown }) : bucket k a =
       entry.tail <- b;
       entry
   )
@@ -86,7 +86,7 @@ val push_bucket [k, a]
   (t: unknown) :
   (int, consumes bucket k a | t @ table k a) -> () =
   fun (_: int, consumes b: bucket k a | t @ table k a) : () =
-    iter_bucket_down (b, fun (consumes entry: BCons { key: k; value: a; tail: unknown } | t @ table k a) : () =
+    iter_bucket_down (b, fun (consumes entry: BCons { key: k; value_: a; tail: unknown } | t @ table k a) : () =
       push (t, entry)
     )
 
@@ -146,7 +146,7 @@ val reset [k, a] (t: table k a, capacity: int) : () =
 (* Insertion. *)
 
 val add [k, a] (consumes x: k, consumes v: a, t: table k a) : () =
-  push (t, BCons { key = x; value = v; tail = () });
+  push (t, BCons { key = x; value_ = v; tail = () });
   t.cardinal <- t.cardinal + 1;
   if t.cardinal > 2 * array::length t.buckets then
     resize t

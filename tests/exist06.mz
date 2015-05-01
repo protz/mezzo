@@ -12,20 +12,20 @@ val foo () : (x: int, f: =x -> int) =
 The explanation is as follows:
 ==============================
 
-(=f, =k) — {f : term, x : term} ((=f | f @ [/root34 : term] (=/root34 | /root34 = x) -> (int::int | /root34 = x)), (=x | x @ int::int))
+(=f, =k) — {f : value, x : value} ((=f | f @ [/root34 : value] (=/root34 | /root34 = x) -> (int::int | /root34 = x)), (=x | x @ int::int))
 
 
 If we start on the left-hand side:
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-  =f — (=f* | f* @ [/root34 : term] (=/root34 | /root34 = x* ) -> (int::int | /root34 = x* ))
+  =f — (=f* | f* @ [/root34 : value] (=/root34 | /root34 = x* ) -> (int::int | /root34 = x* ))
   >>> Instantiating flexible #0 a.k.a. f (level=0) with f (level=0)
 
   (...)
 
-  [/root36 : term, y : term] (=/root36 | /root36 @ (=y | y = k)) -> (int::int | /root36 @ (=y | y = k))
+  [/root36 : value, y : value] (=/root36 | /root36 @ (=y | y = k)) -> (int::int | /root36 @ (=y | y = k))
     —
-  [/root34 : term] (=/root34 | /root34 = x* ) -> (int::int | /root34 = x* )
+  [/root34 : value] (=/root34 | /root34 = x* ) -> (int::int | /root34 = x* )
 
   (...)
 

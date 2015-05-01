@@ -22,9 +22,9 @@ alias locked =
 
 (* Creation. *)
 
-val new [p: perm] (| consumes p) : lock p =
-  let l : private_lock p = Free in
-  (* This unsafe type cast causes the permission [l @ lock p] to appear. *)
+val new_locked [p: perm] () : (l: lock p | l @ locked) = 
+  let l : private_lock p = Taken in
+  (* This unsafe type cast causes the desired permissions to appear. *)
   magic::magic l
 
 (* To acquire a lock, we check that it is currently [Free], and
@@ -48,6 +48,14 @@ val acquire [p: perm] (l: lock p) : (| p * l @ locked) =
 val release [p: perm] (l: lock p | consumes (p * l @ locked)) : () =
   (* The lock is known to be [Taken]. Change its tag back to [Free]. *)
   tag of l <- Free
+
+(* [new] could be implemented directly. For extra safety, we prefer to
+   implement it as the composition of [new_locked] and [release]. *)
+
+val new [p: perm] (| consumes p) : lock p =
+  let l : lock p = new_locked () in
+  release l;
+  l
 
 (* [borrow] is a well-parenthesized [acquire/release] pair. *)
 

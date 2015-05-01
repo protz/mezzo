@@ -6,9 +6,9 @@ val create () : uninitialised =
   newref ()
 
 data initialised a =
-  ImmutableRef { contents: (duplicable a | a) }
+  ImmutableRef { contents: (a | duplicable a) }
 
-val write [a] duplicable a => (consumes p: uninitialised, consumes x: a) : (| p @ initialised a) =
+val write [a] duplicable a => (consumes p: uninitialised, x: a) : (| p @ initialised a) =
   p := x;
   tag of p <- ImmutableRef
 

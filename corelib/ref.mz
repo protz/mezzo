@@ -4,7 +4,7 @@ data mutable ref a =
 val newref [a] (consumes x: a) : ref a =
   Ref { contents = x }
 
-val (!) [y : term] (x: ref (=y)): =y =
+val (!) [y : value] (x: ref (=y)): =y =
   x.contents
 
 val (:=) [a, b] (consumes x: ref a, consumes y: b): (| x @ ref b) =

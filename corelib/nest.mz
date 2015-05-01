@@ -1,27 +1,38 @@
 (* Nesting requires no runtime support; its implementation is trivial. *)
 
-abstract nests (x : term) (p : perm) : perm
+abstract nests (x : value) (p : perm) : perm
 fact duplicable (nests x p)
 
-val nest [p : perm, a] exclusive a => (x: a | consumes p) : (| nests x p) =
+val nest [x : value, p : perm, a] exclusive a => (| x @ a * consumes p) : (| nests x p) =
   magic::magic ()
 
 abstract punched (a : type) (p : perm) : type
 
-val focus [p : perm, a] exclusive a => (consumes x: a | nests x p) : (| x @ punched a p * p) =
+val focus [x : value, p : perm, a] exclusive a => (| consumes x @ a * nests x p) : (| x @ punched a p * p) =
   magic::magic ()
 
-val defocus [p : perm, a] (consumes (x: punched a p | p)) : (| x @ a) =
+val defocus [x : value, p : perm, a] (| consumes (x @ punched a p * p)) : (| x @ a) =
   magic::magic ()
 
-val nest_punched [p : perm, a, q : perm] (x: punched a q | consumes p) : (| nests x p) =
+val nest_punched [x : value, p : perm, a, q : perm] (| x @ punched a q * consumes p) : (| nests x p) =
   magic::magic ()
-
-(* TEMPORARY we really need a type abbreviation for the type:
-   y: unknown | nests x (y @ a)
-   which represents a region inhabitant *)
 
 (* TEMPORARY it is not very elegant to have both [nest] and [nest_punched].
    A more general approach, allowing multi-focusing, would be more elegant,
    but would need to be built into the system at a more primitive level. *)
 
+val consult [x : value, p : perm, a, pre : perm, b] exclusive a => (
+  f: (| p * consumes pre) -> b
+| x @ a * nests x p * 
+  consumes pre
+) : b =
+  focus ();
+  let y = f() in
+  defocus [x, p, a] ();
+  y
+
+(*
+Local Variables:
+compile-command: "../mezzo nest.mz"
+End:
+*)

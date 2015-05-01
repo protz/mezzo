@@ -118,15 +118,15 @@ let same_absolute_path p1 p2 =
 (* http://stackoverflow.com/questions/16269393/how-to-get-the-number-of-cores-on-a-machine-with-ocaml
  * *)
 let get_number_of_cores () =
-  try match Sys.os_type with 
+  try match Sys.os_type with
   | "Win32" ->
-      int_of_string (Sys.getenv "NUMBER_OF_PROCESSORS") 
+      int_of_string (Sys.getenv "NUMBER_OF_PROCESSORS")
   | _ ->
       let i = Unix.open_process_in "getconf _NPROCESSORS_ONLN" in
       let close () = ignore (Unix.close_process_in i) in
       try Scanf.fscanf i "%d" (fun n -> close (); n) with e -> close (); raise e
   with
-  | Not_found | Sys_error _ | Failure _ | Scanf.Scan_failure _ 
+  | Not_found | Sys_error _ | Failure _ | Scanf.Scan_failure _
   | End_of_file | Unix.Unix_error (_, _, _) ->
       1
 ;;

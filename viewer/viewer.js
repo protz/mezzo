@@ -133,14 +133,18 @@ function fillInterface(aJson) {
 
 function registerNodeHandlers(aNode, aPoints) {
   aNode.find(".node > polygon").attr("fill", "white");
-  aNode.find(".node").click(function () {
-    $(".node > polygon").attr("fill", "white");
-    $(this).find("polygon").attr("fill", "#f08a8a");
+  aNode.find(".node").click(function (event) {
+    if (event.ctrlKey) {
+      $(this).remove();
+    } else {
+      $(".node > polygon").attr("fill", "white");
+      $(this).find("polygon").attr("fill", "#f08a8a");
 
-    let id = $(this).attr("id").match(/node(\d+)/)[1];
-    let infos = aPoints[id];
-    console.log("Displaying information for node", id);
-    displayDetails(infos);
+      let id = $(this).attr("id").match(/node(\d+)/)[1];
+      let infos = aPoints[id];
+      console.log("Displaying information for node", id);
+      displayDetails(infos);
+    }
   });
 }
 

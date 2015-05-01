@@ -57,11 +57,11 @@ let check env point t =
 exception KnownFailure
 
 let silent_warn_error =
-  "-1..6"
+  "-1..7"
 ;;
 
 let pedantic_warn_error =
-  "@1..4+5@6"
+  "@1..4+5@6+7"
 ;;
 
 let simple_test ?(warn_error=silent_warn_error) ?known_failure outcome = fun do_it ->
@@ -187,7 +187,7 @@ let tests: (string * ((unit -> env) -> unit)) list = [
   ("unbound27.mz", kfail);
   ("unbound28.mz", kfail);
   ("unbound29.mz", kfail);
-  ("unbound30.mz", pass_known_failure);
+  ("unbound30.mz", pass);
   ("unbound31.mz", pass_known_failure);
   ("unbound32.mz", kfail);
   ("unbound33.mz", kfail);
@@ -391,7 +391,7 @@ let tests: (string * ((unit -> env) -> unit)) list = [
   ("merge2.mz", fun do_it ->
     let env = do_it () in
     let v2 = find_unqualified_var env "v2" in
-    let t = TyQ (Exists, dummy_binding KTerm, UserIntroduced,
+    let t = TyQ (Exists, dummy_binding KValue, UserIntroduced,
       TyBar (
         ty_equals v2,
         TyStar (
@@ -412,8 +412,8 @@ let tests: (string * ((unit -> env) -> unit)) list = [
   ("merge3.mz", fun do_it ->
     let env = do_it () in
     let v3 = find_unqualified_var env "v3" in
-    let t = TyQ (Exists, dummy_binding KTerm, UserIntroduced,
-      TyQ (Exists, dummy_binding KTerm, UserIntroduced,
+    let t = TyQ (Exists, dummy_binding KValue, UserIntroduced,
+      TyQ (Exists, dummy_binding KValue, UserIntroduced,
         TyBar (
           ty_equals v3,
           fold_star [
@@ -496,7 +496,7 @@ let tests: (string * ((unit -> env) -> unit)) list = [
     (* Urgh, have to input internal syntax to check function types... maybe we
      * should write surface syntax here and have it simplified by the desugar
      * procedure? ... *)
-    let t = TyQ (Forall, dummy_binding KTerm, UserIntroduced, TyArrow (
+    let t = TyQ (Forall, dummy_binding KValue, UserIntroduced, TyArrow (
       TyBar (
         TySingleton (TyBound 0),
         TyAnchoredPermission (TyBound 0, int)
@@ -520,7 +520,7 @@ let tests: (string * ((unit -> env) -> unit)) list = [
     let int = find_qualified_type env "int" "int" in
     let t = find_unqualified_type env "t" in
     (* Look at how fancy we used to be when we had singleton-subtyping! *)
-    (* let t = TyQ (Exists, dummy_binding KTerm, UserIntroduced, TyBar (
+    (* let t = TyQ (Exists, dummy_binding KValue, UserIntroduced, TyBar (
       TyApp (t, [TySingleton (TyBound 0)]),
       TyAnchoredPermission (TyBound 0, int)
     )) in *)
@@ -540,6 +540,7 @@ let tests: (string * ((unit -> env) -> unit)) list = [
   ("merge_generalize_val.mz", pass);
 
   ("merge-funcs.mz", pass_known_failure);
+  ("bug-merge-booleans.mz", pass_known_failure);
 
   ("constraints_merge.mz",
     simple_test ~warn_error:pedantic_warn_error Pass);
@@ -757,6 +758,7 @@ let tests: (string * ((unit -> env) -> unit)) list = [
   ("bag_fifo.mz", pass);
 
   ("union-find-nesting.mz", pass);
+  ("union-find-region.mz", pass);
   ("union-find-dynamic.mz", pass);
 
   (* Modules *)
@@ -909,8 +911,6 @@ let tests: (string * ((unit -> env) -> unit)) list = [
   ("array-covariance.mz", pass);
   ("array-contravariance.mz", fail);
   ("array-focus.mz", fail);
-  ("queue_nesting.mz", fail);
-  ("queue_nesting2.mz", fail);
   ("take-abstract.mz", fail);
   ("overflow.mz", fail);
   ("facts.mz", pass);
@@ -953,7 +953,7 @@ let tests: (string * ((unit -> env) -> unit)) list = [
   ("twice-mutable.mz", kfail);
   ("name-intro.mz", pass);
   ("name-intro2.mz", pass);
-  ("name-intro3.mz", pass_known_failure);
+  ("name-intro3.mz", pass);
   ("name-intro4.mz", pass);
   ("name-intro5.mz", pass);
   ("desugaring00.mz", pass);
@@ -1028,6 +1028,7 @@ let tests: (string * ((unit -> env) -> unit)) list = [
   ("assert-var.mz", pass);
   ("internal_choice.mz", pass);
   ("server.mz", pass);
+  ("copy2.mz", pass);
   ("array-borrow-1.mz", pass);
   ("array-borrow-2.mz", fail);
   ("booltrue.mz", pass);
@@ -1037,14 +1038,30 @@ let tests: (string * ((unit -> env) -> unit)) list = [
   ("datacon2.mz", pass);
   ("datacon3.mz", pass);
   ("datacon4.mz", kfail);
+  ("datacon5.mz", pass);
   ("shortest.mz", pass);
   ("snapshot.mz", pass);
   ("adoptslib.mz", pass);
+  ("adoptable.mz", pass);
   ("wildcard1.mz", pass);
   ("wildcard2.mz", pass);
   ("flexbug.mz", fail);
   ("flexbug2.mz", fail);
   ("cons.mz", pass);
+  ("nesting00.mz", fail);
+  ("nesting02.mz", pass);
+  ("nesting03.mz", fail);
+  ("nesting04.mz", fail);
+  ("resugar.mz", pass_known_failure);
+  ("merge-bug.mz", fail);
+  ("merge-dont-pollute.mz", fail);
+  ("merge-dont-pollute2.mz", fail_known_failure);
+  ("destruct-unqualified.mz", fail);
+  ("get.mz", pass);
+  ("poly.mz", pass);
+
+  (* The following test(s) must pass *with a warning* *)
+  ("warninconsistent1.mz", pass);
 
   (* The tests below are intentionally not run as they cause the type-checker to
    * loop. We still want to list them as, eventually, we will want to fix them. *)
@@ -1053,6 +1070,7 @@ let tests: (string * ((unit -> env) -> unit)) list = [
   ("cyclic-list.mz", fun _ -> raise KnownFailure);
   ("cyclic-list2.mz", fun _ -> raise KnownFailure);
   ("diverge.mz", fail);
+  ("nesting01.mz", fun _ -> raise KnownFailure);
 ];;
 
 let mz_files_in_directory (dir : string) : string list =
@@ -1064,7 +1082,7 @@ let mz_files_in_directory (dir : string) : string list =
 let tests_in_directory dir =
   List.map (fun filename ->
     filename, pass
-  ) (mz_files_in_directory (Configure.root_dir ^ "/" ^ dir))
+  ) (mz_files_in_directory (Configure.src_dir ^ "/" ^ dir))
 
 let corelib_tests: (string * ((unit -> env) -> unit)) list =
   tests_in_directory "corelib"
@@ -1175,8 +1193,8 @@ let run_unit_tests () : unit =
 
 let () =
   let open Bash in
-  Driver.add_include_dir (Filename.concat Configure.root_dir "corelib");
-  Driver.add_include_dir (Filename.concat Configure.root_dir "stdlib");
+  Driver.add_include_dir (Filename.concat Configure.src_dir "corelib");
+  Driver.add_include_dir (Filename.concat Configure.src_dir "stdlib");
   let center s =
     let l = String.length s in
     let padding = String.make ((Bash.twidth - l) / 2) ' ' in
