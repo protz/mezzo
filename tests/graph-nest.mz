@@ -14,18 +14,16 @@ and mutable node_ (g: value) =
     neighbors: list (node g)
   }
 
-(* Assertions commented out because they make the type-checker loop. *)
-val _ =
+val _: graph =
   let g = Graph {
     roots = nil
   } in
-  (* assert g @ graph; *)
   let n = Node {
     neighbors = nil;
   } in
-  (* assert n @ node_ g; *)
-  (* assert g @ graph * n @ node_ g; *)
-  nest [g, (n @ node_ g), graph] ();
-  focus [g, (n @ node_ g), graph] ();
-  n.neighbors <- cons [node g] (n, nil);
-  defocus [g, (n @ node_ g), graph] ();
+  nest [g, (n @ node_ g)] ();
+  consult (fun (| n @ node_ g): () =
+    n.neighbors <- cons [node g] (n, nil);
+  );
+  g.roots <- cons (n, nil);
+  g
