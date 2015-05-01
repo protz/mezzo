@@ -977,7 +977,16 @@ let instantiate_flexible_raw (env: env) (v: var) (t: typ): env option =
 
     begin match modulo_flex_v env v with
     | TyOpen (VFlexible f) ->
-        Some (replace_flex env f (Instantiated t))
+        begin match t with
+        | TyOpen (VFlexible f') when f = f' ->
+            (* As insane as it sounds, yes, this can happen; actually
+             * instantiating a flexible variable onto itself would be 1) very
+             * bad in terms of implementation 2) is a tautology, so yeah,
+             * proceed. *)
+            Some env
+        | _ ->
+            Some (replace_flex env f (Instantiated t))
+        end
     | _ ->
         assert false
     end
