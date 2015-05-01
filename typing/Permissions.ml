@@ -819,10 +819,6 @@ and sub_type_with_unfolding (env: env) (t1: typ) (t2: typ): result =
          * leverage the add-sub smart routine. *)
         let ps1 = TyAnchoredPermission (TyOpen v, t1) :: ps1 in
         let ps2 = TyAnchoredPermission (TyOpen v, t2) :: ps2 in
-        Log.debug ~level:1 "add_sub %a %a\n%!"
-          TypePrinter.ptype (env, fold_star ps1)
-          TypePrinter.ptype (env, fold_star ps2);
-        flush stderr;
         add_sub env ps1 ps2 >>=
         qed
     | _ ->
