@@ -26,3 +26,6 @@ val _ =
   (* assert n @ node_ g; *)
   (* assert g @ graph * n @ node_ g; *)
   nest [g, (n @ node_ g), graph] ();
+  focus [g, (n @ node_ g), graph] ();
+  n.neighbors <- cons [node g] (n, nil);
+  defocus [g, (n @ node_ g), graph] ();
