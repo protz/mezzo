@@ -202,10 +202,14 @@ let rec infer (w : world) (ty : typ) : Fact.fact =
   (* [TyBar] is duplicable if both of its components are duplicable,
      and is exclusive if its left-hand component is exclusive. *)
 
+  | TyBar (TySingleton (TyOpen v), TyAnchoredPermission (TyOpen v', t)) when same w.env v v' ->
+      infer w t
+
   | TyBar (ty1, ty2) ->
       Fact.join
         (infer w ty1)
         (Fact.allow_exclusive (infer w ty2))
+
 
   (* [TyStar] is duplicable if both of its components are duplicable. *)
 

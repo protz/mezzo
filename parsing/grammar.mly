@@ -656,9 +656,15 @@ abbreviation_def:
   EQUAL t = arbitrary_type
     { { lhs = lhs k; rhs = Abbrev t } }
 
+abbrev_or_concrete:
+  | ALIAS x = abbreviation_def
+    { x }
+  | x = concrete_data_type_def
+    { x }
+
 %inline data_type_group_body:
 | DATA
-  defs = separated_nonempty_list(AND, concrete_data_type_def)
+  defs = separated_nonempty_list(AND, abbrev_or_concrete)
     { ($startpos(defs), $endpos), Recursive, defs }
 | ABSTRACT
   def = abstract_data_type_def

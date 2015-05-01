@@ -804,10 +804,26 @@ and sub_type_with_unfolding (env: env) (t1: typ) (t2: typ): result =
         (* Re-route this operation onto the add-sub dance. *)
         let t1, ps1 = collect t1 in
         let t2, ps2 = collect t2 in
-        let env, v = bind_rigid env (fresh_auto_name "stwu-ng", KValue, location env) in
-        add_sub env
-          (TyAnchoredPermission (TyOpen v, t1) :: ps1)
-          (TyAnchoredPermission (TyOpen v, t2) :: ps2) >>=
+        (* Find a name to stand for the value that has type t1 or t2. *)
+        let env, v =
+          match t1, t2 with
+          | _, TySingleton (TyOpen v)
+          | TySingleton (TyOpen v), _ ->
+              (* Name already there. *)
+              env, v
+          | _ ->
+              (* Fresh one *)
+              bind_rigid env (fresh_auto_name "stwu-ng", KValue, location env)
+        in
+        (* Reformat this as a conjunction of permissions at kind [perm] to
+         * leverage the add-sub smart routine. *)
+        let ps1 = TyAnchoredPermission (TyOpen v, t1) :: ps1 in
+        let ps2 = TyAnchoredPermission (TyOpen v, t2) :: ps2 in
+        Log.debug ~level:1 "add_sub %a %a\n%!"
+          TypePrinter.ptype (env, fold_star ps1)
+          TypePrinter.ptype (env, fold_star ps2);
+        flush stderr;
+        add_sub env ps1 ps2 >>=
         qed
     | _ ->
         assert false
@@ -1238,6 +1254,25 @@ and add_sub env ps1 ps2 =
       sse env [] ps1 ps2
     in
     let env, ps1, ps2 = strip_syntactically_equal env ps1 ps2 in
+
+
+    (** (1b) Strip trivial permissions *)
+    let strip_trivial env ps =
+      let is_non_trivial p =
+        match p with
+        | TyAnchoredPermission (x, t) when equal env (TySingleton x) t ->
+            false
+        | TyEmpty ->
+            false
+        | TyAnchoredPermission (_, t) when equal env TyUnknown t ->
+            false
+        | _ ->
+            true
+      in
+      List.filter is_non_trivial ps
+    in
+    let ps1 = strip_trivial env ps1 in
+    let ps2 = strip_trivial env ps2 in
 
 
     (** (2) In the case where we have "x @ t - ?x @ t", we recognize this as a

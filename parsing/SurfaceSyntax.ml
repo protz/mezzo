@@ -58,9 +58,7 @@ type datacon_info = {
   datacon_index: int;
   (* A map of field names to field indices. *)
   datacon_fields: int Field.Map.t;
-  (* Its flavor (i.e. is it mutable or immutable). Currently the surface syntax
-   * only allows us to define mutability per-datatype: we use the same value for
-   * all branches. *)
+  (* Its flavor (i.e. is it mutable or immutable). *)
   datacon_flavor: DataTypeFlavor.flavor;
 }
 

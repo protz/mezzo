@@ -1,0 +1,28 @@
+open list
+open nest
+
+data mutable graph =
+  (g: Graph {
+    roots: list (node g)
+  })
+
+and alias node (g: value) =
+  (n: unknown | nests g (n @ node_ g))
+
+and mutable node_ (g: value) =
+  Node {
+    neighbors: list (node g)
+  }
+
+(* Assertions commented out because they make the type-checker loop. *)
+val _ =
+  let g = Graph {
+    roots = nil
+  } in
+  (* assert g @ graph; *)
+  let n = Node {
+    neighbors = nil;
+  } in
+  (* assert n @ node_ g; *)
+  (* assert g @ graph * n @ node_ g; *)
+  nest [g, (n @ node_ g), graph] ();
