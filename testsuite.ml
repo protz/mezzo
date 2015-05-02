@@ -1060,6 +1060,7 @@ let tests: (string * ((unit -> env) -> unit)) list = [
   ("get.mz", pass);
   ("poly.mz", pass);
   ("tyexists-failure.mz", pass_known_failure);
+  ("module-lookup.mz", fail); (* Should fail but not throw the type-checker off the rails *)
 
   (* The following test(s) must pass *with a warning* *)
   ("warninconsistent1.mz", pass);
