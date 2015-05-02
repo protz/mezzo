@@ -1059,6 +1059,7 @@ let tests: (string * ((unit -> env) -> unit)) list = [
   ("destruct-unqualified.mz", fail);
   ("get.mz", pass);
   ("poly.mz", pass);
+  ("graph-nest.mz", pass);
 
   (* The following test(s) must pass *with a warning* *)
   ("warninconsistent1.mz", pass);

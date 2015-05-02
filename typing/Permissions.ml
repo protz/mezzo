@@ -787,9 +787,20 @@ and sub_constraints env cs : result =
     ) cs)
   )
 
-(** When comparing "list (a, b)" with "list (a*, b* )" you need to compare the
- * parameters, but for that, unfolding first is a good idea. This is one of the
- * two "sub" entry points that this module exports. *)
+(** The goal of this routine is to normalize the problem [t1 ≤ t2] so that it is
+ * put into the form:
+ *
+ *   p₁ ∗ … ∗ pₙ ≤ q₁ ∗ … ∗ qₙ
+ *
+ * Among the good properties of this routine is that it performs proper
+ * quantifier introduction / extraction (via [collect] / [expand_if_one_branch]
+ * / etc.) and also jumps into [add_sub] which has a ton of "smart" heuristics.
+ * [t1] may have any kind; the routine may bind a new rigid variable if [t1] is
+ * at kind [type].
+ *
+ * This routine is one of the two entry points that we export (i.e. one should
+ * always go through the normalization above before attempting anything).
+ *)
 and sub_type_with_unfolding (env: env) (t1: typ) (t2: typ): result =
   try_proof env (JSubType (t1, t2)) "With-Unfolding" begin
     let _, k = Kind.as_arrow (get_kind_for_type env t1) in
@@ -801,7 +812,11 @@ and sub_type_with_unfolding (env: env) (t1: typ) (t2: typ): result =
         sub_type env t1 t2 >>=
         qed
     | KType ->
-        (* Re-route this operation onto the add-sub dance. *)
+        (* Ok, this is slightly tricky, we have [t1] and [t2] at kind [type],
+         * but we want to flatten everything and obtain a conjunction of
+         * permissions. Therefore, we should either bind a new rigid variable x
+         * and try to solve [x @ t1 ≤ x @ t2], or "re-use" an existing variable
+         * if there's one. We try both. *)
         let t1, ps1 = collect t1 in
         let t2, ps2 = collect t2 in
         (* Find a name to stand for the value that has type t1 or t2. *)
