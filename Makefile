@@ -15,7 +15,7 @@ MZ_DIRS    := mezzolib corelib stdlib
 # Allow an override for Menhir.
 ifndef MENHIR
 # TEMPORARY
-  MENHIR := $(HOME)/dev/menhir/src/_stage1/menhir.native
+  MENHIR := $(HOME)/dev/menhir/src/_stage2/menhir.native
 # MENHIR := menhir
 endif
 
