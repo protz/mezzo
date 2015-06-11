@@ -1059,6 +1059,7 @@ let tests: (string * ((unit -> env) -> unit)) list = [
   ("destruct-unqualified.mz", fail);
   ("get.mz", pass);
   ("poly.mz", pass);
+  ("tyexists-failure.mz", pass_known_failure);
 
   (* The following test(s) must pass *with a warning* *)
   ("warninconsistent1.mz", pass);
@@ -1071,6 +1072,7 @@ let tests: (string * ((unit -> env) -> unit)) list = [
   ("cyclic-list2.mz", fun _ -> raise KnownFailure);
   ("diverge.mz", fail);
   ("nesting01.mz", fun _ -> raise KnownFailure);
+  ("loop.mz", fun _ -> raise KnownFailure);
 ];;
 
 let mz_files_in_directory (dir : string) : string list =
