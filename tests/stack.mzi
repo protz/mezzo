@@ -1,0 +1,13 @@
+open list
+
+abstract stack a
+
+val new : [a] (consumes list a) -> stack a
+
+val push : [a] (consumes list a, stack a) -> ()
+
+val work : [a, p : perm] (
+  s: stack a,
+  f: (consumes a | s @ stack a * p) -> ()
+| p) -> ()
+
