@@ -1,0 +1,16 @@
+open stack
+
+alias inhabitant =
+  (x: unknown)
+
+val dfs (s: stack inhabitant): () =
+  let f = fun (n: inhabitant) : () = () in
+  stack::work (s, f) (* the error occurs here *)
+
+(*
+
+Fatal error: exception File "typing/Permissions.ml",
+line 925, characters 6-12: Assertion failed
+
+*)
+

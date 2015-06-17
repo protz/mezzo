@@ -1,0 +1,42 @@
+open list
+open nest
+
+data mutable region =
+  Region
+
+alias inhabitant (rho : value) a =
+  (x: unknown | nests rho (x @ a))
+
+data mutable node (r: value) a =
+  Node {
+    neighbors: list (inhabitant r (node r a))
+  }
+
+alias inode (r: value) a =
+  inhabitant r (node r a)
+
+alias graph a =
+  (r: region, roots: list (inode r a))
+
+val g : graph int =
+  let r = Region in
+  let n = Node {
+    neighbors = nil;
+  } in
+  let ns = Cons { head = n; tail = Nil } in
+  nest [r, (n @ node r int)] ();
+  (r, ns)
+
+val dfs [a] (g: graph a): () =
+  ()
+
+val () =
+  dfs (g) (* the type-checker loops here! *)
+
+(* Surprisingly, we do get Stack_overflow after a long time. *)
+
+(* Adding a type annotation [int] causes the problem to disappear. *)
+
+(* The problem is apparently sensitive to the definition of [g]. Replacing
+   it with a simpler definition causes the problem to disappear. *)
+
