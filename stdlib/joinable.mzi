@@ -1,0 +1,21 @@
+(* The type [joinable a] is a thread which can be joined, yielding
+   a result of type [a]. *)
+
+abstract joinable a
+fact duplicable (joinable a)
+
+val spawn : [a, p: perm] (
+  f: (| consumes p) -> a
+| consumes p
+) -> joinable a
+
+(* [join] imposes no restriction on [a], but allows a thread to be joined
+   at most once. Any further attempts to join will result in a deadlock. *)
+
+val join : [a] joinable a -> a
+
+(* [join_] allows a thread to be joined multiple times. This is permitted
+   only if the type [a] is duplicable. *)
+
+val join_: [a] duplicable a => joinable a -> a
+

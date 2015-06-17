@@ -1,0 +1,49 @@
+open channel
+
+alias joinable a =
+  channel a
+
+val spawn [a, p: perm] (
+  f: (| consumes p) -> a
+| consumes p
+) : joinable a =
+  let c : channel a = channel::new() in
+  thread::spawn (fun (| consumes p) : () =
+    let x = f() in
+    channel::send (c, x)
+  );
+  c
+
+val join =
+  channel::receive
+
+val join_ [a] duplicable a => (c: channel a) : a =
+  let x = channel::receive c in
+  channel::send (c, x);
+  x
+
+(* [join_] can be viewed as a particular case of [join_transform] where
+   [f] is the function that duplicates its input. *)
+
+val join_transform [a, b] (c: channel a, f: a -> (a, b)) : b =
+  let x = channel::receive c in
+  let x, y = f x in
+  channel::send (c, x);
+  y
+
+(* TEMPORARY I wanted to also write [try_join] which succeeds the first
+   time it is called and fails thereafter. (See tests/joinable_thread.mz.)
+   But this seems to require a [channel (option a)], not a [channel a].
+   If we want to have just one type of joinable threads, then we may
+   need to change the definition of [joinable a] and introduce an option.
+   (Hence, one more dynamic test.)
+
+val try_join [a] (c: channel a) : option a =
+
+*)
+
+(*
+Local Variables:
+compile-command: "../mezzo joinable.mz"
+End:
+*)
