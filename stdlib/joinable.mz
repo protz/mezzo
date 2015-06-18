@@ -42,6 +42,9 @@ val try_join [a] (c: channel a) : option a =
 
 *)
 
+(* TEMPORARY are [joinable] and [future] two implementations of the
+   same abstract concept? *)
+
 (*
 Local Variables:
 compile-command: "../mezzo joinable.mz"
