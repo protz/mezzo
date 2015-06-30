@@ -107,6 +107,6 @@ val retrieve [a] (q: fifo a) : option a =
 
 (*
 Local Variables:
-compile-command: "../mezzo queue_nesting.mz"
+compile-command: "../mezzo nesting01.mz"
 End:
 *)
