@@ -3,7 +3,7 @@
 abstract nests (x : value) (p : perm) : perm
 fact duplicable (nests x p)
 
-val nest [x : value, p : perm, a] exclusive a => (| x @ a * consumes p) : (| nests x p) =
+val nest [x : value, p : perm] (| consumes p) : (| nests x p) =
   magic::magic ()
 
 abstract punched (a : type) (p : perm) : type
@@ -11,15 +11,8 @@ abstract punched (a : type) (p : perm) : type
 val focus [x : value, p : perm, a] exclusive a => (| consumes x @ a * nests x p) : (| x @ punched a p * p) =
   magic::magic ()
 
-val defocus [x : value, p : perm, a] (| consumes (x @ punched a p * p)) : (| x @ a) =
+val defocus [x : value, p : perm, a] exclusive a => (| consumes (x @ punched a p * p)) : (| x @ a) =
   magic::magic ()
-
-val nest_punched [x : value, p : perm, a, q : perm] (| x @ punched a q * consumes p) : (| nests x p) =
-  magic::magic ()
-
-(* TEMPORARY it is not very elegant to have both [nest] and [nest_punched].
-   A more general approach, allowing multi-focusing, would be more elegant,
-   but would need to be built into the system at a more primitive level. *)
 
 val consult [x : value, p : perm, a, pre : perm, b] exclusive a => (
   f: (| p * consumes pre) -> b

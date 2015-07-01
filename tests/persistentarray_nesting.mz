@@ -164,7 +164,7 @@ val set [a] duplicable a => (pa: parray a, i: int, v: a) : parray a =
     (* We need to nest [q] in [r] before we can defocus [p], because defocusing
        [p] requires [p.previous] to be a valid inhabitant of [r]. Thus, we must
        be able to nest a permission into a punched region. *)
-    nest_punched [r, (q @ point r a)] (); (* the system no longer infers the type application (q @ point r a)! *)
+    nest [r, (q @ point r a)] (); (* the system no longer infers the type application (q @ point r a)! *)
     p.previous <- q;
     defocus [r] ();
     PArray { contents = (r, l, q) }

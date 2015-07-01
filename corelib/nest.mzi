@@ -11,9 +11,9 @@ fact duplicable (nests x p)
 (* Nesting consumes the permission [p] and produces a nesting witness [nests x p].
    The instruction [nest [x, p] ()] is somewhat analogous to an adoption
    instruction, [give p to x]. The permission [p] becomes implicitly associated
-   with the address [x]. *)
+   with the address [x]. This operation is permitted even if one does not own [x]. *)
 
-val nest: [x : value, p : perm, a] exclusive a => (| x @ a * consumes p) -> (| nests x p)
+val nest: [x : value, p : perm] (| consumes p) -> (| nests x p)
 
 (* A punched type [punched a p] is used to keep track of the fact that a nested
    permission [p] has been temporarily recovered by focusing on [x]. This type
@@ -30,11 +30,7 @@ val focus: [x : value, p : perm, a] exclusive a => (| consumes x @ a * nests x p
 
 (* Defocusing is the reverse operation. The syntax is [defocus [x] ()]. *)
 
-val defocus: [x : value, p : perm, a] (| consumes (x @ punched a p * p)) -> (| x @ a)
-
-(* Nesting is permitted also while a region is punched. *)
-
-val nest_punched: [x : value, p : perm, a, q : perm] (| x @ punched a q * consumes p) -> (| nests x p)
+val defocus: [x : value, p : perm, a] exclusive a => (| consumes (x @ punched a p * p)) -> (| x @ a)
 
 (* [consult] is a short-hand for a well-parenthesized use of [focus] and [defocus].
    Its type is quite heavy, due to the higher-order pattern used here. *)

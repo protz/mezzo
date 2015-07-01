@@ -56,7 +56,7 @@ val internal_insert [a] (consumes x: a, q: fifo a, insertAtEnd: bool): () =
       c.next <- tail.next;
       (* [c] is now a cell, so it can be nested in [r]. *)
       assert c @ cell r a;
-      nest_punched [r, (c @ cell r a)] ();
+      nest [r, (c @ cell r a)] ();
       tail.next <- c;
       (* Because [tail.next] is [c], which is now a valid
         inhabitant of [r], we can argue that [tail] has
