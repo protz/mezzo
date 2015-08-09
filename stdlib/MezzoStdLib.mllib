@@ -12,6 +12,7 @@ mz_future
 mz_hashtable
 mz_hide
 mz_iterator
+mz_joinable
 mz_lazy
 mz_list
 mz_memoize
