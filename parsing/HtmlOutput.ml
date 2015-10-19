@@ -1,7 +1,7 @@
 open Printf
 open Buffer
 open Lexing
-open MenhirLib.ErrorReporting
+open ErrorReporting
 
 (* For convenience, we use a global buffer. *)
 
@@ -191,7 +191,8 @@ let run print_symbol filename explanations =
   assert (explanations <> []);
   (* Gather all positions. *)
   let positions : position list =
-    List.fold_left (fun accu { past; _ } ->
+    List.fold_left (fun accu explanation ->
+      let past = past explanation in
       assert (past <> []);
       List.fold_left (fun accu (_, pos1, pos2) ->
         pos1 :: pos2 :: accu
@@ -269,7 +270,10 @@ let run print_symbol filename explanations =
       );
     )
   ) (fun () ->
-    List.iter (fun { past; future; goal; _ } ->
+    List.iter (fun explanation ->
+      let past = past explanation
+      and future = future explanation
+      and goal = goal explanation in
       tr (fun () ->
         td "past" (fun () ->
           List.iter (fun (symbol, pos1, pos2) ->

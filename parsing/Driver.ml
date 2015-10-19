@@ -326,7 +326,7 @@ module P =
      end)
 
 module E =
-  MenhirLib.ErrorReporting.Make
+  ErrorReporting.Make
     (Grammar.MenhirInterpreter)
     (TT)
 
@@ -348,7 +348,7 @@ let lex_and_parse_raw lexbuf file_path (entry : unit -> 'a Grammar.MenhirInterpr
     | E.Error (_, explanations) ->
         MzString.beprintf "%a\nError: Syntax error\n"
           print_position lexbuf;
-        List.iter (fun e -> P.print_item e.MenhirLib.ErrorReporting.item) explanations;
+        List.iter (fun e -> P.print_item e.ErrorReporting.item) explanations;
         HtmlOutput.run PS.print_symbol file_path explanations "report.html";
         let start_pos = Lexer.start_pos lexbuf in
         let end_pos = Lexer.end_pos lexbuf in
