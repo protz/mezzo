@@ -82,7 +82,7 @@ function buildGraph({ svg, points, root, dot, error_message }) {
 
 function generateLineNumbers() {
   let total = $("#syntax").text().split("\n").length - 2;
-  let digits = function (x) (x+"").length;
+  let digits = function (x) { return (x+"").length };
   let pad = function (x) {
     let str = "";
     let n = digits(total) - digits(x);
@@ -91,7 +91,7 @@ function generateLineNumbers() {
     return str;
   };
   $("#linenos pre").text(
-    [pad(i) + i for (i in range(0, total))].join("\n")
+    [...Array(total).keys()].map(i => { return pad(i) + i} ).join("\n")
   );
 }
 
@@ -119,7 +119,7 @@ function fillInterface(aJson) {
     $("#type").text("a merge operation");
     // There's many sub-environments
     $("#subgraphs").show();
-    for each (let [i, env] in Iterator(aJson.sub_envs))
+    for (let [i, env] of (aJson.sub_envs.entries()))
       buildGraph(env)
         .prepend($("<p>").addClass("label").text("Sub-environment "+(i+1)))
         .appendTo($("#subgraphs"))
@@ -163,7 +163,8 @@ function displayDetails(infos) {
   $("#details").empty();
 
   $("#details").append($("<p>").addClass("label2").text("Names"));
-  for each (let [, [type, name]] in Iterator(names)) {
+
+  for (let [, [type, name]] of names.entries()) {
     if (type == "user")
       $("#details").append($("<span>").text(name));
     else if (type == "auto")
@@ -176,7 +177,8 @@ function displayDetails(infos) {
 
   $("#details").append($("<p>").addClass("label2").text("Known permissions"));
   let l = $("<ul>");
-  for each (let [, t] in Iterator(permissions)) {
+
+  for (let [, t] of permissions.entries()) {
     l.append($("<li>").text(t));
   }
   $("#details").append(l);

@@ -29,23 +29,11 @@ function decodeUrlParameters(aStr) {
   if (i >= 0) {
     let query = aStr.substring(i+1, aStr.length);
     let keyVals = query.split("&");
-    for each (let [, keyVal] in Iterator(keyVals)) {
+    for (let [i, keyVal]  of keyVals.entries()) {
       let [key, val] = keyVal.split("=");
       val = decodeURIComponent(val);
       params[key] = val;
     }
   }
   return params;
-}
-
-/**
- * Python-style range function to use in list comprehensions.
- *  @param {Number} begin
- *  @param {Number} end
- *  @return {Iterator} An iterator that yields from begin to end - 1.
- */
-function range(begin, end) {
-  for (let i = begin; i < end; ++i) {
-    yield i;
-  }
 }
